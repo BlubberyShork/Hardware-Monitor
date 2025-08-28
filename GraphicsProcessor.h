@@ -20,8 +20,10 @@ private:
 public:
 	GraphicsProcessor();
 	virtual ~GraphicsProcessor();
-
+	
+	///////////
 	// Setters
+	///////////
 	void setName(const bstr_t& name) { this->name = name; }
 	void setAdapterRAM(const ULONG& RAM) { this->adapter_RAM = RAM; }
 	void setDeviceId(const bstr_t& device_id) { this->device_id = device_id; }
@@ -31,7 +33,9 @@ public:
 	//void setSystemName(const bstr_t& system_name);
 	//void setStatusInfo(USHORT status_info);
 
+	///////////
 	// Getters
+	///////////
 	const bstr_t& getName() const { return this->name; }
 	const ULONG& getAdapterRAM() const { return this->adapter_RAM; }
 	const bstr_t& getDeviceId() const { return this->device_id; }
@@ -41,7 +45,9 @@ public:
 	//const bstr_t& getSystemName() const;
 	//USHORT getStatusInfo() const;
 
-	// Ooutput Functions
+	///////////
+	// Output Functions
+	///////////
 	void outputGPUInfo();
 };
 
