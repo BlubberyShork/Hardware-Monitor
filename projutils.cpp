@@ -1,109 +1,97 @@
 #include "projutils.h"
 
-_bstr_t simplifyBytesAsString(ULONG sz) {
-    ULONG sz_updating = sz;
+bstr_t simplifyBytesAsString(ULONGLONG sz) {
+    float sz_updating = (float) sz;
+    bstr_t unit = bstr_t("");
 
     int divisions = 0;
     while (sz_updating > BINARY_UNIT_MULTIPLIER) {
-        sz_updating = sz_updating / BINARY_UNIT_MULTIPLIER;
+        sz_updating = sz_updating / (float) BINARY_UNIT_MULTIPLIER;
         divisions++;
     }
-    _bstr_t value_as_str = _bstr_t(sz_updating);
+    bstr_t value_as_str = bstr_t(sz_updating);
 
-    _bstr_t unit = _bstr_t("");
-    switch (divisions) {
-    case 0:
-        unit = _bstr_t("B");
-        break;
-    case 1:
-        unit = _bstr_t("KB");
-        break;
-    case 2:
-        unit = _bstr_t("MB");
-        break;
-    case 3:
-        unit = _bstr_t("GB");
-        break;
-    case 4:
-        unit = _bstr_t("TB");
-        break;
-    case 5:
-        unit = _bstr_t("PB");
-        break;
-    default:
+    static const char* units[] = { "B", "KB", "MB", "GB", "TB", "PB", "EB" };
+
+    if (divisions < 0 || divisions > 7) {
         fprintf(stderr, "Invalid RAM size\n");
-        break;
+    }
+    else {
+        unit = bstr_t(units[divisions]);
     }
 
-    return _bstr_t(value_as_str + unit);
+    bstr_t result = value_as_str;
+    result += " ";
+    result += unit;
+    return result;
 }
 
-_bstr_t explainAvailability(USHORT av_status) {
-    _bstr_t ret = _bstr_t("");
+bstr_t explainAvailability(USHORT av_status) {
+    bstr_t ret = bstr_t("");
 
     switch (av_status) {
     case 1:
-        ret = _bstr_t("Other");
+        ret = bstr_t("Other");
         break;
     case 2:
-        ret = _bstr_t("Unknown");
+        ret = bstr_t("Unknown");
         break;
     case 3:
-        ret = _bstr_t("Running / Full Power");
+        ret = bstr_t("Running / Full Power");
         break;
     case 4:
-        ret = _bstr_t("Warning");
+        ret = bstr_t("Warning");
         break;
     case 5:
-        ret = _bstr_t("In Test");
+        ret = bstr_t("In Test");
         break;
     case 6:
-        ret = _bstr_t("Not Applicable");
+        ret = bstr_t("Not Applicable");
         break;
     case 7:
-        ret = _bstr_t("Power Off");
+        ret = bstr_t("Power Off");
         break;
     case 8:
-        ret = _bstr_t("Offline");
+        ret = bstr_t("Offline");
         break;
     case 9:
-        ret = _bstr_t("Off Duty");
+        ret = bstr_t("Off Duty");
         break;
     case 10:
-        ret = _bstr_t("Degraded");
+        ret = bstr_t("Degraded");
         break;
     case 11:
-        ret = _bstr_t("Not Installed");
+        ret = bstr_t("Not Installed");
         break;
     case 12:
-        ret = _bstr_t("Install Error");
+        ret = bstr_t("Install Error");
         break;
     case 13:
-        ret = _bstr_t("Power Save State, Status Unknown");
+        ret = bstr_t("Power Save State, Status Unknown");
         break;
     case 14:
-        ret = _bstr_t("Power Save State - Low Power Mode");
+        ret = bstr_t("Power Save State - Low Power Mode");
         break;
     case 15:
-        ret = _bstr_t("Power Save State - On Standby");
+        ret = bstr_t("Power Save State - On Standby");
         break;
     case 16:
-        ret = _bstr_t("Power Cycle");
+        ret = bstr_t("Power Cycle");
         break;
     case 17:
-        ret = _bstr_t("Power Save State - Warning State");
+        ret = bstr_t("Power Save State - Warning State");
         break;
     case 18:
-        ret = _bstr_t("Paused");
+        ret = bstr_t("Paused");
         break;
     case 19:
-        ret = _bstr_t("Not Ready");
+        ret = bstr_t("Not Ready");
         break;
     case 20:
-        ret = _bstr_t("Not Configured");
+        ret = bstr_t("Not Configured");
         break;
     case 21:
-        ret = _bstr_t("Quiesced - The Device Is Quiet");
+        ret = bstr_t("Quiesced - The Device Is Quiet");
         break;
     default:
         fprintf(stderr, "Invalid Availability\n");

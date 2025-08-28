@@ -9,7 +9,7 @@
 #include "windows.h"
 #include <comdef.h>
 
-#define BINARY_UNIT_MULTIPLIER (ULONG)1024
+#define BINARY_UNIT_MULTIPLIER (ULONGLONG)1024
 
-_bstr_t simplifyBytesAsString(ULONG sz);
+_bstr_t simplifyBytesAsString(ULONGLONG sz);
 _bstr_t explainAvailability(USHORT av_status);
