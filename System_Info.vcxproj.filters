@@ -24,12 +24,24 @@
     <ClCompile Include="projutils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="motherboard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="storagedevice.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GraphicsProcessor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="projutils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="motherboard.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="storagedevice.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

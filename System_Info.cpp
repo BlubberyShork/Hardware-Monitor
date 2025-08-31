@@ -1,19 +1,21 @@
 #define _WIN32_DCOM
 
 #include "projutils.h"
+#include "GraphicsProcessor.h"
+#include "motherboard.h"
+#include "storagedevice.h"
 
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 
 #include <iostream>
 #include <wbemidl.h>
-#include "GraphicsProcessor.h"
 #include <vector>
+#include <unordered_map>
 
 
 #pragma comment(lib, "wbemuuid.lib")
 
-using namespace ::std;
 
 // Code is pulled from the example code on https://learn.microsoft.com/en-us/windows/win32/wmisdk/initializing-com-for-a-wmi-application
 void InitializeCOM()
@@ -24,8 +26,8 @@ void InitializeCOM()
     hr = CoInitializeEx(0, COINIT_MULTITHREADED);
     if (FAILED(hr))
     {
-        cout << "Failed to initialize COM library. Error code = 0x"
-            << hex << hr << endl;
+        std::cout << "Failed to initialize COM library. Error code = 0x"
+            << std::hex << hr << std::endl;
     }
 
     // Second step: Setting security levels
@@ -42,8 +44,8 @@ void InitializeCOM()
 
     if (FAILED(hr))
     {
-        cout << "Failed to initialize security. Error code = 0x"
-            << hex << hr << endl;
+        std::cout << "Failed to initialize security. Error code = 0x"
+            << std::hex << hr << std::endl;
         CoUninitialize();
     }
 }
@@ -58,13 +60,12 @@ void setupWBEM(IWbemLocator*& loc, IWbemServices*& svcs) // *& grabs the actual 
         0,
         CLSCTX_INPROC_SERVER, 
         IID_IWbemLocator, 
-        (LPVOID*)&loc
-    );
+        (LPVOID*)&loc);
 
     if (FAILED(hr))
     {
-        cout << "Failed to create IWbemLocator object. Error code = 0x"
-            << hex << hr << endl;
+        std::cout << "Failed to create IWbemLocator object. Error code = 0x"
+            << std::hex << hr << std::endl;
         CoUninitialize();
     }
 
@@ -80,8 +81,8 @@ void setupWBEM(IWbemLocator*& loc, IWbemServices*& svcs) // *& grabs the actual 
 
     if (FAILED(hr))
     {
-        cout << "Could not connect. Error code = 0x"
-            << hex << hr << endl;
+        std::cout << "Could not connect. Error code = 0x"
+            << std::hex << hr << std::endl;
         loc->Release();
         CoUninitialize();
     }
@@ -90,19 +91,19 @@ void setupWBEM(IWbemLocator*& loc, IWbemServices*& svcs) // *& grabs the actual 
 
 void infoGPU(IWbemLocator*& loc, IWbemServices*& svcs, std::vector<GraphicsProcessor>& gpu_list) {
     IEnumWbemClassObject *GPU_enumerator = nullptr;
-    IWbemClassObject* gpu_class_obj = nullptr;
+    IWbemClassObject *gpu_class_obj = nullptr;
     ULONG u_ret = 0;
 
-    HRESULT res = svcs->ExecQuery(
+    HRESULT gpu_query = svcs->ExecQuery(
         bstr_t("WQL"),
         bstr_t("SELECT * FROM Win32_VideoController"),
         WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
         NULL,
-        &GPU_enumerator
-    );
+        &GPU_enumerator);
 
-    if (FAILED(res)) {
-        std::cout << "Win32_VideoController error";
+    if (FAILED(gpu_query)) {
+        std::cout << "Win32_VideoController Error HRESULT: 0x" 
+            << std::hex << gpu_query << "\n";
         svcs->Release();
         loc->Release();
         CoUninitialize();
@@ -136,7 +137,7 @@ void infoGPU(IWbemLocator*& loc, IWbemServices*& svcs, std::vector<GraphicsProce
         gpu.setAdapterRAM(adapter_RAM.ulVal);
         gpu.setDeviceId(device_ID.bstrVal);
         gpu.setAvailability(availability.uiVal);
-        gpu.setCurrRefreshRate(availability.ulVal);
+        gpu.setCurrentRefreshRate(availability.ulVal);
         gpu.setStatus(status.bstrVal);
 
         VariantClear(&name);
@@ -150,7 +151,7 @@ void infoGPU(IWbemLocator*& loc, IWbemServices*& svcs, std::vector<GraphicsProce
     }
 }
 
-void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs) {
+void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs, std::vector<Motherboard>& mboard_list) {
     //TODO - use the smbios table maybe if we want more but I think we are good here for now
     //GetSystemFirmwareTable
 
@@ -158,29 +159,28 @@ void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs) {
     IWbemClassObject *mboard = nullptr;
     ULONG u_ret = 0;
 
-    HRESULT svcs_res = svcs->ExecQuery(
+    HRESULT mboard_query = svcs->ExecQuery(
         bstr_t("WQL"),
         bstr_t("SELECT * FROM Win32_BaseBoard"),
         WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
         NULL,
-        &mboard_enumerator
-    );
+        &mboard_enumerator);
 
-    if (FAILED(svcs_res)) {
-        std::cout << "Win32_BaseBoard error";
+    if (FAILED(mboard_query)) {
+        std::cout << "Win32_BaseBoard error. HRESULT: 0x"
+            << std::hex << mboard_query << "\n";
         svcs->Release();
         loc->Release();
         CoUninitialize();
     }
 
-    std::wcout << "--------------------------------------------------------------\n";
-    std::wcout << "     ** Motherboard **\n\n";
     while (mboard_enumerator) {
         HRESULT mboard_res = mboard_enumerator->Next(WBEM_INFINITE, 1, &mboard, &u_ret);
         if (u_ret == 0) {
             break;
         }
 
+        Motherboard mboard_obj;
         VARIANT description, hostingBoard, poweredOn, product, status;
 
         VariantInit(&description);
@@ -195,22 +195,13 @@ void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs) {
         mboard->Get(L"Product", 0, &product, 0, 0); //bstr_t
         mboard->Get(L"Status", 0, &status, 0, 0); //bstr_t
         
-        // Output with null checks
-        if (description.vt == VT_BSTR && description.bstrVal != NULL)
-            std::wcout << "Description: " << description.bstrVal << std::endl;
-
-        if (hostingBoard.vt == VT_BOOL)
-            std::wcout << "HostingBoard: " << (hostingBoard.boolVal == VARIANT_TRUE ? "True" : "False") << std::endl;
-
-        if (poweredOn.vt == VT_BOOL)
-            std::wcout << "PoweredOn: " << (poweredOn.boolVal == VARIANT_TRUE ? "True" : "False") << std::endl;
-
-        if (product.vt == VT_BSTR && product.bstrVal != NULL)
-            std::wcout << "Product: " << product.bstrVal << std::endl;
-
-        if (status.vt == VT_BSTR && status.bstrVal != NULL)
-            std::wcout << "Status: " << status.bstrVal << std::endl;
-
+        mboard_obj.setDesc(description.bstrVal);
+        BOOL hb_b = hostingBoard.boolVal == VARIANT_TRUE ? TRUE : FALSE;
+        mboard_obj.setHostingBoard(hb_b);
+        mboard_obj.setPoweredOn(BOOL(poweredOn.pboolVal));
+        mboard_obj.setProduct(product.bstrVal);
+        mboard_obj.setStatus(status.bstrVal);
+        
         // Clear all variants
         VariantClear(&description);
         VariantClear(&hostingBoard);
@@ -218,31 +209,31 @@ void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs) {
         VariantClear(&product);
         VariantClear(&status);
 
-        std::wcout << "\n";
+        mboard_list.push_back(mboard_obj);
     }
-
 }
 
-void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs) {
+inline void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs) {
     // TODO - Change these to populate data structures so we can keep info together and speed up refreshed info
     IEnumWbemClassObject *disk_enumerator = nullptr;
     IEnumWbemClassObject *msft_enumerator = nullptr;
-    IEnumWbemClassObject* ld_enumerator = nullptr;
+    IEnumWbemClassObject *ld_enumerator = nullptr;
     IWbemClassObject *disk = nullptr;
     IWbemClassObject *msft_phys = nullptr;
-    IWbemClassObject* ld = nullptr;
+    IWbemClassObject *ld = nullptr;
     ULONG u_ret = 0;
+    //TODO - gather device ID and store those as well
 
     HRESULT dd_query = svcs->ExecQuery(
         bstr_t("WQL"),
         bstr_t("SELECT * FROM Win32_DiskDrive"),
         WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
         NULL,
-        &disk_enumerator
-    );
+        &disk_enumerator);
 
     if (FAILED(dd_query)) {
-        std::wcout << "Win32_DiskDrive Error. HRESULT: 0x" << std::hex << dd_query << std::endl;
+        std::wcout << "Win32_DiskDrive Error. HRESULT: 0x" 
+            << std::hex << dd_query << std::endl;
         svcs->Release();
         loc->Release();
         CoUninitialize();
@@ -256,9 +247,11 @@ void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs) {
         if (u_ret == 0) {
             break;
         }
+        //TODO - create dd here, count index, then store it
 
-        VARIANT name, manufacturer, model;
+        VARIANT device_id, name, manufacturer, model;
 
+        VariantInit(&device_id);
         VariantInit(&name);
         VariantInit(&manufacturer);
         VariantInit(&model);
@@ -266,11 +259,14 @@ void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs) {
         disk->Get(L"Name", 0, &name, 0, 0);
         disk->Get(L"Manufacturer", 0, &manufacturer, 0, 0);
         disk->Get(L"Model", 0, &model, 0, 0);
+        disk->Get(L"DeviceId", 0, &device_id, 0, 0);
 
+        std::wcout << "Device ID: " << device_id.bstrVal << "\n";
         std::wcout << "Name: " << name.bstrVal << "\n";
         std::wcout << "Manufacturer: " << manufacturer.bstrVal << "\n";
         std::wcout << "Model: " << model.bstrVal << "\n";
-
+        
+        VariantClear(&device_id);
         VariantClear(&name);
         VariantClear(&manufacturer);
         VariantClear(&model);
@@ -284,19 +280,18 @@ void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs) {
         NULL, 
         0, 
         0, 
-        &svcs
-    );
+        &svcs);
 
     HRESULT pd_query = svcs->ExecQuery(
         bstr_t("WQL"),
         bstr_t("SELECT * FROM MSFT_PhysicalDisk"),
         WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
         NULL,
-        &msft_enumerator
-    );
+        &msft_enumerator);
 
     if (FAILED(pd_query)) {
-        std::wcout << "MSFT_PhysicalDisk Error. HRESULT: 0x" << std::hex << pd_query << std::endl;
+        std::wcout << "MSFT_PhysicalDisk Error. HRESULT: 0x" 
+            << std::hex << pd_query << std::endl;
         svcs->Release();
         loc->Release();
         CoUninitialize();
@@ -339,41 +334,55 @@ void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs) {
             bstr_t("SELECT * FROM Win32_LogicalDisk"),
             WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
             NULL,
-            &ld_enumerator
-        );
+            &ld_enumerator);
 
         if (FAILED(ld_query)) {
-            std::wcout << "Win32_LogicalDisk Error. HRESULT: 0x" << std::hex << ld_query << std::endl;
+            std::wcout << "Win32_LogicalDisk Error. HRESULT: 0x" 
+                << std::hex << ld_query << std::endl;
             svcs->Release();
             loc->Release();
             CoUninitialize();
             return;
         }
+    }
 
-        while (ld_enumerator) {
-            ld_enumerator->Next(WBEM_INFINITE, 1, &ld, &u_ret);
-            if (u_ret == 0) {
-                break;
-            }
-
+    while (ld_enumerator) {
+        ld_enumerator->Next(WBEM_INFINITE, 1, &ld, &u_ret);
+        if (u_ret == 0) {
+            break;
         }
+
+        VARIANT fs, sz;
+
+        VariantInit(&fs);
+        VariantInit(&sz);
+
+        ld->Get(L"FreeSpace", 0, &fs, 0, 0);
+        ld->Get(L"Size", 0, &sz, 0, 0);
+
+        std::wcout << "FreeSpace: " << fs.ullVal << std::endl;
+        std::wcout << "Size: " << fs.ullVal << std::endl;
+      
+        VariantClear(&fs);
+        VariantClear(&sz);
     }
 }
 
-
 int main()
 {
-    IWbemLocator* loc = nullptr;
-    IWbemServices* svcs = nullptr;
-    IWbemRefresher* refresher = nullptr;
+    IWbemLocator *loc = nullptr;
+    IWbemServices *svcs = nullptr;
+    IWbemRefresher *refresher = nullptr;
 
     InitializeCOM();
     setupWBEM(loc, svcs);
 
     std::vector<GraphicsProcessor> gpu_list;
-    //std::vector<MotherBoard> mboard_list;
+    std::vector<Motherboard> mboard_list;
+    // std::unordered_map<bstr_t, StorageDevice> storage_map; 
+        // TODO - ^Must make my own hash function. Key type: bstr_t not supported
 
-    infoMotherboard(loc, svcs);
+    infoMotherboard(loc, svcs, mboard_list);
     infoGPU(loc, svcs, gpu_list);
     //infoCPU(loc, svcs);   TODO!
     infoPhysicalDrive(loc, svcs);   
@@ -384,8 +393,14 @@ int main()
     for (int i = 0; i < gpu_list.size(); i++) {
         gpu_list[i].outputGPUInfo();
     }
+    std::wcout << std::endl;
 
-
+    std::wcout << "--------------------------------------------------------------\n";
+    std::wcout << "     ** Motherboard ** \n\n";
+    for (int i = 0; i < mboard_list.size(); i++) {
+        mboard_list[i].outputMotherboardInfo();
+    }
+    std::wcout << std::endl;
 
     // Check for mem leaks
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);

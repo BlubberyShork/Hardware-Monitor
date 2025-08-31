@@ -1,9 +1,5 @@
 #include "GraphicsProcessor.h"
 
-GraphicsProcessor::GraphicsProcessor() {
-
-}
-
 GraphicsProcessor::~GraphicsProcessor() {
 
 }
