@@ -128,12 +128,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="GraphicsProcessor.cpp" />
+    <ClCompile Include="motherboard.cpp" />
     <ClCompile Include="projutils.cpp" />
+    <ClCompile Include="storagedevice.cpp" />
     <ClCompile Include="System_Info.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GraphicsProcessor.h" />
+    <ClInclude Include="motherboard.h" />
     <ClInclude Include="projutils.h" />
+    <ClInclude Include="storagedevice.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
