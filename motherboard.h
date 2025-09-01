@@ -15,7 +15,7 @@ private:
 	bstr_t status;
 
 public:
-	Motherboard() = default;
+	Motherboard();
 	//TODO - otherconstructor
 	virtual ~Motherboard();
 

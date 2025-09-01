@@ -18,7 +18,7 @@ private:
 	//USHORT  status_info;
 
 public:
-	GraphicsProcessor() = default;
+	GraphicsProcessor();
 	//todo - constructor with all 
 	virtual ~GraphicsProcessor();
 
@@ -27,7 +27,7 @@ public:
 	void setAdapterRAM(ULONG RAM) { adapter_RAM = RAM; }
 	void setDeviceId(const bstr_t& id) { device_id = id; }
 	void setAvailability(USHORT avail) { availability = avail; }
-	void setCurrentRefreshRate(ULONG curr_ref_rate) { curr_ref_rate = curr_ref_rate; }
+	void setCurrentRefreshRate(ULONG crr) { curr_ref_rate = crr; }
 	void setStatus(const bstr_t& s) { status = s; }
 
 	// Getters

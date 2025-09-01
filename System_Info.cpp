@@ -12,6 +12,7 @@
 #include <wbemidl.h>
 #include <vector>
 #include <unordered_map>
+#include <string>
 
 
 #pragma comment(lib, "wbemuuid.lib")
@@ -213,17 +214,27 @@ void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs, std::vector<Mothe
     }
 }
 
-inline void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs) {
-    // TODO - Change these to populate data structures so we can keep info together and speed up refreshed info
-    IEnumWbemClassObject *disk_enumerator = nullptr;
-    IEnumWbemClassObject *msft_enumerator = nullptr;
-    IEnumWbemClassObject *ld_enumerator = nullptr;
-    IWbemClassObject *disk = nullptr;
-    IWbemClassObject *msft_phys = nullptr;
-    IWbemClassObject *ld = nullptr;
-    ULONG u_ret = 0;
-    //TODO - gather device ID and store those as well
+//TODO - producer consumer thread handle this
+inline void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs, 
+    std::unordered_map<bstr_t, StorageDevice, bstrHash, bstrEqual> sd_hmap) {
+    
+    std::unordered_map<IWbemClassObject*, IWbemClassObject*, bstrHash, bstrEqual> ddtp_hmap; // drive_id, partitions
+    std::unordered_map<IWbemClassObject*, IWbemClassObject*, bstrHash, bstrEqual> ldtp_hmap; // partitions, logical devices
 
+    IEnumWbemClassObject *disk_enumerator = nullptr;
+    IEnumWbemClassObject *ddtp_enumerator = nullptr;
+    IEnumWbemClassObject *ld_enumerator = nullptr;
+    IEnumWbemClassObject *msft_enumerator = nullptr;
+    IWbemClassObject *disk = nullptr;
+    IWbemClassObject *ddtp = nullptr;
+    IWbemClassObject *log_disk = nullptr;
+    IWbemClassObject *msft_phys = nullptr;
+
+    ULONG u_ret = 0;
+
+    ////////////////////
+    // DiskDrive Query
+    ////////////////////
     HRESULT dd_query = svcs->ExecQuery(
         bstr_t("WQL"),
         bstr_t("SELECT * FROM Win32_DiskDrive"),
@@ -247,7 +258,8 @@ inline void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs) {
         if (u_ret == 0) {
             break;
         }
-        //TODO - create dd here, count index, then store it
+
+        StorageDevice sd;
 
         VARIANT device_id, name, manufacturer, model;
 
@@ -261,10 +273,12 @@ inline void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs) {
         disk->Get(L"Model", 0, &model, 0, 0);
         disk->Get(L"DeviceId", 0, &device_id, 0, 0);
 
-        std::wcout << "Device ID: " << device_id.bstrVal << "\n";
-        std::wcout << "Name: " << name.bstrVal << "\n";
-        std::wcout << "Manufacturer: " << manufacturer.bstrVal << "\n";
-        std::wcout << "Model: " << model.bstrVal << "\n";
+        sd.setDeviceID(device_id.bstrVal);
+        sd.setName(name.bstrVal);
+        sd.setManufacturer(manufacturer.bstrVal);
+        sd.setModel(model.bstrVal);
+
+        sd_hmap.insert({bstr_t(device_id.bstrVal), sd});
         
         VariantClear(&device_id);
         VariantClear(&name);
@@ -272,6 +286,50 @@ inline void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs) {
         VariantClear(&model);
     }
 
+    /////////////////////////////
+    // Win32_DiskDriveToPartition Query
+    /////////////////////////////
+    HRESULT ddtp_query = svcs->ExecQuery(
+        bstr_t("WQL"),
+        bstr_t("SELECT * FROM Win32_DiskDriveToPartition"),
+        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+        NULL,
+        &ddtp_enumerator);
+
+    if (FAILED(ddtp_query)) {
+        std::wcout << "Win32_DiskDriveToPartition Error. HRESULT: 0x"
+            << std::hex << ddtp_query << std::endl;
+        svcs->Release();
+        loc->Release();
+        CoUninitialize();
+        return;
+    }
+
+    while (ddtp_enumerator) {
+        HRESULT disk_res = ddtp_enumerator->Next(WBEM_INFINITE, 1, &ddtp, &u_ret);
+        if (u_ret == 0) {
+            break;
+        }
+
+        VARIANT ant, dep;
+
+        VariantInit(&ant);
+        VariantInit(&dep);
+
+        ddtp->Get(L"Antecedent", 0, &ant, 0, 0);
+        ddtp->Get(L"Dependent", 0, &dep, 0, 0);
+
+        VariantClear(&ant);
+        VariantClear(&dep);
+    }
+
+    /////////////////////////////
+    // Win32_LogicalDisk Query
+    /////////////////////////////
+    
+    /////////////////////////////
+    // MSFT_PhysicalDisk Query
+    /////////////////////////////
     HRESULT hr = loc->ConnectServer(
         bstr_t(L"ROOT\\Microsoft\\Windows\\Storage"),
         NULL,
@@ -318,54 +376,17 @@ inline void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs) {
         }
 
         VariantClear(&spindle_speed);
-
-        hr = loc->ConnectServer(
-            BSTR(L"ROOT\\CIMV2"),   // namespace
-            NULL,                   // User name
-            NULL,                   // User password
-            0,                      // Locale
-            NULL,                   // Security flags
-            0,                      // Authority
-            0,                      // Context object
-            &svcs);                 // IWbemServices proxy
-
-        HRESULT ld_query = svcs->ExecQuery(
-            bstr_t("WQL"),
-            bstr_t("SELECT * FROM Win32_LogicalDisk"),
-            WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
-            NULL,
-            &ld_enumerator);
-
-        if (FAILED(ld_query)) {
-            std::wcout << "Win32_LogicalDisk Error. HRESULT: 0x" 
-                << std::hex << ld_query << std::endl;
-            svcs->Release();
-            loc->Release();
-            CoUninitialize();
-            return;
-        }
     }
 
-    while (ld_enumerator) {
-        ld_enumerator->Next(WBEM_INFINITE, 1, &ld, &u_ret);
-        if (u_ret == 0) {
-            break;
-        }
-
-        VARIANT fs, sz;
-
-        VariantInit(&fs);
-        VariantInit(&sz);
-
-        ld->Get(L"FreeSpace", 0, &fs, 0, 0);
-        ld->Get(L"Size", 0, &sz, 0, 0);
-
-        std::wcout << "FreeSpace: " << fs.ullVal << std::endl;
-        std::wcout << "Size: " << fs.ullVal << std::endl;
-      
-        VariantClear(&fs);
-        VariantClear(&sz);
-    }
+    hr = loc->ConnectServer(
+        BSTR(L"ROOT\\CIMV2"),   // namespace
+        NULL,                   // User name
+        NULL,                   // User password
+        0,                      // Locale
+        NULL,                   // Security flags
+        0,                      // Authority
+        0,                      // Context object
+        &svcs);                 // IWbemServices proxy
 }
 
 int main()
@@ -379,13 +400,14 @@ int main()
 
     std::vector<GraphicsProcessor> gpu_list;
     std::vector<Motherboard> mboard_list;
-    // std::unordered_map<bstr_t, StorageDevice> storage_map; 
+    std::unordered_map<bstr_t, StorageDevice, bstrHash, bstrEqual> sd_hmap; 
         // TODO - ^Must make my own hash function. Key type: bstr_t not supported
+
 
     infoMotherboard(loc, svcs, mboard_list);
     infoGPU(loc, svcs, gpu_list);
     //infoCPU(loc, svcs);   TODO!
-    infoPhysicalDrive(loc, svcs);   
+    infoPhysicalDrive(loc, svcs, sd_hmap);   
     //infoTemperatures();
 
     std::wcout << "--------------------------------------------------------------\n";
