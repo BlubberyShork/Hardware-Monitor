@@ -1,6 +1,5 @@
 #define _WIN32_DCOM
 
-#include "projutils.h"
 #include "GraphicsProcessor.h"
 #include "motherboard.h"
 #include "storagedevice.h"
@@ -13,6 +12,7 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <variant>
 
 
 #pragma comment(lib, "wbemuuid.lib")
@@ -21,7 +21,6 @@
 // Code is pulled from the example code on https://learn.microsoft.com/en-us/windows/win32/wmisdk/initializing-com-for-a-wmi-application
 void InitializeCOM()
 {
-
     // First step: Initialize COM
     HRESULT hr;
     hr = CoInitializeEx(0, COINIT_MULTITHREADED);
@@ -141,6 +140,8 @@ void infoGPU(IWbemLocator*& loc, IWbemServices*& svcs, std::vector<GraphicsProce
         gpu.setCurrentRefreshRate(availability.ulVal);
         gpu.setStatus(status.bstrVal);
 
+        gpu_list.push_back(gpu);
+
         VariantClear(&name);
         VariantClear(&adapter_RAM);
         VariantClear(&device_ID);
@@ -148,8 +149,9 @@ void infoGPU(IWbemLocator*& loc, IWbemServices*& svcs, std::vector<GraphicsProce
         VariantClear(&curr_refresh_rate);
         VariantClear(&status);
 
-        gpu_list.push_back(gpu);
+        gpu_class_obj->Release();
     }
+    GPU_enumerator->Release();
 }
 
 void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs, std::vector<Motherboard>& mboard_list) {
@@ -203,143 +205,221 @@ void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs, std::vector<Mothe
         mboard_obj.setProduct(product.bstrVal);
         mboard_obj.setStatus(status.bstrVal);
         
+        mboard_list.push_back(mboard_obj);
+
         // Clear all variants
         VariantClear(&description);
         VariantClear(&hostingBoard);
         VariantClear(&poweredOn);
         VariantClear(&product);
         VariantClear(&status);
-
-        mboard_list.push_back(mboard_obj);
+        mboard->Release();
     }
+    mboard_enumerator->Release();
+
 }
 
 //TODO - producer consumer thread handle this
-inline void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs, 
-    std::unordered_map<bstr_t, StorageDevice, bstrHash, bstrEqual> sd_hmap) {
+void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs, 
+    std::vector<StorageDevice> sd_list) {
     
-    std::unordered_map<IWbemClassObject*, IWbemClassObject*, bstrHash, bstrEqual> ddtp_hmap; // drive_id, partitions
-    std::unordered_map<IWbemClassObject*, IWbemClassObject*, bstrHash, bstrEqual> ldtp_hmap; // partitions, logical devices
+    std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual> d_hmap;
+    std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash> p_hmap;
+    std::unordered_map<wchar_t, Volume> v_hmap;
+    std::unordered_map<bstr_t, PhysDisk, bstrHash, bstrEqual> pd_hmap;
 
     IEnumWbemClassObject *disk_enumerator = nullptr;
-    IEnumWbemClassObject *ddtp_enumerator = nullptr;
-    IEnumWbemClassObject *ld_enumerator = nullptr;
+    IEnumWbemClassObject *part_enumerator = nullptr;
     IEnumWbemClassObject *msft_enumerator = nullptr;
-    IWbemClassObject *disk = nullptr;
-    IWbemClassObject *ddtp = nullptr;
-    IWbemClassObject *log_disk = nullptr;
+    IEnumWbemClassObject *vol_enumerator = nullptr;
+    IWbemClassObject *disk_obj = nullptr;
+    IWbemClassObject *part_obj = nullptr;
+    IWbemClassObject *vol_obj = nullptr;
     IWbemClassObject *msft_phys = nullptr;
 
     ULONG u_ret = 0;
 
-    ////////////////////
-    // DiskDrive Query
-    ////////////////////
-    HRESULT dd_query = svcs->ExecQuery(
+    //Prepping for MSFT queries
+    HRESULT hr = loc->ConnectServer(
+        bstr_t(L"ROOT\\Microsoft\\Windows\\Storage"),
+        NULL,
+        NULL,
+        0,
+        NULL,
+        0,
+        0,
+        &svcs);
+
+    if (FAILED(hr)) {
+        std::wcout << L"Failed to connect to storage namespace\n";
+        return;
+    }
+
+    //////////////////////////////
+    // Direct Disk Query
+    //////////////////////////////
+    HRESULT disk_query = svcs->ExecQuery(
         bstr_t("WQL"),
-        bstr_t("SELECT * FROM Win32_DiskDrive"),
+        bstr_t("SELECT * FROM MSFT_Disk"),
         WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
         NULL,
         &disk_enumerator);
 
-    if (FAILED(dd_query)) {
-        std::wcout << "Win32_DiskDrive Error. HRESULT: 0x" 
-            << std::hex << dd_query << std::endl;
-        svcs->Release();
-        loc->Release();
-        CoUninitialize();
+    if (FAILED(disk_query)) {
+        std::wcout << L"MSFT_Disk Error. HRESULT: 0x"
+            << std::hex << disk_query << std::endl;
         return;
     }
 
-    std::wcout << "--------------------------------------------------------------\n";
-    std::wcout << "     ** Storage Devices (Physical Drives) **\n\n";
     while (disk_enumerator) {
-        HRESULT disk_res = disk_enumerator->Next(WBEM_INFINITE, 1, &disk, &u_ret);
+        disk_enumerator->Next(WBEM_INFINITE, 1, &disk_obj, &u_ret);
         if (u_ret == 0) {
             break;
         }
 
-        StorageDevice sd;
-
-        VARIANT device_id, name, manufacturer, model;
-
-        VariantInit(&device_id);
-        VariantInit(&name);
+        VARIANT unq_id, fname, manufacturer, model, d_sz;
+        VariantInit(&unq_id);
+        VariantInit(&fname);
         VariantInit(&manufacturer);
         VariantInit(&model);
+        VariantInit(&d_sz);
 
-        disk->Get(L"Name", 0, &name, 0, 0);
-        disk->Get(L"Manufacturer", 0, &manufacturer, 0, 0);
-        disk->Get(L"Model", 0, &model, 0, 0);
-        disk->Get(L"DeviceId", 0, &device_id, 0, 0);
+        disk_obj->Get(L"UniqueId", 0, &unq_id, 0, 0);
+        disk_obj->Get(L"FriendlyName", 0, &fname, 0, 0);
+        disk_obj->Get(L"Manufacturer", 0, &manufacturer, 0, 0);
+        disk_obj->Get(L"Model", 0, &model, 0, 0);
+        disk_obj->Get(L"Size", 0, &d_sz, 0, 0);
 
-        sd.setDeviceID(device_id.bstrVal);
-        sd.setName(name.bstrVal);
-        sd.setManufacturer(manufacturer.bstrVal);
-        sd.setModel(model.bstrVal);
+        Disk disk;
+        disk.unq_id = bstr_t(unq_id.bstrVal);
+        disk.manufacturer = bstr_t(manufacturer.bstrVal);
+        disk.model = bstr_t(model.bstrVal);
+        disk.fname = bstr_t(fname.bstrVal);
+        disk.sz = d_sz.ullVal;
 
-        sd_hmap.insert({bstr_t(device_id.bstrVal), sd});
-        
-        VariantClear(&device_id);
-        VariantClear(&name);
+        /*std::wcout << L"Disk unq_id: " << disk.unq_id << L"\n";
+        std::wcout << L"Disk fname: " << disk.fname << L"\n";*/
+
+        bstr_t bstr_unq_id = bstr_t(unq_id.bstrVal);
+        if (d_hmap.find(bstr_unq_id) == d_hmap.end()) {
+            d_hmap.insert({ bstr_unq_id, disk });
+        }
+
+        VariantClear(&unq_id);
+        VariantClear(&fname);
         VariantClear(&manufacturer);
         VariantClear(&model);
+        VariantClear(&d_sz);
+        disk_obj->Release();
     }
-
-    /////////////////////////////
-    // Win32_DiskDriveToPartition Query
-    /////////////////////////////
-    HRESULT ddtp_query = svcs->ExecQuery(
+    disk_enumerator->Release();
+     
+    //////////////////////////////
+    // Direct Partition Query  
+    //////////////////////////////
+    HRESULT part_query = svcs->ExecQuery(
         bstr_t("WQL"),
-        bstr_t("SELECT * FROM Win32_DiskDriveToPartition"),
+        bstr_t("SELECT * FROM MSFT_Partition"),
         WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
         NULL,
-        &ddtp_enumerator);
+        &part_enumerator);
 
-    if (FAILED(ddtp_query)) {
-        std::wcout << "Win32_DiskDriveToPartition Error. HRESULT: 0x"
-            << std::hex << ddtp_query << std::endl;
-        svcs->Release();
-        loc->Release();
-        CoUninitialize();
+    if (FAILED(part_query)) {
+        std::wcout << L"MSFT_Partition Error. HRESULT: 0x"
+            << std::hex << part_query << std::endl;
         return;
     }
 
-    while (ddtp_enumerator) {
-        HRESULT disk_res = ddtp_enumerator->Next(WBEM_INFINITE, 1, &ddtp, &u_ret);
+    while (part_enumerator) {
+        part_enumerator->Next(WBEM_INFINITE, 1, &part_obj, &u_ret);
         if (u_ret == 0) {
             break;
         }
 
-        VARIANT ant, dep;
+        VARIANT disk_num, part_num, drv_ltr, p_sz;
+        VariantInit(&disk_num);
+        VariantInit(&part_num);
+        VariantInit(&drv_ltr);
+        VariantInit(&p_sz);
 
-        VariantInit(&ant);
-        VariantInit(&dep);
+        part_obj->Get(L"DiskNumber", 0, &disk_num, 0, 0);
+        part_obj->Get(L"PartitionNumber", 0, &part_num, 0, 0);
+        part_obj->Get(L"DriveLetter", 0, &drv_ltr, 0, 0);
+        part_obj->Get(L"Size", 0, &p_sz, 0, 0);
 
-        ddtp->Get(L"Antecedent", 0, &ant, 0, 0);
-        ddtp->Get(L"Dependent", 0, &dep, 0, 0);
+        Partition partition;
+        partition.id.disk_num = disk_num.ulVal;
+        partition.id.part_num = part_num.ulVal;
+        partition.drv_ltr = static_cast<wchar_t>(drv_ltr.uiVal);
+        partition.sz = p_sz.ullVal;
 
-        VariantClear(&ant);
-        VariantClear(&dep);
+        /* std::wcout << L"Partition disk num & part_num: " << partition.id.disk_num
+             << L", " << partition.id.part_num << L"\n";
+         std::wcout << L"Drive letter: " << partition.drv_ltr << L"\n";*/
+
+        if (p_hmap.find(partition.id) == p_hmap.end()) {
+            p_hmap.insert({ partition.id, partition });
+        }
+
+        VariantClear(&disk_num);
+        VariantClear(&part_num);
+        VariantClear(&drv_ltr);
+        VariantClear(&p_sz);
+        part_obj->Release();
+    }
+    part_enumerator->Release();
+
+    /////////////////////////////////
+    ////// Volume Query
+    /////////////////////////////////
+    HRESULT vol_query = svcs->ExecQuery(
+        bstr_t("WQL"),
+        bstr_t("SELECT * FROM MSFT_Volume"),
+        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+        NULL,
+        &vol_enumerator);
+
+    if (FAILED(vol_query)) {
+        std::wcout << L"MSFT_Volume Error. HRESULT: 0x"
+            << std::hex << vol_query << std::endl;
+        return;
     }
 
-    /////////////////////////////
-    // Win32_LogicalDisk Query
-    /////////////////////////////
-    
+    while (vol_enumerator) {
+        vol_enumerator->Next(WBEM_INFINITE, 1, &vol_obj, &u_ret);
+        if (u_ret == 0) {
+            break;
+        }
+
+        VARIANT drv_ltr, sz, sz_rmng, hstatus;
+
+        VariantInit(&drv_ltr);
+        VariantInit(&sz);
+        VariantInit(&sz_rmng);
+        VariantInit(&hstatus);
+
+        vol_obj->Get(L"DriveLetter", 0, &drv_ltr, 0, 0);
+        vol_obj->Get(L"Size", 0, &sz, 0, 0);
+        vol_obj->Get(L"SizeRemaining", 0, &sz_rmng, 0, 0);
+        vol_obj->Get(L"HealthStatus", 0, &hstatus, 0, 0);
+
+        Volume vol;
+        vol.drv_ltr = static_cast<wchar_t>(drv_ltr.uiVal);
+        vol.sz = sz.ullVal;
+        vol.sz_rmng = sz_rmng.ullVal;
+        vol.hstatus = hstatus.uiVal;
+
+        if (v_hmap.find(vol.drv_ltr) == v_hmap.end()) {
+            v_hmap.insert({vol.drv_ltr, vol});
+        }
+
+        vol_obj->Release();
+    }
+    vol_enumerator->Release();
+
     /////////////////////////////
     // MSFT_PhysicalDisk Query
     /////////////////////////////
-    HRESULT hr = loc->ConnectServer(
-        bstr_t(L"ROOT\\Microsoft\\Windows\\Storage"),
-        NULL,
-        NULL, 
-        0, 
-        NULL, 
-        0, 
-        0, 
-        &svcs);
-
     HRESULT pd_query = svcs->ExecQuery(
         bstr_t("WQL"),
         bstr_t("SELECT * FROM MSFT_PhysicalDisk"),
@@ -362,22 +442,43 @@ inline void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs,
             break;
         }
 
-        VARIANT spindle_speed;
-
+        VARIANT device_id, unq_id_frmt, spindle_speed;
+        VariantInit(&device_id);
+        VariantInit(&unq_id_frmt);
         VariantInit(&spindle_speed);
 
         msft_phys->Get(L"SpindleSpeed", 0, &spindle_speed, 0, 0);
+        msft_phys->Get(L"DeviceId", 0, &device_id, 0, 0);
+        msft_phys->Get(L"UniqueIdFormat", 0, &unq_id_frmt, 0, 0);
 
-        if (spindle_speed.uintVal == 0) {
+        PhysDisk pd;
+        pd.device_id = bstr_t(device_id.bstrVal);
+        pd.spindle_speed = spindle_speed.ulVal;
+        pd.unq_id_frmt = unq_id_frmt.uiVal;
+
+        /*if (spindle_speed.uintVal == 0) {
             std::wcout << "Type: SSD" << std::endl;
         }
         else {
             std::wcout << "Type: HDD, SpindleSpeed: " << spindle_speed.uintVal << std::endl;
+        }*/
+
+        if (pd_hmap.find(pd.device_id) == pd_hmap.end()) {
+            pd_hmap.insert({ pd.device_id, pd });
         }
 
         VariantClear(&spindle_speed);
-    }
+        VariantClear(&unq_id_frmt);
+        VariantClear(&device_id);
 
+        msft_phys->Release();
+    }
+    msft_enumerator->Release();
+
+    ///////////////////////////
+    // Storing data from maps
+    ///////////////////////////
+    
     hr = loc->ConnectServer(
         BSTR(L"ROOT\\CIMV2"),   // namespace
         NULL,                   // User name
@@ -400,15 +501,13 @@ int main()
 
     std::vector<GraphicsProcessor> gpu_list;
     std::vector<Motherboard> mboard_list;
-    std::unordered_map<bstr_t, StorageDevice, bstrHash, bstrEqual> sd_hmap; 
-        // TODO - ^Must make my own hash function. Key type: bstr_t not supported
-
+    std::vector<StorageDevice> sd_list; 
 
     infoMotherboard(loc, svcs, mboard_list);
     infoGPU(loc, svcs, gpu_list);
     //infoCPU(loc, svcs);   TODO!
-    infoPhysicalDrive(loc, svcs, sd_hmap);   
-    //infoTemperatures();
+    infoPhysicalDrive(loc, svcs, sd_list);   
+    //infoTemperatures();   TODO - Will need to make call to kernel driver
 
     std::wcout << "--------------------------------------------------------------\n";
     std::wcout << "     ** GPUs & Video Controllers ** \n\n";

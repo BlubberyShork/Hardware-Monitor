@@ -6,6 +6,50 @@
 #include <comdef.h>
 #include "projutils.h"
 
+struct Disk {
+    bstr_t unq_id;
+    bstr_t fname;
+    bstr_t manufacturer;
+    bstr_t model;
+    ULONGLONG sz;
+};
+
+struct Partition {
+    struct partition_id {
+        ULONG disk_num;
+        ULONG part_num;
+
+        bool operator==(const partition_id& other) const noexcept {
+            return (disk_num == other.disk_num) && (part_num == other.part_num);
+        }
+    };
+
+    partition_id id;
+    wchar_t drv_ltr;
+    ULONGLONG sz;
+
+    struct pid_hash {
+        std::size_t operator()(const partition_id& p_id) const noexcept {
+            std::size_t h1 = std::hash<ULONG>()(p_id.disk_num);
+            std::size_t h2 = std::hash<ULONG>()(p_id.part_num);
+            return h1 ^ (h2 << 1);
+        }
+    };
+};
+
+struct Volume {
+    wchar_t drv_ltr; 
+    ULONGLONG sz;
+    ULONGLONG sz_rmng;
+    USHORT hstatus;
+};
+
+struct PhysDisk {
+    bstr_t device_id;
+    USHORT unq_id_frmt;
+    ULONG spindle_speed;
+};
+
 class StorageDevice
 {
 private:
@@ -42,5 +86,6 @@ public:
     void setSize(ULONGLONG sz) { size = sz; }
     void setFreeSpace(ULONGLONG fs) { free_space = fs; }
 
+    // Output
 };
 
