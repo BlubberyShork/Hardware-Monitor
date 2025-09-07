@@ -3,6 +3,7 @@
 #include "GraphicsProcessor.h"
 #include "motherboard.h"
 #include "storagedevice.h"
+#include "processor.h"
 
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
@@ -94,6 +95,24 @@ void infoGPU(IWbemLocator*& loc, IWbemServices*& svcs, std::vector<GraphicsProce
     IWbemClassObject *gpu_class_obj = nullptr;
     ULONG u_ret = 0;
 
+    HRESULT hr = loc->ConnectServer(
+        BSTR(L"ROOT\\CIMV2"),   // namespace
+        NULL,                   // User name
+        NULL,                   // User password
+        0,                      // Locale
+        NULL,                   // Security flags
+        0,                      // Authority
+        0,                      // Context object
+        &svcs);                 // IWbemServices proxy
+
+    if (FAILED(hr))
+    {
+        std::cout << "Could not connect. Error code = 0x"
+            << std::hex << hr << std::endl;
+        loc->Release();
+        CoUninitialize();
+    }
+
     HRESULT gpu_query = svcs->ExecQuery(
         bstr_t("WQL"),
         bstr_t("SELECT * FROM Win32_VideoController"),
@@ -162,6 +181,24 @@ void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs, std::vector<Mothe
     IWbemClassObject *mboard = nullptr;
     ULONG u_ret = 0;
 
+    HRESULT hr = loc->ConnectServer(
+        BSTR(L"ROOT\\CIMV2"),   // namespace
+        NULL,                   // User name
+        NULL,                   // User password
+        0,                      // Locale
+        NULL,                   // Security flags
+        0,                      // Authority
+        0,                      // Context object
+        &svcs);                 // IWbemServices proxy
+
+    if (FAILED(hr))
+    {
+        std::cout << "Could not connect. Error code = 0x"
+            << std::hex << hr << std::endl;
+        loc->Release();
+        CoUninitialize();
+    }
+
     HRESULT mboard_query = svcs->ExecQuery(
         bstr_t("WQL"),
         bstr_t("SELECT * FROM Win32_BaseBoard"),
@@ -213,10 +250,125 @@ void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs, std::vector<Mothe
         VariantClear(&poweredOn);
         VariantClear(&product);
         VariantClear(&status);
+
         mboard->Release();
     }
     mboard_enumerator->Release();
 
+}
+
+void infoCPU(IWbemLocator*& loc, IWbemServices*& svcs, std::vector<Processor>& proc_list) {
+    IEnumWbemClassObject *cpu_enumerator = nullptr;
+    IWbemClassObject *cpu_obj = nullptr;
+
+    ULONG u_ret = 0;
+
+    HRESULT hr = loc->ConnectServer(
+        BSTR(L"ROOT\\CIMV2"),   // namespace
+        NULL,                   // User name
+        NULL,                   // User password
+        0,                      // Locale
+        NULL,                   // Security flags
+        0,                      // Authority
+        0,                      // Context object
+        &svcs);                 // IWbemServices proxy
+
+    if (FAILED(hr))
+    {
+        std::cout << "Could not connect. Error code = 0x"
+            << std::hex << hr << std::endl;
+        loc->Release();
+        CoUninitialize();
+    }
+
+    HRESULT cpu_query = svcs->ExecQuery(
+        bstr_t(L"WQL"),
+        bstr_t(L"SELECT * FROM Win32_Processor"),
+        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+        NULL,
+        &cpu_enumerator);
+
+    if (FAILED(cpu_query)) {
+        std::cout << "Win32_BaseBoard error. HRESULT: 0x"
+            << std::hex << cpu_query << "\n";
+        svcs->Release();
+        loc->Release();
+        CoUninitialize();
+    }
+
+    while (cpu_enumerator) {
+        HRESULT cpu_res = cpu_enumerator->Next(WBEM_INFINITE, 1, &cpu_obj, &u_ret);
+        if (u_ret == 0) {
+            break;
+        }
+
+        VARIANT vtProp;
+        Processor cpu;
+
+        // BSTR fields
+        cpu_obj->Get(L"UniqueId", 0, &vtProp, 0, 0);
+        cpu.unq_id = (vtProp.vt == VT_BSTR && vtProp.bstrVal != nullptr) ? vtProp.bstrVal : L"";
+        VariantClear(&vtProp);
+
+        cpu_obj->Get(L"DeviceID", 0, &vtProp, 0, 0);
+        cpu.dev_id = (vtProp.vt == VT_BSTR && vtProp.bstrVal != nullptr) ? vtProp.bstrVal : L"";
+        VariantClear(&vtProp);
+
+        cpu_obj->Get(L"ProcessorId", 0, &vtProp, 0, 0);
+        cpu.proc_id = (vtProp.vt == VT_BSTR && vtProp.bstrVal != nullptr) ? vtProp.bstrVal : L"";
+        VariantClear(&vtProp);
+
+        // Numeric fields (use VTConvertNumeric)
+        cpu_obj->Get(L"ProcessorType", 0, &vtProp, 0, 0);
+        cpu.proc_type = static_cast<USHORT>(VTConvertNumeric(vtProp));
+        VariantClear(&vtProp);
+
+        cpu_obj->Get(L"Family", 0, &vtProp, 0, 0);
+        cpu.family = static_cast<USHORT>(VTConvertNumeric(vtProp));
+        VariantClear(&vtProp);
+
+        cpu_obj->Get(L"Architecture", 0, &vtProp, 0, 0);
+        cpu.architecture = static_cast<USHORT>(VTConvertNumeric(vtProp));
+        VariantClear(&vtProp);
+
+        cpu_obj->Get(L"Manufacturer", 0, &vtProp, 0, 0);
+        cpu.manufacturer = (vtProp.vt == VT_BSTR && vtProp.bstrVal != nullptr) ? vtProp.bstrVal : L"";
+        VariantClear(&vtProp);
+
+        cpu_obj->Get(L"Name", 0, &vtProp, 0, 0);
+        cpu.name = (vtProp.vt == VT_BSTR && vtProp.bstrVal != nullptr) ? vtProp.bstrVal : L"";
+        VariantClear(&vtProp);
+
+        cpu_obj->Get(L"NumberOfCores", 0, &vtProp, 0, 0);
+        cpu.num_cores = static_cast<ULONG>(VTConvertNumeric(vtProp));
+        VariantClear(&vtProp);
+
+        cpu_obj->Get(L"NumberOfLogicalProcessors", 0, &vtProp, 0, 0);
+        cpu.num_log_proc = static_cast<ULONG>(VTConvertNumeric(vtProp));
+        VariantClear(&vtProp);
+
+        cpu_obj->Get(L"ThreadCount", 0, &vtProp, 0, 0);
+        cpu.thread_cnt = static_cast<ULONG>(VTConvertNumeric(vtProp));
+        VariantClear(&vtProp);
+
+        cpu_obj->Get(L"CurrentClockSpeed", 0, &vtProp, 0, 0);
+        cpu.curr_clk_spd = static_cast<ULONG>(VTConvertNumeric(vtProp));
+        VariantClear(&vtProp);
+
+        cpu_obj->Get(L"CurrentVoltage", 0, &vtProp, 0, 0);
+        cpu.curr_vltg = static_cast<ULONG>(VTConvertNumeric(vtProp));
+        VariantClear(&vtProp);
+
+        cpu_obj->Get(L"DataWidth", 0, &vtProp, 0, 0);
+        cpu.data_width = static_cast<ULONG>(VTConvertNumeric(vtProp));
+        VariantClear(&vtProp);
+
+        proc_list.push_back(cpu);
+
+        cpu_obj->Release();
+    }
+
+    cpu_enumerator->Release();
 }
 
 //TODO - producer consumer thread handle this
@@ -507,16 +659,7 @@ void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs,
 
         sd_list.push_back(sd);
     }
-    
-    hr = loc->ConnectServer(
-        BSTR(L"ROOT\\CIMV2"),   // namespace
-        NULL,                   // User name
-        NULL,                   // User password
-        0,                      // Locale
-        NULL,                   // Security flags
-        0,                      // Authority
-        0,                      // Context object
-        &svcs);                 // IWbemServices proxy
+
 }
 
 int main()
@@ -528,22 +671,16 @@ int main()
     InitializeCOM();
     setupWBEM(loc, svcs);
 
-    std::vector<GraphicsProcessor> gpu_list;
     std::vector<Motherboard> mboard_list;
+    std::vector<GraphicsProcessor> gpu_list;
+    std::vector<Processor> proc_list;
     std::vector<StorageDevice> sd_list; 
 
     infoMotherboard(loc, svcs, mboard_list);
     infoGPU(loc, svcs, gpu_list);
-    //infoCPU(loc, svcs);   TODO!
+    infoCPU(loc, svcs, proc_list);
     infoPhysicalDrive(loc, svcs, sd_list);   
     //infoTemperatures();   TODO - Will need to make call to kernel driver
-
-    std::wcout << "--------------------------------------------------------------\n";
-    std::wcout << "     ** GPUs & Video Controllers ** \n\n";
-    for (int i = 0; i < gpu_list.size(); i++) {
-        gpu_list[i].outputGPUInfo();
-    }
-    std::wcout << std::endl;
 
     std::wcout << "--------------------------------------------------------------\n";
     std::wcout << "     ** Motherboard ** \n\n";
@@ -553,8 +690,21 @@ int main()
     std::wcout << std::endl;
 
     std::wcout << "--------------------------------------------------------------\n";
+    std::wcout << "     ** GPUs & Video Controllers ** \n\n";
+    for (int i = 0; i < gpu_list.size(); i++) {
+        gpu_list[i].outputGPUInfo();
+    }
+    std::wcout << std::endl;
+
+    std::wcout << "--------------------------------------------------------------\n";
+    std::wcout << "     ** Processors ** \n\n";
+    for (int i = 0; i < proc_list.size(); i++) {    
+        proc_list[i].outProcInfo();
+    }
+    std::wcout << std::endl;
+
+    std::wcout << "--------------------------------------------------------------\n";
     std::wcout << "     ** Storage Device ** \n\n";
-    std::wcout << "Size of sd_list: " << sd_list.size() << "\n";
     for (int i = 0; i < sd_list.size(); i++) {
         sd_list[i].outSDInfo();
     }

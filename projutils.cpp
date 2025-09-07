@@ -1,5 +1,4 @@
 #include "projutils.h"
-#include <iostream>
 
 bstr_t simplifyBytesAsString(ULONGLONG sz) {
     double sz_updating = static_cast<double>(sz);    
@@ -31,27 +30,30 @@ bstr_t simplifyBytesAsString(ULONGLONG sz) {
 
 ULONGLONG VTConvertNumeric(VARIANT v) {
     switch (v.vt) {
-    case VT_UI8:
-        return v.ullVal;
-        break;
-    case VT_UI4:
-        return v.uintVal;
-        break;
-    case VT_UI2:
-        return v.uiVal;
-        break;
-    case VT_BSTR:
-        // Sometimes WMI returns string for large numbers
-        return _wtoi64(v.bstrVal);
-        break;
+    case VT_I1:    return static_cast<ULONGLONG>(v.cVal);
+    case VT_UI1:   return static_cast<ULONGLONG>(v.bVal);
+    case VT_I2:    return static_cast<ULONGLONG>(v.iVal);
+    case VT_UI2:   return static_cast<ULONGLONG>(v.uiVal);
+    case VT_I4:    return static_cast<ULONGLONG>(v.intVal);
+    case VT_UI4:   return static_cast<ULONGLONG>(v.uintVal);
+    case VT_I8:    return static_cast<ULONGLONG>(v.llVal);
+    case VT_UI8:   return static_cast<ULONGLONG>(v.ullVal);
+    case VT_BOOL:  return (v.boolVal == VARIANT_TRUE) ? 1ULL : 0ULL;
+    case VT_BSTR:  // Used in some storage device sizings, etc
+        return (v.bstrVal != nullptr) ? _wtoi64(v.bstrVal) : 0ULL;
     case VT_NULL:
     case VT_EMPTY:
-        return 0;
-        break;
+        return 0ULL;
     default:
-        // fallback
-        return 0;
-        break;
+        // Fallback: attempt coercion
+        VARIANT vConv;
+        VariantInit(&vConv);
+        if (SUCCEEDED(VariantChangeType(&vConv, const_cast<VARIANT*>(&v), 0, VT_I8))) {
+            ULONGLONG result = static_cast<ULONGLONG>(vConv.llVal);
+            VariantClear(&vConv);
+            return result;
+        }
+        return 0ULL;
     }
 }
 

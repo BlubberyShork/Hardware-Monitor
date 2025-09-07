@@ -6,6 +6,8 @@
 #include <comdef.h>
 #include "projutils.h"
 
+// TODO - refactor as struct
+
 /*
     Storage container for MSFT_Disk data
 */

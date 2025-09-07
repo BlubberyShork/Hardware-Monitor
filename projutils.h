@@ -13,6 +13,7 @@
 #include <sstream>         // For std::wstringstream
 #include <iomanip>         // For std::fixed and std::setprecision
 #include <wbemidl.h>
+#include <iostream>
 
 #define BINARY_UNIT_MULTIPLIER (ULONGLONG)1024
 
