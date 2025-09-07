@@ -1,19 +1,22 @@
 #include "projutils.h"
+#include <iostream>
 
 bstr_t simplifyBytesAsString(ULONGLONG sz) {
-    float sz_updating = (float) sz;
+    double sz_updating = static_cast<double>(sz);    
     bstr_t unit = bstr_t("");
 
     int divisions = 0;
     while (sz_updating > BINARY_UNIT_MULTIPLIER) {
-        sz_updating = sz_updating / (float) BINARY_UNIT_MULTIPLIER;
+        sz_updating = sz_updating / static_cast<double>(BINARY_UNIT_MULTIPLIER);
         divisions++;
     }
-    bstr_t value_as_str = bstr_t(sz_updating);
 
-    static const char* units[] = { "B", "KB", "MB", "GB", "TB", "PB", "EB" };
+    static const wchar_t* units[] = { L"B", L"KB", L"MB", L"GB", L"TB", L"PB", L"EB" };
+    std::wstringstream ss;
+    ss << std::fixed << std::setprecision(2) << sz_updating;
+    bstr_t value_as_str(ss.str().c_str());
 
-    if (divisions < 0 || divisions > 7) {
+    if (divisions < 0 || divisions >= 7) {
         fprintf(stderr, "Invalid RAM size\n");
     }
     else {
@@ -24,6 +27,32 @@ bstr_t simplifyBytesAsString(ULONGLONG sz) {
     result += " ";
     result += unit;
     return result;
+}
+
+ULONGLONG VTConvertNumeric(VARIANT v) {
+    switch (v.vt) {
+    case VT_UI8:
+        return v.ullVal;
+        break;
+    case VT_UI4:
+        return v.uintVal;
+        break;
+    case VT_UI2:
+        return v.uiVal;
+        break;
+    case VT_BSTR:
+        // Sometimes WMI returns string for large numbers
+        return _wtoi64(v.bstrVal);
+        break;
+    case VT_NULL:
+    case VT_EMPTY:
+        return 0;
+        break;
+    default:
+        // fallback
+        return 0;
+        break;
+    }
 }
 
 bstr_t explainAvailability(USHORT av_status) {

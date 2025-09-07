@@ -221,12 +221,12 @@ void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs, std::vector<Mothe
 
 //TODO - producer consumer thread handle this
 void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs, 
-    std::vector<StorageDevice> sd_list) {
+    std::vector<StorageDevice>& sd_list) {
     
     std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual> d_hmap;
     std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash> p_hmap;
     std::unordered_map<wchar_t, Volume> v_hmap;
-    std::unordered_map<bstr_t, PhysDisk, bstrHash, bstrEqual> pd_hmap;
+    std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual> pd_hmap;
 
     IEnumWbemClassObject *disk_enumerator = nullptr;
     IEnumWbemClassObject *part_enumerator = nullptr;
@@ -277,28 +277,31 @@ void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs,
             break;
         }
 
-        VARIANT unq_id, fname, manufacturer, model, d_sz;
+        VARIANT unq_id, num, fname, manufacturer, model, d_sz, num_partitions;
         VariantInit(&unq_id);
+        VariantInit(&num);
         VariantInit(&fname);
         VariantInit(&manufacturer);
         VariantInit(&model);
         VariantInit(&d_sz);
+        VariantInit(&num_partitions);
 
         disk_obj->Get(L"UniqueId", 0, &unq_id, 0, 0);
+        disk_obj->Get(L"Number", 0, &num, 0, 0);
         disk_obj->Get(L"FriendlyName", 0, &fname, 0, 0);
         disk_obj->Get(L"Manufacturer", 0, &manufacturer, 0, 0);
         disk_obj->Get(L"Model", 0, &model, 0, 0);
         disk_obj->Get(L"Size", 0, &d_sz, 0, 0);
+        disk_obj->Get(L"NumberOfPartitions", 0, &num_partitions, 0, 0);
 
         Disk disk;
         disk.unq_id = bstr_t(unq_id.bstrVal);
         disk.manufacturer = bstr_t(manufacturer.bstrVal);
         disk.model = bstr_t(model.bstrVal);
         disk.fname = bstr_t(fname.bstrVal);
-        disk.sz = d_sz.ullVal;
-
-        /*std::wcout << L"Disk unq_id: " << disk.unq_id << L"\n";
-        std::wcout << L"Disk fname: " << disk.fname << L"\n";*/
+        disk.num_partitions = num_partitions.ulVal;
+        disk.disk_num = num.ulVal;
+        disk.sz = VTConvertNumeric(d_sz);
 
         bstr_t bstr_unq_id = bstr_t(unq_id.bstrVal);
         if (d_hmap.find(bstr_unq_id) == d_hmap.end()) {
@@ -310,6 +313,7 @@ void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs,
         VariantClear(&manufacturer);
         VariantClear(&model);
         VariantClear(&d_sz);
+        VariantClear(&num_partitions);
         disk_obj->Release();
     }
     disk_enumerator->Release();
@@ -351,11 +355,7 @@ void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs,
         partition.id.disk_num = disk_num.ulVal;
         partition.id.part_num = part_num.ulVal;
         partition.drv_ltr = static_cast<wchar_t>(drv_ltr.uiVal);
-        partition.sz = p_sz.ullVal;
-
-        /* std::wcout << L"Partition disk num & part_num: " << partition.id.disk_num
-             << L", " << partition.id.part_num << L"\n";
-         std::wcout << L"Drive letter: " << partition.drv_ltr << L"\n";*/
+        partition.sz = VTConvertNumeric(p_sz);
 
         if (p_hmap.find(partition.id) == p_hmap.end()) {
             p_hmap.insert({ partition.id, partition });
@@ -405,8 +405,8 @@ void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs,
 
         Volume vol;
         vol.drv_ltr = static_cast<wchar_t>(drv_ltr.uiVal);
-        vol.sz = sz.ullVal;
-        vol.sz_rmng = sz_rmng.ullVal;
+        vol.sz = VTConvertNumeric(sz);
+        vol.sz_rmng = VTConvertNumeric(sz_rmng);
         vol.hstatus = hstatus.uiVal;
 
         if (v_hmap.find(vol.drv_ltr) == v_hmap.end()) {
@@ -447,24 +447,26 @@ void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs,
         VariantInit(&unq_id_frmt);
         VariantInit(&spindle_speed);
 
+        auto extractIndex = [](const bstr_t& dev_id) {
+            assert(dev_id);
+
+            std::wstring ws_dev_id(dev_id);
+            auto pos = ws_dev_id.find_last_of(L"0123456789");
+            return (ULONG)std::stoi(ws_dev_id.substr(pos));
+        };
+
         msft_phys->Get(L"SpindleSpeed", 0, &spindle_speed, 0, 0);
         msft_phys->Get(L"DeviceId", 0, &device_id, 0, 0);
         msft_phys->Get(L"UniqueIdFormat", 0, &unq_id_frmt, 0, 0);
 
         PhysDisk pd;
         pd.device_id = bstr_t(device_id.bstrVal);
-        pd.spindle_speed = spindle_speed.ulVal;
+        pd.spindle_speed = spindle_speed.ullVal;
         pd.unq_id_frmt = unq_id_frmt.uiVal;
+        pd.disk_num = extractIndex(pd.device_id);
 
-        /*if (spindle_speed.uintVal == 0) {
-            std::wcout << "Type: SSD" << std::endl;
-        }
-        else {
-            std::wcout << "Type: HDD, SpindleSpeed: " << spindle_speed.uintVal << std::endl;
-        }*/
-
-        if (pd_hmap.find(pd.device_id) == pd_hmap.end()) {
-            pd_hmap.insert({ pd.device_id, pd });
+        if (pd_hmap.find(pd.disk_num) == pd_hmap.end()) {
+            pd_hmap.insert({ pd.disk_num, pd });
         }
 
         VariantClear(&spindle_speed);
@@ -478,6 +480,33 @@ void infoPhysicalDrive(IWbemLocator*& loc, IWbemServices*& svcs,
     ///////////////////////////
     // Storing data from maps
     ///////////////////////////
+    for (auto disk_pair : d_hmap) {
+        StorageDevice sd = StorageDevice();
+
+        // Disk data
+        bstr_t d_unq_id = std::get<0>(disk_pair);
+        Disk disk = std::get<1>(disk_pair);
+        ULONG d_disk_num = disk.disk_num;
+        sd.setDisk(disk);
+
+        // Partitions
+        for (int i = 0; i < disk.num_partitions; i++) {
+            ULONG part_num = (ULONG)i;
+            Partition p = p_hmap[{d_disk_num, part_num}];
+            sd.getPartitions().push_back(p);
+
+            // Volume
+            if (p.drv_ltr != 0 && v_hmap.find(p.drv_ltr) != v_hmap.end()) {
+                sd.getVolumes().push_back(v_hmap[p.drv_ltr]);
+            }
+        }
+
+        // Physical Disk
+        PhysDisk pd = pd_hmap[d_disk_num];
+        sd.setPhysicalDisk(pd);
+
+        sd_list.push_back(sd);
+    }
     
     hr = loc->ConnectServer(
         BSTR(L"ROOT\\CIMV2"),   // namespace
@@ -522,6 +551,15 @@ int main()
         mboard_list[i].outputMotherboardInfo();
     }
     std::wcout << std::endl;
+
+    std::wcout << "--------------------------------------------------------------\n";
+    std::wcout << "     ** Storage Device ** \n\n";
+    std::wcout << "Size of sd_list: " << sd_list.size() << "\n";
+    for (int i = 0; i < sd_list.size(); i++) {
+        sd_list[i].outSDInfo();
+    }
+    std::wcout << std::endl;
+
 
     // Check for mem leaks
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);

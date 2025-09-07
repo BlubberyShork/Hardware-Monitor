@@ -6,14 +6,22 @@
 #include <comdef.h>
 #include "projutils.h"
 
+/*
+    Storage container for MSFT_Disk data
+*/
 struct Disk {
     bstr_t unq_id;
+    ULONG disk_num;
     bstr_t fname;
     bstr_t manufacturer;
+    ULONG num_partitions;
     bstr_t model;
     ULONGLONG sz;
 };
 
+/*
+    Storage container for MSFT_Partition data
+*/
 struct Partition {
     struct partition_id {
         ULONG disk_num;
@@ -37,6 +45,9 @@ struct Partition {
     };
 };
 
+/*
+    Storage container for MSFT_Volume data
+*/
 struct Volume {
     wchar_t drv_ltr; 
     ULONGLONG sz;
@@ -44,7 +55,11 @@ struct Volume {
     USHORT hstatus;
 };
 
+/*
+    Storage container for MSFT_PhysicalDisk data
+*/
 struct PhysDisk {
+    ULONG disk_num;
     bstr_t device_id;
     USHORT unq_id_frmt;
     ULONG spindle_speed;
@@ -53,39 +68,29 @@ struct PhysDisk {
 class StorageDevice
 {
 private:
-	bstr_t device_id;
-	bstr_t name;
-	bstr_t manufacturer;
-	bstr_t model;
-	ULONG spindle_speed; // ULONG and UINT are the same size, but in legacy systems it might be different
-	ULONGLONG size;
-	ULONGLONG free_space;
+    Disk disk;
+    std::vector<Partition> partitions;
+    std::vector<Volume> volumes;
+    PhysDisk physical_disk;
 
 public:
     StorageDevice() = default;
-    StorageDevice(const bstr_t& dev_id, const bstr_t& nm, const bstr_t& mfg,
-        const bstr_t& mdl, ULONG speed, ULONGLONG sz, ULONGLONG free)
-        : device_id(dev_id), name(nm), manufacturer(mfg), model(mdl),
-        spindle_speed(speed), size(sz), free_space(free) {
-    }
+    StorageDevice(Disk disk, std::vector<Partition> partitions,
+        std::vector<Volume> volumes)
+        : disk(disk), partitions(partitions), volumes(volumes) {}
 
-    bstr_t getDeviceID() const { return device_id; }
-    bstr_t getName() const { return name; }
-    bstr_t getManufacturer() const { return manufacturer; }
-    bstr_t getModel() const { return model; }
-    ULONG getSpindleSpeed() const { return spindle_speed; }
-    ULONGLONG getSize() const { return size; }
-    ULONGLONG getFreeSpace() const { return free_space; }
+    Disk& getDisk() { return disk; }
+    std::vector<Partition>& getPartitions() { return partitions; }
+    std::vector<Volume>& getVolumes() { return volumes; }
+    PhysDisk& getPhysicalDisk() { return physical_disk; }
 
     // Setters
-    void setDeviceID(const bstr_t& id) { device_id = id; }
-    void setName(const bstr_t& n) { name = n; }
-    void setManufacturer(const bstr_t& man) { manufacturer = man; }
-    void setModel(const bstr_t& m) { model = m; }
-    void setSpindleSpeed(ULONG ss) { spindle_speed = ss; }
-    void setSize(ULONGLONG sz) { size = sz; }
-    void setFreeSpace(ULONGLONG fs) { free_space = fs; }
+    void setDisk(const Disk& d) { disk = d; }
+    void setPartitions(const std::vector<Partition>& p) { partitions = p; }
+    void setVolumes(const std::vector<Volume>& v) { volumes = v; }
+    void setPhysicalDisk(const PhysDisk& pd) { physical_disk = pd; }
 
     // Output
+    void outSDInfo();
 };
 
