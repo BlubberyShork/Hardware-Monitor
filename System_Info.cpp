@@ -565,11 +565,13 @@ int main()
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
     std::wcout << "\n\n\n\n\n\n\n\n\n\n\n";
-//#if defined(_WIN64)
-//    std::cout << "Running as 64-bit process.\n";
-//#else
-//    std::cout << "Running as 32-bit process.\n";
-//#endif
+
+
+    /*#if defined(_WIN64)
+        std::cout << "Running as 64-bit process.\n";
+    #else
+        std::cout << "Running as 32-bit process.\n";
+    #endif*/
 
     return 0;
 }
