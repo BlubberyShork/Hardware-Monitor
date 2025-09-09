@@ -33,6 +33,9 @@
     <ClCompile Include="processor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="hardware_info.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GraphicsProcessor.h">
@@ -48,6 +51,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="processor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hardware_info.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

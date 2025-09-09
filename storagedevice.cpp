@@ -1,9 +1,8 @@
 #include "storagedevice.h"
 
-void StorageDevice::outSDInfo()
+void StorageDevice::outSDInfo() 
 {
-    try
-    {
+    try {
         // --- Disk Info ---
         std::wcout << L"--- Disk Info ---\n";
         std::wcout << L"Disk Number: " << disk.disk_num << L"\n";
@@ -28,52 +27,40 @@ void StorageDevice::outSDInfo()
 
         // --- Partitions Info ---
         std::wcout << L"\t--- Partitions ---\n";
-        if (partitions.empty())
-        {
+        if (partitions.empty()) {
             std::wcout << L"\tNo partitions found.\n";
         }
-        else
-        {
-            for (const auto& part : partitions)
-            {
+        else {
+            for (const auto& part : partitions) {
                 std::wcout << L"\tPartition " << part.id.part_num
                     << L" on Disk " << part.id.disk_num << L"\n";
                 std::wcout << L"\tDrive Letter: "
                     << (part.drv_ltr ? part.drv_ltr : L'<') << L":" << L"\n";
-                std::wcout << L"\tSize: " << simplifyBytesAsString(part.sz) << L"\n";
+                std::wcout << L"\tSize: " << simplifyBytesAsString(part.sz) << L"\n\n";
             }
         }
-        std::wcout << L"\n";
 
         // --- Volumes Info ---
         std::wcout << L"\t\t--- Volumes ---\n";
-        if (volumes.empty())
-        {
+        if (volumes.empty()) {
             std::wcout << L"\t\tNo volumes found.\n";
         }
-        else
-        {
-            for (const auto& vol : volumes)
-            {
+        else {
+            for (const auto& vol : volumes) {
                 std::wcout << L"\t\tDrive Letter: "
                     << (vol.drv_ltr ? vol.drv_ltr : L'<') << L":" L"\n";
                 std::wcout << L"\t\tSize: " << simplifyBytesAsString(vol.sz) << L"\n";
                 std::wcout << L"\t\tRemaining Size: " << simplifyBytesAsString(vol.sz_rmng) << L"\n\n";
             }
         }
-        std::wcout << L"\n";
-
     }
-    catch (const _com_error& e)
-    {
+    catch (const _com_error& e) {
         std::wcerr << L"COM Error: " << e.ErrorMessage() << L"\n";
     }
-    catch (const std::exception& e)
-    {
+    catch (const std::exception& e) {
         std::cerr << "Standard exception: " << e.what() << "\n";
     }
-    catch (...)
-    {
+    catch (...) {
         std::cerr << "Unknown error occurred while outputting storage device info.\n";
     }
 }

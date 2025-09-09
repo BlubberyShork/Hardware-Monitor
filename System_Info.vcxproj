@@ -131,11 +131,13 @@
     <ClCompile Include="motherboard.cpp" />
     <ClCompile Include="processor.cpp" />
     <ClCompile Include="projutils.cpp" />
+    <ClCompile Include="hardware_info.cpp" />
     <ClCompile Include="storagedevice.cpp" />
     <ClCompile Include="System_Info.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GraphicsProcessor.h" />
+    <ClInclude Include="hardware_info.h" />
     <ClInclude Include="motherboard.h" />
     <ClInclude Include="processor.h" />
     <ClInclude Include="projutils.h" />
