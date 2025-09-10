@@ -26,7 +26,7 @@ void InitializeCOM() {
     }
 }
 
-void setupWBEM(IWbemLocator*& loc) {
+void setupWBEM(IWbemLocator*& loc, IWbemServices*& w_svcs, IWbemServices*& m_svcs) {
     HRESULT hr;
     hr = CoCreateInstance(
         CLSID_WbemLocator,
@@ -39,16 +39,10 @@ void setupWBEM(IWbemLocator*& loc) {
         std::cout << "Failed to create IWbemLocator object. Error code = 0x"
             << std::hex << hr << std::endl;
         CoUninitialize();
+        return;
     }
-}
 
-void infoGPU(IWbemLocator*& loc, std::vector<GraphicsProcessor>& gpu_list) {
-    IWbemServices* svcs = nullptr;
-    IEnumWbemClassObject* GPU_enumerator = nullptr;
-    IWbemClassObject* gpu_class_obj = nullptr;
-    ULONG u_ret = 0;
-
-    HRESULT hr = loc->ConnectServer(
+    hr = loc->ConnectServer(
         BSTR(L"ROOT\\CIMV2"),
         NULL,
         NULL,
@@ -56,30 +50,54 @@ void infoGPU(IWbemLocator*& loc, std::vector<GraphicsProcessor>& gpu_list) {
         NULL,
         0,
         0,
-        &svcs);
+        &w_svcs);
 
     if (FAILED(hr)) {
-        std::cout << "Could not connect. Error code = 0x"
+        std::cout << "w32_svcs Could not connect. Error code = 0x"
             << std::hex << hr << std::endl;
         loc->Release();
         CoUninitialize();
         return;
     }
 
-    HRESULT gpu_query = svcs->ExecQuery(
-        bstr_t("WQL"),
-        bstr_t("SELECT * FROM Win32_VideoController"),
-        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+    hr = loc->ConnectServer(
+        BSTR(L"ROOT\\Microsoft\\Windows\\Storage"),
         NULL,
-        &GPU_enumerator);
+        NULL,
+        0,
+        NULL,
+        0,
+        0,
+        &m_svcs);
 
-    if (FAILED(gpu_query)) {
-        std::cout << "Win32_VideoController Error HRESULT: 0x"
-            << std::hex << gpu_query << "\n";
-        svcs->Release();
+    if (FAILED(hr)) {
+        std::cout << "MSFT_svcs Could not connect. Error code = 0x"
+            << std::hex << hr << std::endl;
         loc->Release();
         CoUninitialize();
         return;
+    }
+}
+
+void infoGPU(IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx, std::vector<GraphicsProcessor>& gpu_list) {
+    IEnumWbemClassObject* GPU_enumerator = nullptr;
+    IWbemClassObject* gpu_class_obj = nullptr;
+    ULONG u_ret = 0;
+
+    {
+        std::lock_guard<std::mutex> guard(mtx);
+        HRESULT gpu_query = svcs->ExecQuery(
+            bstr_t("WQL"),
+            bstr_t("SELECT Name, AdapterRAM, DeviceID, Availability, CurrentRefreshRate, Status FROM Win32_VideoController"),
+            WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+            NULL,
+            &GPU_enumerator);
+
+        if (FAILED(gpu_query)) {
+            std::cout << "Win32_VideoController Error HRESULT: 0x"
+                << std::hex << gpu_query << "\n";
+            return;
+        }
     }
 
     while (GPU_enumerator) {
@@ -123,47 +141,28 @@ void infoGPU(IWbemLocator*& loc, std::vector<GraphicsProcessor>& gpu_list) {
         gpu_class_obj->Release();
     }
     GPU_enumerator->Release();
-    svcs->Release();
 }
 
-void infoMotherboard(IWbemLocator*& loc, std::vector<Motherboard>& mboard_list) {
-    IWbemServices* svcs = nullptr;
+void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx,
+    std::vector<Motherboard>& mboard_list) {
     IEnumWbemClassObject* mboard_enumerator = nullptr;
     IWbemClassObject* mboard = nullptr;
     ULONG u_ret = 0;
 
-    HRESULT hr = loc->ConnectServer(
-        BSTR(L"ROOT\\CIMV2"),
-        NULL,
-        NULL,
-        0,
-        NULL,
-        0,
-        0,
-        &svcs);
+    {
+        std::lock_guard<std::mutex> guard(mtx);
+        HRESULT mboard_query = svcs->ExecQuery(
+            bstr_t("WQL"),
+            bstr_t("SELECT Description, HostingBoard, PoweredOn, Product, Status FROM Win32_BaseBoard"),
+            WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+            NULL,
+            &mboard_enumerator);
 
-    if (FAILED(hr)) {
-        std::cout << "Could not connect. Error code = 0x"
-            << std::hex << hr << std::endl;
-        loc->Release();
-        CoUninitialize();
-        return;
-    }
-
-    HRESULT mboard_query = svcs->ExecQuery(
-        bstr_t("WQL"),
-        bstr_t("SELECT * FROM Win32_BaseBoard"),
-        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
-        NULL,
-        &mboard_enumerator);
-
-    if (FAILED(mboard_query)) {
-        std::cout << "Win32_BaseBoard error. HRESULT: 0x"
-            << std::hex << mboard_query << "\n";
-        svcs->Release();
-        loc->Release();
-        CoUninitialize();
-        return;
+        if (FAILED(mboard_query)) {
+            std::cout << "Win32_BaseBoard error. HRESULT: 0x"
+                << std::hex << mboard_query << "\n";
+            return;
+        }
     }
 
     while (mboard_enumerator) {
@@ -204,47 +203,28 @@ void infoMotherboard(IWbemLocator*& loc, std::vector<Motherboard>& mboard_list) 
         mboard->Release();
     }
     mboard_enumerator->Release();
-    svcs->Release();
 }
 
-void infoCPU(IWbemLocator*& loc, std::vector<Processor>& proc_list) {
+void infoCPU(IWbemLocator*& loc, IWbemServices*& svcs,
+    std::mutex& mtx, std::vector<Processor>& proc_list) {
     IEnumWbemClassObject* cpu_enumerator = nullptr;
     IWbemClassObject* cpu_obj = nullptr;
-    IWbemServices* svcs = nullptr;
     ULONG u_ret = 0;
 
-    HRESULT hr = loc->ConnectServer(
-        BSTR(L"ROOT\\CIMV2"),
-        NULL,
-        NULL,
-        0,
-        NULL,
-        0,
-        0,
-        &svcs);
+    {
+        std::lock_guard<std::mutex> guard(mtx);
+        HRESULT cpu_query = svcs->ExecQuery(
+            bstr_t("WQL"),
+            bstr_t("SELECT UniqueId, DeviceID, ProcessorId, ProcessorType, Family, Architecture, Manufacturer, Name, NumberOfCores, NumberOfLogicalProcessors, ThreadCount, CurrentClockSpeed, CurrentVoltage, DataWidth FROM Win32_Processor"),
+            WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+            NULL,
+            &cpu_enumerator);
 
-    if (FAILED(hr)) {
-        std::cout << "Could not connect. Error code = 0x"
-            << std::hex << hr << std::endl;
-        loc->Release();
-        CoUninitialize();
-        return;
-    }
-
-    HRESULT cpu_query = svcs->ExecQuery(
-        bstr_t(L"WQL"),
-        bstr_t(L"SELECT * FROM Win32_Processor"),
-        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
-        NULL,
-        &cpu_enumerator);
-
-    if (FAILED(cpu_query)) {
-        std::cout << "Win32_Processor error. HRESULT: 0x"
-            << std::hex << cpu_query << "\n";
-        svcs->Release();
-        loc->Release();
-        CoUninitialize();
-        return;
+        if (FAILED(cpu_query)) {
+            std::cout << "Win32_Processor error. HRESULT: 0x"
+                << std::hex << cpu_query << "\n";
+            return;
+        }
     }
 
     while (cpu_enumerator) {
@@ -317,54 +297,27 @@ void infoCPU(IWbemLocator*& loc, std::vector<Processor>& proc_list) {
     }
 
     cpu_enumerator->Release();
-    svcs->Release();
 }
 
-void infoPhysicalDrive(IWbemLocator*& loc, std::vector<StorageDevice>& sd_list) {
-    IWbemServices* svcs = nullptr;
-    std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual> d_hmap;
-    std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash> p_hmap;
-    std::unordered_map<wchar_t, Volume> v_hmap;
-    std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual> pd_hmap;
-
+void sd_DiskQuery(IWbemLocator*& loc, IWbemServices*& svcs,
+    std::mutex& mtx, std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual>& d_hmap) {
     IEnumWbemClassObject* disk_enumerator = nullptr;
-    IEnumWbemClassObject* part_enumerator = nullptr;
-    IEnumWbemClassObject* msft_enumerator = nullptr;
-    IEnumWbemClassObject* vol_enumerator = nullptr;
     IWbemClassObject* disk_obj = nullptr;
-    IWbemClassObject* part_obj = nullptr;
-    IWbemClassObject* vol_obj = nullptr;
-    IWbemClassObject* msft_phys = nullptr;
-
     ULONG u_ret = 0;
 
-    HRESULT hr = loc->ConnectServer(
-        bstr_t(L"ROOT\\Microsoft\\Windows\\Storage"),
-        NULL,
-        NULL,
-        0,
-        NULL,
-        0,
-        0,
-        &svcs);
+    {
+        std::lock_guard<std::mutex> guard(mtx);
+        HRESULT disk_query = svcs->ExecQuery(
+            bstr_t("WQL"),
+            bstr_t("SELECT UniqueId, Number, FriendlyName, Manufacturer, Model, Size, NumberOfPartitions FROM MSFT_Disk"),
+            WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+            NULL,
+            &disk_enumerator);
 
-    if (FAILED(hr)) {
-        std::wcout << L"Failed to connect to storage namespace\n";
-        return;
-    }
-
-    HRESULT disk_query = svcs->ExecQuery(
-        bstr_t("WQL"),
-        bstr_t("SELECT * FROM MSFT_Disk"),
-        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
-        NULL,
-        &disk_enumerator);
-
-    if (FAILED(disk_query)) {
-        std::wcout << L"MSFT_Disk Error. HRESULT: 0x"
-            << std::hex << disk_query << std::endl;
-        svcs->Release();
-        return;
+        if (FAILED(disk_query)) {
+            std::wcout << L"MSFT_Disk Error. HRESULT: 0x" << std::hex << disk_query << std::endl;
+            return;
+        }
     }
 
     while (disk_enumerator) {
@@ -399,10 +352,7 @@ void infoPhysicalDrive(IWbemLocator*& loc, std::vector<StorageDevice>& sd_list) 
         disk.disk_num = num.ulVal;
         disk.sz = VTConvertNumeric(d_sz);
 
-        bstr_t bstr_unq_id = bstr_t(unq_id.bstrVal);
-        if (d_hmap.find(bstr_unq_id) == d_hmap.end()) {
-            d_hmap.insert({ bstr_unq_id, disk });
-        }
+        d_hmap.insert({ bstr_t(unq_id.bstrVal), disk });
 
         VariantClear(&unq_id);
         VariantClear(&num);
@@ -414,19 +364,27 @@ void infoPhysicalDrive(IWbemLocator*& loc, std::vector<StorageDevice>& sd_list) 
         disk_obj->Release();
     }
     disk_enumerator->Release();
+}
 
-    HRESULT part_query = svcs->ExecQuery(
-        bstr_t("WQL"),
-        bstr_t("SELECT * FROM MSFT_Partition"),
-        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
-        NULL,
-        &part_enumerator);
+void sd_PartitionQuery(IWbemLocator*& loc, IWbemServices*& svcs,
+    std::mutex& mtx, std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash>& p_hmap) {
+    IEnumWbemClassObject* part_enumerator = nullptr;
+    IWbemClassObject* part_obj = nullptr;
+    ULONG u_ret = 0;
 
-    if (FAILED(part_query)) {
-        std::wcout << L"MSFT_Partition Error. HRESULT: 0x"
-            << std::hex << part_query << std::endl;
-        svcs->Release();
-        return;
+    {
+        std::lock_guard<std::mutex> guard(mtx);
+        HRESULT part_query = svcs->ExecQuery(
+            bstr_t("WQL"),
+            bstr_t("SELECT DiskNumber, PartitionNumber, DriveLetter, Size FROM MSFT_Partition"),
+            WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+            NULL,
+            &part_enumerator);
+
+        if (FAILED(part_query)) {
+            std::wcout << L"MSFT_Partition Error. HRESULT: 0x" << std::hex << part_query << std::endl;
+            return;
+        }
     }
 
     while (part_enumerator) {
@@ -452,9 +410,7 @@ void infoPhysicalDrive(IWbemLocator*& loc, std::vector<StorageDevice>& sd_list) 
         partition.drv_ltr = static_cast<wchar_t>(drv_ltr.uiVal);
         partition.sz = VTConvertNumeric(p_sz);
 
-        if (p_hmap.find(partition.id) == p_hmap.end()) {
-            p_hmap.insert({ partition.id, partition });
-        }
+        p_hmap.insert({ partition.id, partition });
 
         VariantClear(&disk_num);
         VariantClear(&part_num);
@@ -463,19 +419,27 @@ void infoPhysicalDrive(IWbemLocator*& loc, std::vector<StorageDevice>& sd_list) 
         part_obj->Release();
     }
     part_enumerator->Release();
+}
 
-    HRESULT vol_query = svcs->ExecQuery(
-        bstr_t("WQL"),
-        bstr_t("SELECT * FROM MSFT_Volume"),
-        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
-        NULL,
-        &vol_enumerator);
+void sd_VolumeQuery(IWbemLocator*& loc, IWbemServices*& svcs,
+    std::mutex& mtx, std::unordered_map<wchar_t, Volume>& v_hmap) {
+    IEnumWbemClassObject* vol_enumerator = nullptr;
+    IWbemClassObject* vol_obj = nullptr;
+    ULONG u_ret = 0;
 
-    if (FAILED(vol_query)) {
-        std::wcout << L"MSFT_Volume Error. HRESULT: 0x"
-            << std::hex << vol_query << std::endl;
-        svcs->Release();
-        return;
+    {
+        std::lock_guard<std::mutex> guard(mtx);
+        HRESULT vol_query = svcs->ExecQuery(
+            bstr_t("WQL"),
+            bstr_t("SELECT DriveLetter, Size, SizeRemaining, HealthStatus FROM MSFT_Volume"),
+            WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+            NULL,
+            &vol_enumerator);
+
+        if (FAILED(vol_query)) {
+            std::wcout << L"MSFT_Volume Error. HRESULT: 0x" << std::hex << vol_query << std::endl;
+            return;
+        }
     }
 
     while (vol_enumerator) {
@@ -501,9 +465,7 @@ void infoPhysicalDrive(IWbemLocator*& loc, std::vector<StorageDevice>& sd_list) 
         vol.sz_rmng = VTConvertNumeric(sz_rmng);
         vol.hstatus = hstatus.uiVal;
 
-        if (v_hmap.find(vol.drv_ltr) == v_hmap.end()) {
-            v_hmap.insert({ vol.drv_ltr, vol });
-        }
+        v_hmap.insert({ vol.drv_ltr, vol });
 
         VariantClear(&drv_ltr);
         VariantClear(&sz);
@@ -512,25 +474,31 @@ void infoPhysicalDrive(IWbemLocator*& loc, std::vector<StorageDevice>& sd_list) 
         vol_obj->Release();
     }
     vol_enumerator->Release();
+}
 
-    HRESULT pd_query = svcs->ExecQuery(
-        bstr_t("WQL"),
-        bstr_t("SELECT * FROM MSFT_PhysicalDisk"),
-        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
-        NULL,
-        &msft_enumerator);
+void sd_PhysicalDiskQuery(IWbemLocator*& loc, IWbemServices*& svcs,
+    std::mutex& mtx, std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual>& pd_hmap) {
+    IEnumWbemClassObject* msft_enumerator = nullptr;
+    IWbemClassObject* msft_phys = nullptr;
+    ULONG u_ret = 0;
+        
+    {
+        std::lock_guard<std::mutex> guard(mtx);
+        HRESULT pd_query = svcs->ExecQuery(
+            bstr_t("WQL"),
+            bstr_t("SELECT DeviceId, SpindleSpeed, UniqueIdFormat FROM MSFT_PhysicalDisk"),
+            WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+            NULL,
+            &msft_enumerator);
 
-    if (FAILED(pd_query)) {
-        std::wcout << L"MSFT_PhysicalDisk Error. HRESULT: 0x"
-            << std::hex << pd_query << std::endl;
-        svcs->Release();
-        loc->Release();
-        CoUninitialize();
-        return;
+        if (FAILED(pd_query)) {
+            std::wcout << L"MSFT_PhysicalDisk Error. HRESULT: 0x" << std::hex << pd_query << std::endl;
+            return;
+        }
     }
 
     while (msft_enumerator) {
-        HRESULT msft_res = msft_enumerator->Next(WBEM_INFINITE, 1, &msft_phys, &u_ret);
+        msft_enumerator->Next(WBEM_INFINITE, 1, &msft_phys, &u_ret);
         if (u_ret == 0) {
             break;
         }
@@ -557,9 +525,7 @@ void infoPhysicalDrive(IWbemLocator*& loc, std::vector<StorageDevice>& sd_list) 
         pd.unq_id_frmt = unq_id_frmt.uiVal;
         pd.disk_num = extractIndex(pd.device_id);
 
-        if (pd_hmap.find(pd.disk_num) == pd_hmap.end()) {
-            pd_hmap.insert({ pd.disk_num, pd });
-        }
+        pd_hmap.insert({ pd.disk_num, pd });
 
         VariantClear(&spindle_speed);
         VariantClear(&unq_id_frmt);
@@ -567,26 +533,40 @@ void infoPhysicalDrive(IWbemLocator*& loc, std::vector<StorageDevice>& sd_list) 
         msft_phys->Release();
     }
     msft_enumerator->Release();
+}
 
-    for (auto disk_pair : d_hmap) {
+void infoPhysicalDrive(std::vector<StorageDevice>& sd_list,
+    std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual>& d_hmap,
+    std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash>& p_hmap,
+    std::unordered_map<wchar_t, Volume>& v_hmap,
+    std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual>& pd_hmap) {
+    // Build sd_list from the collected data
+    for (const auto& disk_pair : d_hmap) {
         StorageDevice sd;
-        bstr_t d_unq_id = std::get<0>(disk_pair);
-        Disk disk = std::get<1>(disk_pair);
+        bstr_t d_unq_id = disk_pair.first;
+        Disk disk = disk_pair.second;
         ULONG d_disk_num = disk.disk_num;
         sd.setDisk(disk);
 
-        for (int i = 0; i < disk.num_partitions; i++) {
-            ULONG part_num = (ULONG)i;
-            Partition p = p_hmap[{d_disk_num, part_num}];
-            sd.getPartitions().push_back(p);
-            if (p.drv_ltr != 0 && v_hmap.find(p.drv_ltr) != v_hmap.end()) {
-                sd.getVolumes().push_back(v_hmap[p.drv_ltr]);
+        // Add partitions
+        for (int i = 0; i < disk.num_partitions; ++i) {
+            ULONG part_num = static_cast<ULONG>(i);
+            Partition::partition_id pid = { d_disk_num, part_num };
+            if (p_hmap.find(pid) != p_hmap.end()) {
+                sd.getPartitions().push_back(p_hmap[pid]);
+                Partition p = p_hmap[pid];
+                // Add volume if it exists
+                if (p.drv_ltr != 0 && v_hmap.find(p.drv_ltr) != v_hmap.end()) {
+                    sd.getVolumes().push_back(v_hmap[p.drv_ltr]);
+                }
             }
         }
 
-        PhysDisk pd = pd_hmap[d_disk_num];
-        sd.setPhysicalDisk(pd);
+        // Add physical disk
+        if (pd_hmap.find(d_disk_num) != pd_hmap.end()) {
+            sd.setPhysicalDisk(pd_hmap[d_disk_num]);
+        }
+
         sd_list.push_back(sd);
     }
-    svcs->Release();
 }

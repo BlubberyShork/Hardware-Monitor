@@ -10,7 +10,6 @@ GraphicsProcessor::GraphicsProcessor() {
 }
 
 GraphicsProcessor::~GraphicsProcessor() {
-
 }
 
 void GraphicsProcessor::outputGPUInfo() {
