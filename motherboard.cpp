@@ -1,17 +1,17 @@
 #include "motherboard.h"	
 
-Motherboard::Motherboard()
-    : description(bstr_t()),
-    hosting_board(FALSE),
-    powered_on(FALSE),
-    product(bstr_t()),
-    status(bstr_t())
-{
-}
-
-Motherboard::~Motherboard() {
-
-}
+//Motherboard::Motherboard()
+//    : description(bstr_t()),
+//    hosting_board(FALSE),
+//    powered_on(FALSE),
+//    product(bstr_t()),
+//    status(bstr_t())
+//{
+//}
+//
+//Motherboard::~Motherboard() {
+//
+//}
 
 void Motherboard::outputMotherboardInfo() {
     // Output with null checks

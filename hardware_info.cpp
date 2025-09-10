@@ -42,7 +42,7 @@ void setupWBEM(IWbemLocator*& loc, IWbemServices*& w_svcs, IWbemServices*& m_svc
         return;
     }
 
-    hr = loc->ConnectServer(
+    /*hr = loc->ConnectServer(
         BSTR(L"ROOT\\CIMV2"),
         NULL,
         NULL,
@@ -58,7 +58,7 @@ void setupWBEM(IWbemLocator*& loc, IWbemServices*& w_svcs, IWbemServices*& m_svc
         loc->Release();
         CoUninitialize();
         return;
-    }
+    }*/
 
     hr = loc->ConnectServer(
         BSTR(L"ROOT\\Microsoft\\Windows\\Storage"),
@@ -69,6 +69,76 @@ void setupWBEM(IWbemLocator*& loc, IWbemServices*& w_svcs, IWbemServices*& m_svc
         0,
         0,
         &m_svcs);
+
+    if (FAILED(hr)) {
+        std::cout << "MSFT_svcs Could not connect. Error code = 0x"
+            << std::hex << hr << std::endl;
+        loc->Release();
+        CoUninitialize();
+        return;
+    }
+}
+
+void setupW32Wbem(IWbemLocator*& loc, IWbemServices*& svcs) {
+    HRESULT hr;
+    hr = CoCreateInstance(
+        CLSID_WbemLocator,
+        0,
+        CLSCTX_INPROC_SERVER,
+        IID_IWbemLocator,
+        (LPVOID*)&loc);
+
+    if (FAILED(hr)) {
+        std::cout << "Failed to create IWbemLocator object. Error code = 0x"
+            << std::hex << hr << std::endl;
+        CoUninitialize();
+        return;
+    }
+
+    hr = loc->ConnectServer(
+        BSTR(L"ROOT\\CIMV2"),
+        NULL,
+        NULL,
+        0,
+        NULL,
+        0,
+        0,
+        &svcs);
+
+    if (FAILED(hr)) {
+        std::cout << "w32_svcs Could not connect. Error code = 0x"
+            << std::hex << hr << std::endl;
+        loc->Release();
+        CoUninitialize();
+        return;
+    }
+}
+
+void setupMSFTWbem(IWbemLocator*& loc, IWbemServices*& svcs) {
+    HRESULT hr;
+    hr = CoCreateInstance(
+        CLSID_WbemLocator,
+        0,
+        CLSCTX_INPROC_SERVER,
+        IID_IWbemLocator,
+        (LPVOID*)&loc);
+
+    if (FAILED(hr)) {
+        std::cout << "Failed to create IWbemLocator object. Error code = 0x"
+            << std::hex << hr << std::endl;
+        CoUninitialize();
+        return;
+    }
+
+    hr = loc->ConnectServer(
+        BSTR(L"ROOT\\Microsoft\\Windows\\Storage"),
+        NULL,
+        NULL,
+        0,
+        NULL,
+        0,
+        0,
+        &svcs);
 
     if (FAILED(hr)) {
         std::cout << "MSFT_svcs Could not connect. Error code = 0x"
@@ -122,12 +192,12 @@ void infoGPU(IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx, std::vec
         gpu_class_obj->Get(L"CurrentRefreshRate", 0, &curr_refresh_rate, 0, 0);
         gpu_class_obj->Get(L"Status", 0, &status, 0, 0);
 
-        gpu.setName(name.bstrVal);
-        gpu.setAdapterRAM(adapter_RAM.ulVal);
-        gpu.setDeviceId(device_ID.bstrVal);
-        gpu.setAvailability(availability.uiVal);
-        gpu.setCurrentRefreshRate(curr_refresh_rate.ulVal);
-        gpu.setStatus(status.bstrVal);
+        gpu.name = name.bstrVal;
+        gpu.adapter_RAM = adapter_RAM.ulVal;
+        gpu.device_id = device_ID.bstrVal;
+        gpu.availability = availability.uiVal;
+        gpu.curr_ref_rate = curr_refresh_rate.ulVal;
+        gpu.status = status.bstrVal;
 
         gpu_list.push_back(gpu);
 
@@ -185,12 +255,12 @@ void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx,
         mboard->Get(L"Product", 0, &product, 0, 0);
         mboard->Get(L"Status", 0, &status, 0, 0);
 
-        mboard_obj.setDesc(description.bstrVal);
+        mboard_obj.description = description.bstrVal;
         BOOL hb_b = hostingBoard.boolVal == VARIANT_TRUE ? TRUE : FALSE;
-        mboard_obj.setHostingBoard(hb_b);
-        mboard_obj.setPoweredOn(BOOL(poweredOn.pboolVal));
-        mboard_obj.setProduct(product.bstrVal);
-        mboard_obj.setStatus(status.bstrVal);
+        mboard_obj.hosting_board = hb_b;
+        mboard_obj.powered_on = BOOL(poweredOn.pboolVal);
+        mboard_obj.product = product.bstrVal;
+        mboard_obj.status = status.bstrVal;
 
         mboard_list.push_back(mboard_obj);
 
@@ -541,7 +611,7 @@ void infoPhysicalDrive(std::vector<StorageDevice>& sd_list,
     std::unordered_map<wchar_t, Volume>& v_hmap,
     std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual>& pd_hmap) {
     // Build sd_list from the collected data
-    for (const auto& disk_pair : d_hmap) {
+    for (const auto& disk_pair : d_hmap) {  // O(d) time, d = num_disks
         StorageDevice sd;
         bstr_t d_unq_id = disk_pair.first;
         Disk disk = disk_pair.second;
@@ -549,7 +619,7 @@ void infoPhysicalDrive(std::vector<StorageDevice>& sd_list,
         sd.setDisk(disk);
 
         // Add partitions
-        for (int i = 0; i < disk.num_partitions; ++i) {
+        for (int i = 0; i < disk.num_partitions; ++i) { // O(p) time, p = num_partitions
             ULONG part_num = static_cast<ULONG>(i);
             Partition::partition_id pid = { d_disk_num, part_num };
             if (p_hmap.find(pid) != p_hmap.end()) {

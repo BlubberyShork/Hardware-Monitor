@@ -11,11 +11,8 @@
 #include <iomanip>
 #include <iostream>
 
-#pragma comment(lib, "wbemuuid.lib")
 
-#define NUM_THREADS 7
-#define NUM_MSFT_THREADS 4
-#define NUM_W32_THREADS 3
+#pragma comment(lib, "wbemuuid.lib")
 
 int main()
 {
@@ -24,11 +21,30 @@ int main()
     IWbemServices *msft_svcs = nullptr;
     IWbemRefresher *refresher = nullptr;
 
-    std::cout << "before initializations\n";
+    // Way faster than doing a macro/constexpr
+    const int NUM_THREADS = 7;
+    const int NUM_W32_THREADS = 3;
+    const int NUM_MSFT_THREADS = 4;
+    const int NUM_SVCS = 2;
 
-    // Might want to thread these
+    std::cout << "before initializations\n";
+    auto start = std::chrono::high_resolution_clock::now();
+
     InitializeCOM();
-    setupWBEM(loc, w32_svcs, msft_svcs);
+    
+    std::thread svcs_threads[NUM_SVCS];
+    std::function<void(IWbemLocator*&)> svcs_init_funcs[NUM_THREADS] = {
+        [&w32_svcs](IWbemLocator*& loc) { setupW32Wbem(loc, w32_svcs); },
+        [&msft_svcs](IWbemLocator*& loc) { setupMSFTWbem(loc, msft_svcs); }
+    };
+
+    for (int i = 0; i < NUM_SVCS; i++) {
+        svcs_threads[i] = std::thread(svcs_init_funcs[i], std::ref(loc));
+    }
+    
+    for (int i = 0; i < NUM_SVCS; i++) {
+        svcs_threads[i].join();
+    }
 
     std::cout << "Finished initializations\n";
     std::vector<Motherboard> mboard_list;
@@ -39,8 +55,7 @@ int main()
     std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash> p_hmap;
     std::unordered_map<wchar_t, Volume> v_hmap;
     std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual> pd_hmap;
-    // Make maps for queries
-    
+
     std::mutex w32_mtx;
     std::mutex msft_mtx;
     std::thread threads[NUM_THREADS];
@@ -61,7 +76,6 @@ int main()
         //infoTemperatures();   TODO - Will need to make call to kernel driver
     };
 
-    auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < NUM_W32_THREADS; i++) {
         threads[i] = std::thread(functions[i], std::ref(loc), std::ref(w32_svcs), std::ref(w32_mtx));
     }
