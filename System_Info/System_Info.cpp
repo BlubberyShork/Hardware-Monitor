@@ -25,7 +25,7 @@ int main()
 
     // figure out if intel cpu or AMD, then do two diff things of code
     int NUM_CORES = coreCount();
-    std:: wcout << NUM_CORES;
+    std::cout << "Number of cores read by CPUID:" << NUM_CORES << "\n";
 
     const int NUM_THREADS = 7;
     const int NUM_W32_THREADS = 3;
