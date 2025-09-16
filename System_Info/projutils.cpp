@@ -1,19 +1,21 @@
 #include "projutils.h"
 
 bstr_t simplifyBytesAsString(ULONGLONG sz) {
-    float sz_updating = (float) sz;
+    double sz_updating = static_cast<double>(sz);    
     bstr_t unit = bstr_t("");
 
     int divisions = 0;
     while (sz_updating > BINARY_UNIT_MULTIPLIER) {
-        sz_updating = sz_updating / (float) BINARY_UNIT_MULTIPLIER;
+        sz_updating = sz_updating / static_cast<double>(BINARY_UNIT_MULTIPLIER);
         divisions++;
     }
-    bstr_t value_as_str = bstr_t(sz_updating);
 
-    static const char* units[] = { "B", "KB", "MB", "GB", "TB", "PB", "EB" };
+    static const wchar_t* units[] = { L"B", L"KB", L"MB", L"GB", L"TB", L"PB", L"EB" };
+    std::wstringstream ss;
+    ss << std::fixed << std::setprecision(2) << sz_updating;
+    bstr_t value_as_str(ss.str().c_str());
 
-    if (divisions < 0 || divisions > 7) {
+    if (divisions < 0 || divisions >= 7) {
         fprintf(stderr, "Invalid RAM size\n");
     }
     else {
@@ -24,6 +26,35 @@ bstr_t simplifyBytesAsString(ULONGLONG sz) {
     result += " ";
     result += unit;
     return result;
+}
+
+ULONGLONG VTConvertNumeric(VARIANT v) {
+    switch (v.vt) {
+    case VT_I1:    return static_cast<ULONGLONG>(v.cVal);
+    case VT_UI1:   return static_cast<ULONGLONG>(v.bVal);
+    case VT_I2:    return static_cast<ULONGLONG>(v.iVal);
+    case VT_UI2:   return static_cast<ULONGLONG>(v.uiVal);
+    case VT_I4:    return static_cast<ULONGLONG>(v.intVal);
+    case VT_UI4:   return static_cast<ULONGLONG>(v.uintVal);
+    case VT_I8:    return static_cast<ULONGLONG>(v.llVal);
+    case VT_UI8:   return static_cast<ULONGLONG>(v.ullVal);
+    case VT_BOOL:  return (v.boolVal == VARIANT_TRUE) ? 1ULL : 0ULL;
+    case VT_BSTR:  // Used in some storage device sizings, etc
+        return (v.bstrVal != nullptr) ? _wtoi64(v.bstrVal) : 0ULL;
+    case VT_NULL:
+    case VT_EMPTY:
+        return 0ULL;
+    default:
+        // Fallback: attempt coercion
+        VARIANT vConv;
+        VariantInit(&vConv);
+        if (SUCCEEDED(VariantChangeType(&vConv, const_cast<VARIANT*>(&v), 0, VT_I8))) {
+            ULONGLONG result = static_cast<ULONGLONG>(vConv.llVal);
+            VariantClear(&vConv);
+            return result;
+        }
+        return 0ULL;
+    }
 }
 
 bstr_t explainAvailability(USHORT av_status) {
