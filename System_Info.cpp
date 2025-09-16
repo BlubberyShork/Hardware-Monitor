@@ -14,6 +14,8 @@
 
 #pragma comment(lib, "wbemuuid.lib")
 
+int coreCount();
+
 int main()
 {
     IWbemLocator *loc = nullptr;
@@ -21,7 +23,10 @@ int main()
     IWbemServices *msft_svcs = nullptr;
     IWbemRefresher *refresher = nullptr;
 
-    // Way faster than doing a macro/constexpr
+    // figure out if intel cpu or AMD, then do two diff things of code
+    int NUM_CORES = coreCount();
+    std:: wcout << NUM_CORES;
+
     const int NUM_THREADS = 7;
     const int NUM_W32_THREADS = 3;
     const int NUM_MSFT_THREADS = 4;
@@ -130,3 +135,16 @@ int main()
 
     return 0;
 }
+
+int coreCount() {
+    int info[4]; 
+    __cpuid(info, 1);
+    int num_logical_processors = info[1] << 16 & 0xFF;
+    int htt_enabled = info[3] << 28 & 0xFF;
+
+    return htt_enabled == 1 ? num_logical_processors / 2 : num_logical_processors;
+}
+
+
+
+

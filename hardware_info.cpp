@@ -579,7 +579,7 @@ void sd_PhysicalDiskQuery(IWbemLocator*& loc, IWbemServices*& svcs,
         VariantInit(&spindle_speed);
 
         auto extractIndex = [](const bstr_t& dev_id) {
-            assert(dev_id);
+            //assert(dev_id);
             std::wstring ws_dev_id(dev_id);
             auto pos = ws_dev_id.find_last_of(L"0123456789");
             return (ULONG)std::stoi(ws_dev_id.substr(pos));
