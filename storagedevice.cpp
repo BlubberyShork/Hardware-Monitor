@@ -50,7 +50,8 @@ void StorageDevice::outSDInfo()
                 std::wcout << L"\t\tDrive Letter: "
                     << (vol.drv_ltr ? vol.drv_ltr : L'<') << L":" L"\n";
                 std::wcout << L"\t\tSize: " << simplifyBytesAsString(vol.sz) << L"\n";
-                std::wcout << L"\t\tRemaining Size: " << simplifyBytesAsString(vol.sz_rmng) << L"\n\n";
+                std::wcout << L"\t\tUsed Space: " << simplifyBytesAsString(vol.sz - vol.sz_rmng) << L"\n\n";
+                std::wcout << L"\t\tRemaining Space: " << simplifyBytesAsString(vol.sz_rmng) << L"\n\n";
             }
         }
     }

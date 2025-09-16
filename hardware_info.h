@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <string>
 #include <mutex>
+#include <intrin.h>
 
 void InitializeCOM();
 void setupW32Wbem(IWbemLocator*& loc, IWbemServices*& svcs);
@@ -22,12 +23,14 @@ void setupMSFTWbem(IWbemLocator*& loc, IWbemServices*& svcs);
 
 void infoGPU(IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx, 
 	std::vector<GraphicsProcessor>& gpu_list); 
+//<nvapi.h> to grab load for gpu
 
 void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx, 
 	std::vector<Motherboard>& mboard_list);
 
 void infoCPU(IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx, 
 	std::vector<Processor>& cpu_list);
+// __cpuid to get core counts
 
 /* Storage Device */
 void sd_DiskQuery(IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx,
