@@ -14,9 +14,11 @@
 
 #pragma comment(lib, "wbemuuid.lib")
 
+
+//Forward Declarations
 int coreCount();
 
-int main()
+int main(int arcg, char *argv[])
 {
     IWbemLocator *loc = nullptr;
     IWbemServices *w32_svcs = nullptr;
@@ -137,10 +139,11 @@ int main()
 }
 
 int coreCount() {
-    int info[4]; 
+    int info[4];
+
     __cpuid(info, 1);
-    int num_logical_processors = info[1] << 16 & 0xFF;
-    int htt_enabled = info[3] << 28 & 0xFF;
+    int num_logical_processors = (info[1] << 16) & 0xFF;
+    int htt_enabled = (info[3] << 28 &) 0xFF;
 
     return htt_enabled == 1 ? num_logical_processors / 2 : num_logical_processors;
 }
