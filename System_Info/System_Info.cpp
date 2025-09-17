@@ -36,8 +36,6 @@ int main(int arcg, char *argv[])
 
     std::cout << "before initializations\n";
     auto start = std::chrono::high_resolution_clock::now();
-
-    InitializeCOM();
     
     std::thread svcs_threads[NUM_SVCS];
     std::function<void(IWbemLocator*&)> svcs_init_funcs[NUM_THREADS] = {

@@ -1,43 +1,17 @@
-#include "cpudriver.h"
-#include <ntddk.h>
-#include <wdf.h>
-
-#define DEVICE_NAME L"\\Device\\CPUMonitorDriver"
-#define SYMLINK_NAME L"\\DosDevices\\CPUMonitorDriver"
-#define IOCTL_GET_TEMP CTL_CODE(FILE_DEVICE_UNKNOWN, 0x800, METHOD_BUFFERED, FILE_ANY_ACCESS)
-
-// TODO!
-// Forward declarations
-NTSTATUS EvtDeviceAdd(
-    _In_ WDFDRIVER driver, 
-    _Inout_ PWDFDEVICE_INIT device_init
-);
-
-VOID EvtIoDeviceControl(
-    _In_ WDFQUEUE queue,                     
-    _In_ WDFREQUEST request,                     
-    _In_ size_t OutputBufferLength, 
-    _In_ size_t InputBufferLength, 
-    _In_ ULONG IoControlCode
-);
-
-//TODO - move to header
-struct cpuData() {
-    uint32_t core_cnt;
-    uint16_t[] temp;
-    // TODO - cpu/core load
-}
 
 NTSTATUS DriverEntry(
     _In_ PDRIVER_OBJECT     driver_obj,
     _In_ PUNICODE_STRING    registry_path
 ) {
     NTSTATUS status = STATUS_SUCCESS;
+    WDFDRIVER h_device;
 
     WDF_DRIVER_CONFIG config;
 
     // Run code from other func
-    
+   
+
+
     WDF_DRIVER_CONFIG_INIT(&config, EvtDeviceAdd);
     
 
@@ -51,15 +25,30 @@ NTSTATUS DriverEntry(
         return status;
     }
 
+    //TODO - create the IOqueue for EvtIoDeviceControl;
+
     return status;
 }
 
+//WDFDRIVER is a wrapper for a PDRIVER_OBJECT
 NTSTATUS EvtDeviceAdd(_In_ WDFDRIVER driver, _Inout_ PWDFDEVICE_INIT device_init) {
 
+    NTSTATUS status;
+    WDFDEVICE h_device;
 
-//TODO will need to use the macros above creating a 
-    //Device name and symbolic link
+    status = WdfDriverCreate(device_init,
+                            WDF_NO_OBJECT_ATTRIBUTES,
+                            &driver);
+    if(!NT_SUCCESS(status)) {
+        KdPrint(("WdfDriverCreate failed: 0x%x\n"), status);
+        return status;
+    }
 
+    status = WdfDeviceCreateSymbolicLink(SYMLINK_NAME, DEVICE_NAME);
+    if(!NT_SUCCESS(status)) {
+        KdPrint(("WdfDriverCreateSymbolicLink failed: 0x%x), status);
+        return status;
+    }
 }
 
 VOID EvtIoDeviceControl(WDFQUEUE Queue, WDFREQUEST Request, size_t OutputBufferLength, size_t InputBufferLength, ULONG IoControlCode) {
