@@ -1,11 +1,14 @@
-
 #include "cpudriver.h"
 #include <ntddk.h>
 #include <wdf.h>
+#include <intrin.h>
 
 #define DEVICE_NAME L"\\Device\\CPUMonitorDriver"
 #define SYMLINK_NAME L"\\DosDevices\\CPUMonitorDriver"
 #define IOCTL_GET_TEMP CTL_CODE(FILE_DEVICE_UNKNOWN, 0x800, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+#define INTEL_THERM_STATUS 0x19C
+#define INTEL_THERM_TARGET 0x1A2
 
 // TODO!
 // Forward declarations
@@ -25,6 +28,6 @@ VOID EvtIoDeviceControl(
 //TODO - move to header
 struct cpuData() {
     uint32_t core_cnt;
-    uint16_t[] temp;
-    // TODO - cpu/core load
+    uint16_t temp;  // There exists some beastly AMD cpu with 192 cores
+    uint64_t cpu_load;
 }

@@ -4,12 +4,11 @@ NTSTATUS DriverEntry(
     _In_ PUNICODE_STRING    registry_path
 ) {
     NTSTATUS status = STATUS_SUCCESS;
-    WDFDRIVER h_device;
 
     WDF_DRIVER_CONFIG config;
 
     WDF_DRIVER_CONFIG_INIT(&config, EvtDeviceAdd);
-    
+    config.EvtDriverUnload = EvtDriverUnload;
 
     status = WdfDriverCreate(driver_obj,
                              registry_path,
@@ -21,54 +20,64 @@ NTSTATUS DriverEntry(
         return status;
     }
 
-    //TODO - create the IOqueue for EvtIoDeviceControl;
-
     return status;
 }
 
-//WDFDRIVER is a wrapper for a PDRIVER_OBJECT
+// WDFDRIVER is a wrapper for a PDRIVER_OBJECT
+// Creates WDF device, which represents the MSR reading device for us to use
 NTSTATUS EvtDeviceAdd(_In_ WDFDRIVER driver, _Inout_ PWDFDEVICE_INIT device_init) {
 
     NTSTATUS status;
     WDFDEVICE h_device;
+    WDFQUEUE queue;
 
-    status = WdfDriverCreate(device_init,
+    UNREFERENCED_PARAMETER(driver);
+
+    status = WdfDeviceCreate(device_init,
                             WDF_NO_OBJECT_ATTRIBUTES,
-                            &driver);
+                            &h_device);
     if(!NT_SUCCESS(status)) {
         KdPrint(("WdfDriverCreate failed: 0x%x\n"), status);
         return status;
     }
 
+    // creates link for user mode code to interact with our device
     status = WdfDeviceCreateSymbolicLink(SYMLINK_NAME, DEVICE_NAME);
     if(!NT_SUCCESS(status)) {
-        KdPrint(("WdfDriverCreateSymbolicLink failed: 0x%x), status);
+        KdPrint(("WdfDriverCreateSymbolicLink failed: 0x%x\n)", status);
         return status;
     }
+    
+    //TODO - WdfIoQueueCreate() -> see documentation
+}
+
+NTSTATUS EvtDeviceUnload(WDFDRIVER driver) {
+    UNREFERENCED_PARAMETER(driver);
+    KdPrint(("WDF driver unloaded\n"));
+
+    //Dont actually need to do work here, this is basically empty
+    //the routine by default deletes the driver thru config.
 }
 
 VOID EvtIoDeviceControl(WDFQUEUE Queue, WDFREQUEST Request, size_t OutputBufferLength, size_t InputBufferLength, ULONG IoControlCode) {
 {
-    
-    uint64_t THERM_STATUS = rdmsr(0x19CH);
+    // in buffer will be empty
+
+    // get core count from __cpuid in user space and use that data in input buffer length
+    // loop thru core count creating structs, put in array and return
+
+    uint64_t THERM_STATUS = __rdmsr(INTEL_THERM_STATUS);
     uint32_t temp_offset = (THERM_STATUS >> 16) & 0x7F; //32bit num is safer here
 
-    UINT64_T THERM_TARGET = rdmsr(0x1A2H);
+    UINT64_T THERM_TARGET = __rdmsr(INTEL_THERM_TARGET);
     uint32_t temp_max = (THERM_TARGET >> 16) & 0xFF;
 
     int16_t real_temp = (int16_t) temp_max - (int16_t) temp_offset;
 
     //TODO - store temp and also cpu load in a struct container
-    //WdfRequestRetrieveOutputBuffer() and 
-    //WdfRequestCompleteWithInformation() 
+        // WdfRequestRetrieveOutputBuffer() and 
+        // WdfRequestCompleteWithInformation() 
 
-    WDFDEVICE h_device;
-
-    status = WdfDriverCreate(&device_init,
-                             WDF_NO_OBJECT_ATTRIBUTES,
-                             &h_device);
-
-    return status;
 }
 
 
