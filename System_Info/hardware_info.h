@@ -53,6 +53,5 @@ void infoPhysicalDrive(std::vector<StorageDevice>& sd_list,
 	std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual>& pd_hmap);
 /* Storage Device */
 
-
 #endif // HARDWARE_INFO_H
 #pragma once
