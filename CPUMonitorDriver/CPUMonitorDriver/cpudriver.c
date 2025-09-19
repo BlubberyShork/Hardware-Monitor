@@ -8,10 +8,6 @@ NTSTATUS DriverEntry(
 
     WDF_DRIVER_CONFIG config;
 
-    // Run code from other func
-   
-
-
     WDF_DRIVER_CONFIG_INIT(&config, EvtDeviceAdd);
     
 

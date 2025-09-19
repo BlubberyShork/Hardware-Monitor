@@ -36,7 +36,9 @@ int main(int arcg, char *argv[])
 
     std::cout << "before initializations\n";
     auto start = std::chrono::high_resolution_clock::now();
-    
+
+    InitializeCOM();
+
     std::thread svcs_threads[NUM_SVCS];
     std::function<void(IWbemLocator*&)> svcs_init_funcs[NUM_THREADS] = {
         [&w32_svcs](IWbemLocator*& loc) { setupW32Wbem(loc, w32_svcs); },
@@ -141,7 +143,7 @@ int coreCount() {
 
     __cpuid(info, 1);
     int num_logical_processors = (info[1] << 16) & 0xFF;
-    int htt_enabled = (info[3] << 28 &) 0xFF;
+    int htt_enabled = (info[3] << 28) & 0xFF;
 
     return htt_enabled == 1 ? num_logical_processors / 2 : num_logical_processors;
 }

@@ -7,6 +7,7 @@
 #include "processor.h"
 #include "projutils.h"
 
+#include <windows.h>
 #include <iostream>
 #include <comdef.h>
 #include <thread>
