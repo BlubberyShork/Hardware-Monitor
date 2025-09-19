@@ -37,14 +37,14 @@ NTSTATUS EvtDeviceAdd(_In_ WDFDRIVER driver, _Inout_ PWDFDEVICE_INIT device_init
                             WDF_NO_OBJECT_ATTRIBUTES,
                             &h_device);
     if(!NT_SUCCESS(status)) {
-        KdPrint(("WdfDriverCreate failed: 0x%x\n"), status);
+        KdPrint(("WdfDeviceCreate failed: 0x%x\n", status));
         return status;
     }
 
     // creates link for user mode code to interact with our device
     status = WdfDeviceCreateSymbolicLink(SYMLINK_NAME, DEVICE_NAME);
     if(!NT_SUCCESS(status)) {
-        KdPrint(("WdfDriverCreateSymbolicLink failed: 0x%x\n)", status);
+        KdPrint(("WdfDriverCreateSymbolicLink failed: 0x%x\n", status));
         return status;
     }
     
@@ -60,7 +60,6 @@ NTSTATUS EvtDeviceUnload(WDFDRIVER driver) {
 }
 
 VOID EvtIoDeviceControl(WDFQUEUE Queue, WDFREQUEST Request, size_t OutputBufferLength, size_t InputBufferLength, ULONG IoControlCode) {
-{
     // in buffer will be empty
 
     // get core count from __cpuid in user space and use that data in input buffer length (include the core count and a list of each cpu id)
@@ -71,15 +70,15 @@ VOID EvtIoDeviceControl(WDFQUEUE Queue, WDFREQUEST Request, size_t OutputBufferL
     uint64_t THERM_STATUS = __rdmsr(INTEL_THERM_STATUS);
     uint32_t temp_offset = (THERM_STATUS >> 16) & 0x7F; //32bit num is safer here
 
-    UINT64_T THERM_TARGET = __rdmsr(INTEL_THERM_TARGET);
+    uint64_t THERM_TARGET = __rdmsr(INTEL_THERM_TARGET);
     uint32_t temp_max = (THERM_TARGET >> 16) & 0xFF;
 
     int16_t real_temp = (int16_t) temp_max - (int16_t) temp_offset;
 
     //TODO - store temp and also cpu load in a struct container
         // WdfRequestRetrieveOutputBuffer() and 
-        // WdfRequestCompleteWithInformation() 
 
+    WdfRequestComplete(Request, STATUS_SUCCESS);
 }
 
 
