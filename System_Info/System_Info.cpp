@@ -14,7 +14,6 @@
 
 #pragma comment(lib, "wbemuuid.lib")
 
-
 //Forward Declarations
 int coreCount();
 
@@ -52,7 +51,7 @@ int main(int arcg, char *argv[])
     for (int i = 0; i < NUM_SVCS; i++) {
         svcs_threads[i].join();
     }
-
+    
     std::cout << "Finished initializations\n";
     std::vector<Motherboard> mboard_list;
     std::vector<GraphicsProcessor> gpu_list;

@@ -7,11 +7,11 @@ void StorageDevice::outSDInfo()
         std::wcout << L"--- Disk Info ---\n";
         std::wcout << L"Disk Number: " << disk.disk_num << L"\n";
         std::wcout << L"Friendly Name: "
-            << (disk.fname.length() ? disk.fname : L"<empty>") << L"\n";
+            << (disk.fname.length() ?  (wchar_t*) disk.fname : L"<empty>") << L"\n";
         std::wcout << L"Manufacturer: "
-            << (disk.manufacturer.length() ? disk.manufacturer : L"<empty>") << L"\n";
+            << (disk.manufacturer.length() ? (wchar_t*) disk.manufacturer : L"<empty>") << L"\n";
         std::wcout << L"Model: "
-            << (disk.model.length() ? disk.model : L"<empty>") << L"\n";
+            << (disk.model.length() ? (wchar_t*)disk.model : L"<empty>") << L"\n";
         std::wcout << L"Size: " << simplifyBytesAsString(disk.sz) << L" \n";
 
         ULONG ss = physical_disk.spindle_speed;
