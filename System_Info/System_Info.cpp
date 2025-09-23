@@ -14,8 +14,18 @@
 
 #pragma comment(lib, "wbemuuid.lib")
 
+constexpr int NUM_THREADS = 7;
+constexpr int NUM_W32_THREADS = 3;
+constexpr int NUM_MSFT_THREADS = 4;
+constexpr int NUM_SVCS = 2;
+
+#define OUTPUT_HEADER(header_msg) \
+    std::cout << "--------------------------------------------------------------\n"; \
+    std::cout << "     ** " << header_msg << "** \n\n";
+
 //Forward Declarations
 int coreCount();
+
 
 int main(int arcg, char *argv[])
 {
@@ -27,11 +37,6 @@ int main(int arcg, char *argv[])
     // figure out if intel cpu or AMD, then do two diff things of code
     int NUM_CORES = coreCount();
     std::cout << "Number of cores read by CPUID:" << NUM_CORES << "\n";
-
-    const int NUM_THREADS = 7;
-    const int NUM_W32_THREADS = 3;
-    const int NUM_MSFT_THREADS = 4;
-    const int NUM_SVCS = 2;
 
     std::cout << "before initializations\n";
     auto start = std::chrono::high_resolution_clock::now();
@@ -96,29 +101,25 @@ int main(int arcg, char *argv[])
 
     infoPhysicalDrive(sd_list, d_hmap, p_hmap, v_hmap, pd_hmap);
 
-    std::wcout << "--------------------------------------------------------------\n";
-    std::wcout << "     ** Motherboard ** \n\n";
+    OUTPUT_HEADER("Motherboard");
     for (int i = 0; i < mboard_list.size(); i++) {
         mboard_list[i].outputMotherboardInfo();
     }
     std::wcout << std::endl;
 
-    std::wcout << "--------------------------------------------------------------\n";
-    std::wcout << "     ** GPUs & Video Controllers ** \n\n";
+    OUTPUT_HEADER("GPUs and Graphics Processors");
     for (int i = 0; i < gpu_list.size(); i++) {
         gpu_list[i].outputGPUInfo();
     }
     std::wcout << std::endl;
 
-    std::wcout << "--------------------------------------------------------------\n";
-    std::wcout << "     ** Processors ** \n\n";
+    OUTPUT_HEADER("Processors");
     for (int i = 0; i < proc_list.size(); i++) {    
         proc_list[i].outProcInfo();
     }
     std::wcout << std::endl;
 
-    std::wcout << "--------------------------------------------------------------\n";
-    std::wcout << "     ** Storage Device ** \n\n";
+    OUTPUT_HEADER("Storage Devices");
     for (int i = 0; i < sd_list.size(); i++) {
         sd_list[i].outSDInfo();
     }
@@ -141,7 +142,7 @@ int coreCount() {
     int info[4];
 
     __cpuid(info, 1);
-    int num_logical_processors = (info[1] << 16) & 0xFF;
+    int num_logical_processors = (info[1] << 16) & 0xFF;    
     int htt_enabled = (info[3] << 28) & 0xFF;
 
     return htt_enabled == 1 ? num_logical_processors / 2 : num_logical_processors;
