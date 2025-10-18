@@ -1,5 +1,9 @@
 #include "hardware_info.h"
 
+// !!TODO!! - this entire file needs heavy reworking. I need to make a ExecuteWMIQuery function so that I can 
+//      have the code for each file only need to grab the variables
+//      ProjUtils also needs to have the windows typecasting in their own functions
+
 void InitializeCOM() {
     HRESULT hr;
     hr = CoInitializeEx(0, COINIT_MULTITHREADED);
@@ -605,11 +609,14 @@ void sd_PhysicalDiskQuery(IWbemLocator*& loc, IWbemServices*& svcs,
     msft_enumerator->Release();
 }
 
-void infoPhysicalDrive(std::vector<StorageDevice>& sd_list,
-    std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual>& d_hmap,
-    std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash>& p_hmap,
-    std::unordered_map<wchar_t, Volume>& v_hmap,
-    std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual>& pd_hmap) {
+void infoPhysicalDrive(
+        std::vector<StorageDevice>& sd_list,
+        std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual>& d_hmap,
+        std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash>& p_hmap,
+        std::unordered_map<wchar_t, Volume>& v_hmap,
+        std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual>& pd_hmap
+    ) {
+    
     // Build sd_list from the collected data
     for (const auto& disk_pair : d_hmap) {  // O(d) time, d = num_disks
         StorageDevice sd;
@@ -645,10 +652,11 @@ int coreCount() {
     int info[4];
 
     // FIX - doesnt work
+    //      Seems the bit-shifts are going the wrong way.
 
     __cpuid(info, 1);
-    int num_logical_processors = (info[1] << 16) & 0xFF;    
-    int htt_enabled = (info[3] << 28) & 0xFF;
+    int num_logical_processors = (info[1] >> 16) & 0xFF;    
+    int htt_enabled = (info[3] >> 28) & 0xFF;
 
     return htt_enabled == 1 ? num_logical_processors / 2 : num_logical_processors;
 }

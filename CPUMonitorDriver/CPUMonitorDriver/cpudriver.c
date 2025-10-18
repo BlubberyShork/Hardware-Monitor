@@ -1,3 +1,4 @@
+#include "cpudriver.h"
 
 NTSTATUS DriverEntry(
     _In_ PDRIVER_OBJECT     driver_obj,
@@ -47,8 +48,24 @@ NTSTATUS EvtDeviceAdd(_In_ WDFDRIVER driver, _Inout_ PWDFDEVICE_INIT device_init
         KdPrint(("WdfDriverCreateSymbolicLink failed: 0x%x\n", status));
         return status;
     }
+
+    WDF_IO_QUEUE_CONFIG = io_queue_config;
+    WDFQUEUE = h_queue;
+    WDF_IO_QUEUE_CONFIG_INIT_DEFAULT_QUEUE(
+        &io_queue_config,
+        WdfIoQueueDispatchSequential
+    );
+
+    status = WdfIoQueueCreate(
+        device,
+        &ioQueueConfig,
+        WDF_NO_OBJECT_ATTRIBUTES,
+        &h_queue
+    );
     
-    //TODO - WdfIoQueueCreate() -> see documentation
+    if (!NT_SUCCESS (status)) {
+        return status;
+    }
 }
 
 NTSTATUS EvtDeviceUnload(WDFDRIVER driver) {
@@ -60,19 +77,55 @@ NTSTATUS EvtDeviceUnload(WDFDRIVER driver) {
 }
 
 VOID EvtIoDeviceControl(WDFQUEUE Queue, WDFREQUEST Request, size_t OutputBufferLength, size_t InputBufferLength, ULONG IoControlCode) {
-    // loop thru core count creating structs, put in array and return
+    PVOID outbuffer;
+    PVOID inbuffer;
+    size_t realoutbuffersz;
+    NTSTATUS status;
 
-    NTSTATUS req_status = WdfRequestRetrieveInputBuffer();     
+    status = WdfRequestRetrieveInputBuffer(
+        Request,
+        InputBufferLength,
+        inbuffer,
+        sizeof(int)
+    );    
 
-    uint64_t THERM_STATUS = __rdmsr(INTEL_THERM_STATUS);
-    uint32_t temp_offset = (THERM_STATUS >> 16) & 0x7F; //32bit num is safer here
+    int num_cores = *(int*)inbuffer;
+    CPU_DATA *cpu_data_list = (PCPU_DATA) malloc(n_cores * sizeof(CPU_DATA));
+    uint32_t cpu_data_list_size = n_cores * sizeof(CPU_DATA);
 
-    uint64_t THERM_TARGET = __rdmsr(INTEL_THERM_TARGET);
-    uint32_t temp_max = (THERM_TARGET >> 16) & 0xFF;
+    for(uint32_t i = 0; i < num_cores; i++) {
+        CPU_DATA curr_data;
 
-    int16_t real_temp = (int16_t) temp_max - (int16_t) temp_offset;
+        uint64_t THERM_STATUS = __rdmsr(INTEL_THERM_STATUS);
+        uint32_t temp_offset = (THERM_STATUS >> 16) & 0x7F; //32bit num is safer here
 
-    WdfRequestComplete(Request, STATUS_SUCCESS);
+        uint64_t THERM_TARGET = __rdmsr(INTEL_THERM_TARGET);
+        uint32_t temp_max = (THERM_TARGET >> 16) & 0xFF;
+
+        int16_t real_temp = (int16_t) temp_max - (int16_t) temp_offset;
+
+        curr_data.core_cnt = num_cores;
+        curr_data.temp = real_temp;
+        // TODO - curr_data.load = load;
+    }
+
+    if(IoControlCode == IOCTL_GET_DATA) {
+        status = WdfRequestOutputBuffer(
+            Request,
+            cpu_data_list_size,
+            outbuffer,
+            realoutbuffersz
+        );
+        if(NT_SUCCESS(status)) {
+            RtlCopyMemory(outbuffer, cpu_data_list, cpu_data_list_size);
+            WdfRequestComplete(Request, STATUS_SUCCESS, cpu_data_list_size);
+        } else {
+            WdfRequestComplete(Request, status);
+        }
+    } else {
+        WdfRequestComplete(Request, STATUS_INVALID_DEVICE_REQUEST);
+    }
+
 }
 
 

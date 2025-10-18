@@ -1,7 +1,7 @@
 #define _WIN32_DCOM
 
 #include "hardware_info.h"
-#include ".\..\shared_headers\cpu_shared_info.h"
+#include "../shared_headers/cpu_shared_info.h"
 
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
@@ -24,12 +24,10 @@ constexpr int NUM_SVCS = 2;
     std::cout << "--------------------------------------------------------------\n"; \
     std::cout << "     ** " << header_msg << "** \n\n";
 
-//Forward Declarations
-int coreCount();
-
-
+// TODO - Most of this code should not be in main 
 int main(int arcg, char *argv[])
 {
+    // TODO make a COM pointer
     IWbemLocator *loc = nullptr;
     IWbemServices *w32_svcs = nullptr;
     IWbemServices *msft_svcs = nullptr;
@@ -38,8 +36,6 @@ int main(int arcg, char *argv[])
     // figure out if intel cpu or AMD, then do two diff things of code
     int n_cores = coreCount();
     std::cout << "Number of cores read by CPUID:" << n_cores << "\n";
-    CPU_DATA = data;
-    data.num_cores = n_cores; 
 
     HANDLE h_device = CreateFile(
         L"\\\\.\\CpuInfo", // Name of the driver
@@ -51,14 +47,16 @@ int main(int arcg, char *argv[])
         NULL
     );
 
+    CPU_DATA *cpu_data_list = (PCPU_DATA) malloc(n_cores * sizeof(CPU_DATA));
+
     DWORD bytes_returned;
     BOOL success = DeviceIoControl(
             h_device,
             IOCTL_GET_DATA,
-            &data,
-            sizeof(data),
-            NULL,
-            0,
+            &n_cores,
+            sizeof(int),
+            &cpu_data_list, 
+            n_cores * sizeof(CPU_DATA),   
             &bytes_returned,
             NULL
     );
@@ -165,6 +163,8 @@ int main(int arcg, char *argv[])
 
     // Check for mem leaks
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+
+    free(cpu_data_list);
 
     return 0;
 }

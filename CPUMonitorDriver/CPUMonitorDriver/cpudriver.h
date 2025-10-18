@@ -1,5 +1,4 @@
-#include "cpudriver.h"
-#include ".\..\..\shared_headers\cpu_shared_info.h"
+#include "../shared_headers/cpu_shared_info.h"
 #include <ntddk.h>
 #include <wdf.h>
 #include <intrin.h>
