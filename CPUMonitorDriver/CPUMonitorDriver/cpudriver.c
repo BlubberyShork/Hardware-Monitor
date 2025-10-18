@@ -60,12 +60,9 @@ NTSTATUS EvtDeviceUnload(WDFDRIVER driver) {
 }
 
 VOID EvtIoDeviceControl(WDFQUEUE Queue, WDFREQUEST Request, size_t OutputBufferLength, size_t InputBufferLength, ULONG IoControlCode) {
-    // in buffer will be empty
-
-    // get core count from __cpuid in user space and use that data in input buffer length (include the core count and a list of each cpu id)
-        // Do I want to create the struct elsewhere and pass it in with list of all cores in the processor struct so I can populate the vector with
-        // id's, temps, and load
     // loop thru core count creating structs, put in array and return
+
+    NTSTATUS req_status = WdfRequestRetrieveInputBuffer();     
 
     uint64_t THERM_STATUS = __rdmsr(INTEL_THERM_STATUS);
     uint32_t temp_offset = (THERM_STATUS >> 16) & 0x7F; //32bit num is safer here
@@ -74,9 +71,6 @@ VOID EvtIoDeviceControl(WDFQUEUE Queue, WDFREQUEST Request, size_t OutputBufferL
     uint32_t temp_max = (THERM_TARGET >> 16) & 0xFF;
 
     int16_t real_temp = (int16_t) temp_max - (int16_t) temp_offset;
-
-    //TODO - store temp and also cpu load in a struct container
-        // WdfRequestRetrieveOutputBuffer() and 
 
     WdfRequestComplete(Request, STATUS_SUCCESS);
 }

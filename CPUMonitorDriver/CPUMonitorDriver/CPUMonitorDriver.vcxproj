@@ -108,6 +108,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cpudriver.h" />
+    <ClInclude Include=".\..\..\shared_headers\cpu_shared_info.h">
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cpudriver.c" />

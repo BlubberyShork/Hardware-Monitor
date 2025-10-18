@@ -31,7 +31,6 @@ void infoMotherboard(IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx,
 
 void infoCPU(IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx, 
 	std::vector<Processor>& cpu_list);
-// __cpuid to get core counts
 
 /* Storage Device */
 void sd_DiskQuery(IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx,
@@ -51,6 +50,9 @@ void infoPhysicalDrive(std::vector<StorageDevice>& sd_list,
 	std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash>& p_hmap,
 	std::unordered_map<wchar_t, Volume>& v_hmap,
 	std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual>& pd_hmap);
+
+int coreCount();
+
 /* Storage Device */
 
 #endif // HARDWARE_INFO_H

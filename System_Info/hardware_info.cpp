@@ -640,3 +640,15 @@ void infoPhysicalDrive(std::vector<StorageDevice>& sd_list,
         sd_list.push_back(sd);
     }
 }
+
+int coreCount() {
+    int info[4];
+
+    // FIX - doesnt work
+
+    __cpuid(info, 1);
+    int num_logical_processors = (info[1] << 16) & 0xFF;    
+    int htt_enabled = (info[3] << 28) & 0xFF;
+
+    return htt_enabled == 1 ? num_logical_processors / 2 : num_logical_processors;
+}

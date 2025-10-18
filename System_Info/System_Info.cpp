@@ -1,6 +1,7 @@
 #define _WIN32_DCOM
 
 #include "hardware_info.h"
+#include ".\..\shared_headers\cpu_shared_info.h"
 
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
@@ -35,8 +36,38 @@ int main(int arcg, char *argv[])
     IWbemRefresher *refresher = nullptr;
 
     // figure out if intel cpu or AMD, then do two diff things of code
-    int NUM_CORES = coreCount();
-    std::cout << "Number of cores read by CPUID:" << NUM_CORES << "\n";
+    int n_cores = coreCount();
+    std::cout << "Number of cores read by CPUID:" << n_cores << "\n";
+    CPU_DATA = data;
+    data.num_cores = n_cores; 
+
+    HANDLE h_device = CreateFile(
+        L"\\\\.\\CpuInfo", // Name of the driver
+        GENERIC_READ | GENERIC_WRITE,
+        0,
+        NULL,
+        OPEN_EXISTING,
+        0,
+        NULL
+    );
+
+    DWORD bytes_returned;
+    BOOL success = DeviceIoControl(
+            h_device,
+            IOCTL_GET_DATA,
+            &data,
+            sizeof(data),
+            NULL,
+            0,
+            &bytes_returned,
+            NULL
+    );
+
+    if(success) {
+        std::cout << "Device Driver Successful" << std::endl;
+    } else {
+        std::cout << "Device Driver Unsuccessful. Error: " << GetLastError() << std::endl;
+    }
 
     std::cout << "before initializations\n";
     auto start = std::chrono::high_resolution_clock::now();
@@ -138,15 +169,6 @@ int main(int arcg, char *argv[])
     return 0;
 }
 
-int coreCount() {
-    int info[4];
-
-    __cpuid(info, 1);
-    int num_logical_processors = (info[1] << 16) & 0xFF;    
-    int htt_enabled = (info[3] << 28) & 0xFF;
-
-    return htt_enabled == 1 ? num_logical_processors / 2 : num_logical_processors;
-}
 
 
 
