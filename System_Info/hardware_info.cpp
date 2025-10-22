@@ -654,9 +654,21 @@ int coreCount() {
     // FIX - doesnt work
     //      Seems the bit-shifts are going the wrong way.
 
-    __cpuid(info, 1);
-    int num_logical_processors = (info[1] >> 16) & 0xFF;    
-    int htt_enabled = (info[3] >> 28) & 0xFF;
+    __cpuid(info, 0x01);
+    int logical_procs = (info[1] >> 16) & 0xFF;
+    int htt_flag = (info[3] >> 28) & 0xF;
+ 
+    int threads_per_core = htt_flag ? 2 : 1;
+    int physical_cores = logical_procs / threads_per_core;
 
-    return htt_enabled == 1 ? num_logical_processors / 2 : num_logical_processors;
+    std::cout << "Number of cores: " << physical_cores << "\n";
+  
+    return physical_cores;
 }
+
+
+
+
+
+
+

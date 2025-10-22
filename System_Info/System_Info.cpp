@@ -37,36 +37,6 @@ int main(int arcg, char *argv[])
     int n_cores = coreCount();
     std::cout << "Number of cores read by CPUID:" << n_cores << "\n";
 
-    HANDLE h_device = CreateFile(
-        L"\\\\.\\CpuInfo", // Name of the driver
-        GENERIC_READ | GENERIC_WRITE,
-        0,
-        NULL,
-        OPEN_EXISTING,
-        0,
-        NULL
-    );
-
-    CPU_DATA *cpu_data_list = (PCPU_DATA) malloc(n_cores * sizeof(CPU_DATA));
-
-    DWORD bytes_returned;
-    BOOL success = DeviceIoControl(
-            h_device,
-            IOCTL_GET_DATA,
-            &n_cores,
-            sizeof(int),
-            &cpu_data_list, 
-            n_cores * sizeof(CPU_DATA),   
-            &bytes_returned,
-            NULL
-    );
-
-    if(success) {
-        std::cout << "Device Driver Successful" << std::endl;
-    } else {
-        std::cout << "Device Driver Unsuccessful. Error: " << GetLastError() << std::endl;
-    }
-
     std::cout << "before initializations\n";
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -130,6 +100,38 @@ int main(int arcg, char *argv[])
 
     infoPhysicalDrive(sd_list, d_hmap, p_hmap, v_hmap, pd_hmap);
 
+    /*
+    HANDLE h_device = CreateFile(
+        L"\\\\.\\CpuInfo", // Name of the driver
+        GENERIC_READ | GENERIC_WRITE,
+        0,
+        NULL,
+        OPEN_EXISTING,
+        0,
+        NULL
+    );
+
+    CPU_DATA *cpu_data_list = (PCPU_DATA) malloc(n_cores * sizeof(CPU_DATA));
+
+    DWORD bytes_returned;
+    BOOL success = DeviceIoControl(
+            h_device,
+            IOCTL_GET_DATA,
+            &n_cores,
+            sizeof(int),
+            &cpu_data_list, 
+            n_cores * sizeof(CPU_DATA),   
+            &bytes_returned,
+            NULL
+    );
+
+    if(success) {
+        std::cout << "Device Driver Successful" << std::endl;
+    } else {
+        std::cout << "Device Driver Unsuccessful. Error: " << GetLastError() << std::endl;
+    }
+*/
+
     OUTPUT_HEADER("Motherboard");
     for (int i = 0; i < mboard_list.size(); i++) {
         mboard_list[i].outputMotherboardInfo();
@@ -144,10 +146,12 @@ int main(int arcg, char *argv[])
 
     OUTPUT_HEADER("Processors");
     for (int i = 0; i < proc_list.size(); i++) {    
-        proc_list[i].outProcInfo();
+        proc_list[i].outProcInfo(); 
     }
-    std::wcout << std::endl;
+    std::wcout << "\n";
 
+    //TODO - maybe the cpudriver should be handled here for each cpu? 
+  
     OUTPUT_HEADER("Storage Devices");
     for (int i = 0; i < sd_list.size(); i++) {
         sd_list[i].outSDInfo();
@@ -164,7 +168,7 @@ int main(int arcg, char *argv[])
     // Check for mem leaks
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
-    free(cpu_data_list);
+//    free(cpu_data_list);
 
     return 0;
 }

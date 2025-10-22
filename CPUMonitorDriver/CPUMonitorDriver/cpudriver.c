@@ -82,6 +82,7 @@ VOID EvtIoDeviceControl(WDFQUEUE Queue, WDFREQUEST Request, size_t OutputBufferL
     size_t realoutbuffersz;
     NTSTATUS status;
 
+    // TODO - I dont need this, can remove
     status = WdfRequestRetrieveInputBuffer(
         Request,
         InputBufferLength,
@@ -90,25 +91,40 @@ VOID EvtIoDeviceControl(WDFQUEUE Queue, WDFREQUEST Request, size_t OutputBufferL
     );    
 
     int num_cores = *(int*)inbuffer;
+    // TODO - this doesnt have to be malloc'd
     CPU_DATA *cpu_data_list = (PCPU_DATA) malloc(n_cores * sizeof(CPU_DATA));
     uint32_t cpu_data_list_size = n_cores * sizeof(CPU_DATA);
 
-    for(uint32_t i = 0; i < num_cores; i++) {
-        CPU_DATA curr_data;
+    // Loops thru all logical processors
+    for(ULONG lp = 0; lp < KeQueryActiveProcessorCountEx(ALL_PROCESSOR_GROUPS); lp++) {
+        KAFFINITY mask = (1ULL << lp);
+        KeSetActiveAffinityThread(mask); // run on current logical processor (lp)
 
         uint64_t THERM_STATUS = __rdmsr(INTEL_THERM_STATUS);
-        uint32_t temp_offset = (THERM_STATUS >> 16) & 0x7F; //32bit num is safer here
-
         uint64_t THERM_TARGET = __rdmsr(INTEL_THERM_TARGET);
-        uint32_t temp_max = (THERM_TARGET >> 16) & 0xFF;
 
+        uint32_t temp_max = (THERM_TARGET >> 16) & 0xFF;
+        uint32_t temp_offset = (THERM_STATUS >> 16) & 0x7F; //32bit num is safer here
+        
         int16_t real_temp = (int16_t) temp_max - (int16_t) temp_offset;
 
+        /* Check if hyperthreading is enabled and do this to handle duplicates
+         *      But dont do this here, do this later, before processing
+         *      Something like this at least
+         *  core_id   = apic_id >> log2(threads_per_core);
+            thread_id = apic_id & (threads_per_core - 1);
+
+            if (thread_id != 0) continue; // skip duplicate threads
+        */
+
+        CPU_DATA curr_data;
         curr_data.core_cnt = num_cores;
         curr_data.temp = real_temp;
         // TODO - curr_data.load = load;
+        curr_data.apic_id = getCurrentApicId();
+        //cpu_data_list[core_id] = curr_data;
     }
-
+    KeRevertToUserAffinityThread(); 
     if(IoControlCode == IOCTL_GET_DATA) {
         status = WdfRequestOutputBuffer(
             Request,
@@ -118,16 +134,23 @@ VOID EvtIoDeviceControl(WDFQUEUE Queue, WDFREQUEST Request, size_t OutputBufferL
         );
         if(NT_SUCCESS(status)) {
             RtlCopyMemory(outbuffer, cpu_data_list, cpu_data_list_size);
+            free(cpu_data_list);
             WdfRequestComplete(Request, STATUS_SUCCESS, cpu_data_list_size);
         } else {
             WdfRequestComplete(Request, status);
+            free(cpu_data_list);
         }
     } else {
         WdfRequestComplete(Request, STATUS_INVALID_DEVICE_REQUEST);
+        free(cpu_data_list);
     }
 
 }
 
+int getCurrentApicId() { 
+    __cpuid(info, 0x01FH);
+    return (info[1] >> 0) & 0xFFFFFFFF;
+}
 
 
 

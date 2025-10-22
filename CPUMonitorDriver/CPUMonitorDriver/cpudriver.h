@@ -1,3 +1,7 @@
+
+#ifndef CPU_DRIVER_H
+#define CPU_DRIVER_H
+
 #include "../shared_headers/cpu_shared_info.h"
 #include <ntddk.h>
 #include <wdf.h>
@@ -24,3 +28,10 @@ VOID EvtIoDeviceControl(
     _In_ ULONG IoControlCode
 );
 
+/***************************************************
+*                   Helper Funcs                   *
+***************************************************/
+
+int getCurrentApicId()
+
+#endif
