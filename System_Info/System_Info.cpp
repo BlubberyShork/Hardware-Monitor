@@ -33,10 +33,6 @@ int main(int arcg, char *argv[])
     IWbemServices *msft_svcs = nullptr;
     IWbemRefresher *refresher = nullptr;
 
-    // figure out if intel cpu or AMD, then do two diff things of code
-    int n_cores = coreCount();
-    std::cout << "Number of cores read by CPUID:" << n_cores << "\n";
-
     std::cout << "before initializations\n";
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -168,7 +164,6 @@ int main(int arcg, char *argv[])
     // Check for mem leaks
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
-//    free(cpu_data_list);
 
     return 0;
 }

@@ -6,6 +6,8 @@
 #include <ntddk.h>
 #include <wdf.h>
 #include <intrin.h>
+#include <stdint.h>
+#include <winnt.h>
 
 #define DEVICE_NAME L"\\Device\\CPUMonitorDriver"
 #define SYMLINK_NAME L"\\DosDevices\\CPUMonitorDriver"

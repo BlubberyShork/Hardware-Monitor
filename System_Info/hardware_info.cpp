@@ -648,6 +648,7 @@ void infoPhysicalDrive(
     }
 }
 
+/*
 int coreCount() {
     int info[4];
 
@@ -667,7 +668,7 @@ int coreCount() {
 }
 
 
-
+*/
 
 
 
