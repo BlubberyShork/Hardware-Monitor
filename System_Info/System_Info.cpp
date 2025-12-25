@@ -96,7 +96,6 @@ int main(int arcg, char *argv[])
 
     infoPhysicalDrive(sd_list, d_hmap, p_hmap, v_hmap, pd_hmap);
 
-    /*
     HANDLE h_device = CreateFile(
         L"\\\\.\\CpuInfo", // Name of the driver
         GENERIC_READ | GENERIC_WRITE,
@@ -107,26 +106,55 @@ int main(int arcg, char *argv[])
         NULL
     );
 
-    CPU_DATA *cpu_data_list = (PCPU_DATA) malloc(n_cores * sizeof(CPU_DATA));
-
-    DWORD bytes_returned;
-    BOOL success = DeviceIoControl(
-            h_device,
-            IOCTL_GET_DATA,
-            &n_cores,
-            sizeof(int),
-            &cpu_data_list, 
-            n_cores * sizeof(CPU_DATA),   
-            &bytes_returned,
-            NULL
-    );
-
-    if(success) {
-        std::cout << "Device Driver Successful" << std::endl;
-    } else {
-        std::cout << "Device Driver Unsuccessful. Error: " << GetLastError() << std::endl;
+    if(h_device == INVALID_HANDLE_VALUE) {
+        std::cout << "Failed to open device. Error: " << GetLastError() << "\n";
+        return 1;
     }
-*/
+
+    BYTE* buffer = nullptr;
+    DWORD buffer_sz = sizeof(CPU_DATA_HEADER); 
+    DWORD bytes_returned;
+    
+    buffer = (BYTE*)malloc(buffer_sz);
+
+    while(true) {
+        BOOL success = DeviceIoControl(
+                h_device, IOCTL_GET_DATA,
+                NULL, 0,
+                &buffer, buffer_sz,   
+                &bytes_returned, NULL
+        );
+        
+        // TODO - Handling to ensure the size is correct, adjusting as needed 
+        if(success) {
+            PCPU_DATA_BUFFER = (PCPU_DATA_BUFFER) buffer;
+            //TODO - store this somewhere and display it 
+            break;
+        }
+
+        DWORD err = GetLastError();
+        if(err != ERROR_MORE_DATA && err != ERROR_INSUFFICIENT_BUFFER) {
+            std::cout << "DeviceIoControl failed permanently. Error: " << err << "\n";
+            break;
+        }
+
+        if(bytes_returned < sizeof(CPU_DATA_HEADER)) {
+           std::cout << "Driver didn't return header.\n";
+           break;
+        }
+
+        DWORD new_sz = ((PCPU_DATA_HEADER)buffer)->required_size;
+        free(buffer);
+        buffer = (BYTE*)malloc(new_sz);
+        if(!buffer) {
+            std::cout << "malloc failed\n";
+            break;
+        }
+        buffer_sz = new_sz;
+    }
+
+    if (buffer) free(buffer);
+    CloseHandle(h_device);
 
     OUTPUT_HEADER("Motherboard");
     for (int i = 0; i < mboard_list.size(); i++) {

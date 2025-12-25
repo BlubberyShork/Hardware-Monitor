@@ -80,62 +80,72 @@ NTSTATUS EvtDeviceUnload(WDFDRIVER driver) {
 }
 
 VOID EvtIoDeviceControl(
-    WDFQUEUE Queue, 
-    WDFREQUEST Request, 
-    size_t OutputBufferLength,
-    size_t InputBufferLength, 
-    ULONG IoControlCode
+    _In_ WDFQUEUE   Queue, 
+    _In_ WDFREQUEST Request, 
+    _In_ size_t     OutputBufferLength,
+    _In_ size_t     InputBufferLength, 
+    _In_ ULONG      IoControlCode
 ) {
+    UNREFERENCED_PARAMETER(InputBufferLength);
+    UNREFERENCED_PARAMETER(Queue);
 
-    PVOID outbuffer = NULL;
-    size_t realoutbuffersz = 0;
+    PCPU_DATA_BUFFER outbuffer = NULL;
+    size_t bytes_to_cpy = 0;
     NTSTATUS status;
-    ULONG cpu_data_list_sz = 0;
-    PCPU_DATA cpu_data_list = NULL;
 
     if (IoControlCode != IOCTL_GET_DATA) {
         WdfRequestComplete(Request, STATUS_INVALID_DEVICE_REQUEST);
         return;
     }
 
-    // Get buffer size needed for processor info
-    ULONG proc_list_len = 0;
-    status = KeQueryLogicalProcessorRelationship(
-        NULL,
-        RelationProcessorCore, // Share same single processor core 
-        NULL,
-        &proc_list_len
-    );
+    ULONG total_procs = KeQueryActiveProcessorCountEx(ALL_PROCESSOR_GROUPS);
+    ULONG required_size = sizeof(CPU_DATA_HEADER) + total_procs * sizeof(CPU_DATA)
 
-    if(status != STATUS_INFO_LENGTH_MISMATCH) {
-        WdfRequestComplete(Request, STATUS_UNSUCCESSFUL);
+    // Must have room for header
+    if (OutputBufferLength < sizeof(CPU_DATA_HEADER)) {
+        WdfRequestCompleteWithInformation(Request, STATUS_BUFFER_TOO_SMALL, 0);
         return;
     }
 
-    // Allocate buffer for processor info
-    // TODO - everything has to be done with the Ke prefixed functions since we are in kernel space
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX buffer = *proc_list; // TODO - proc_list doesnt exist
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX end_buffer = *buffer + buffer.ReturnedLength;
+    status = WdfRequestRetrieveOutputBuffer(Request, sizeof(CPU_DATA_HEADER), (PVOID*)&outbuffer, NULL);
+    if (!NT_SUCCESS(status)) {
+        WdfRequestComplete(Request, status);
+        return;
+    }
 
-    cpu_data_list_sz = proc_list_len * sizeof(CPU_DATA); 
-    cpu_data_list = (PCPU_DATA)ExAllocatePool2(
-        POOL_FLAG_NON_PAGED,
-        cpu_data_list_sz,
-        'UPCD'
-    );
+    outbuffer->header.required_size = required_size;
+    outbuffer->header.processor_count = total_procs;
 
-    RtlZeroMemory(cpu_data_list, cpu_data_list_sz); 
+    if (OutputBufferLength < required_size) {
+        // Buffer too small, return header only
+        WdfRequestCompleteWithInformation(Request, STATUS_BUFFER_OVERFLOW, sizeof(CPU_DATA_HEADER));
+        return;
+    }
+
+    // Full buffer available, retrieve full pointer
+    status = WdfRequestRetrieveOutputBuffer(Request, required_size, (PVOID*)&outbuffer, NULL);
+    if (!NT_SUCCESS(status)) {
+        WdfRequestComplete(Request, status);
+        return;
+    }
+
+    GROUP_AFFINITY old_affinity = {0};
+    GROUP_AFFINITY new_affinity = {0};
+    KeSetSystemGroupAffinityThread(&new_affinity, &old_affinity);
 
     // Loops thru all logical processors
-    while((BYTE*)buffer < end_buffer) {
-        ULONG core_id = 0;
-        HANDLE h_thread = GetCurrentThread(); // TODO - is there a Ke variant?
-        GROUP_AFFINITY old_affinity;
+    for(ULONG i = 0; i < total_procs; i++) {
+        PROCESSOR_NUMBER proc_num = {0};
+        if(!NT_SUCCESS(KeGetProcessorNumberFromIndex(i, &proc_num)))
+            continue;
 
-        // Run on current thread from the group mask in the buffer (Per core, not logical proc) 
-        // TODO - This is user space. Need to use the kernel equivalent with the GROUP_AFFINITY somehow 
-        SetThreadGroupAffinity(hThread, &buffer->Processor.GroupMask[0].Mask, &old_affinity); 
+        RtlZeroMemory(&new_affinity, sizeof(GROUP_AFFINITY));
+        new_affinity.Group = proc_num.Group;
+        new_affinity.Mask = (KAFFINITY)(1ULL << proc_num.Number);
 
+        KeSetSystemGroupAffinityThread(&new_affinity, NULL);
+
+        //TODO - Make this be based on processor type (w/ macros)
         uint64_t THERM_STATUS = __rdmsr(INTEL_THERM_STATUS);
         uint64_t THERM_TARGET = __rdmsr(INTEL_THERM_TARGET);
 
@@ -148,35 +158,13 @@ VOID EvtIoDeviceControl(
         CPU_DATA curr_data;
         curr_data.temp = real_temp;
         // TODO - curr_data.load = load;
-        curr_data.core_id = core_id;
-        cpu_data_list[core_id] = curr_data; 
-        
-        core_id++;
+        curr_data.core_id = i;
+        cpu_data_list[i] = curr_data; 
     }
-    KeRevertToUserAffinityThread();
-
-    if(IoControlCode == IOCTL_GET_DATA) {
-        status = WdfRequestOutputBuffer(
-            Request,
-            cpu_data_list_size,
-            outbuffer,
-            realoutbuffersz
-        );
-        if(NT_SUCCESS(status)) {
-            RtlCopyMemory(outbuffer, cpu_data_list, cpu_data_list_size);
-            free(cpu_data_list);
-            WdfRequestComplete(Request, STATUS_SUCCESS, cpu_data_list_size);
-            return;
-        } else {
-            WdfRequestComplete(Request, status);
-            free(cpu_data_list);
-            return;
-        }
-    } else {
-        WdfRequestComplete(Request, STATUS_INVALID_DEVICE_REQUEST);
-        free(cpu_data_list);
-        return;
-    }
+    KeSetSystemGroupAffinityThread(&old_affinity, NULL);
+    
+    bytesToCopy = requiredSize;
+    WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, bytesToCopy);
 }
 
 
@@ -185,6 +173,7 @@ VOID EvtIoDeviceControl(
 *
 *   If RET_VAL = UINT32_MAX, then an error has occured
 */
+/* 
 int32_t getCurrentApicId() { 
     uint32_t apic_id = 0;
 
@@ -202,6 +191,7 @@ int32_t getCurrentApicId() {
         return cpu_info[1] >> 24 & 0xFF;
     }
 
+    // TODO - comment this because now I have no clue what this is doing 3 months later. What the hell is this
     if(highest_leaf >= 0x1F) {
         __cpuid(cpu_info, 0x1F);
         uint32_t leaf_1fh_valid = cpu_info[0] >> 4 & 0xF;
@@ -218,6 +208,6 @@ int32_t getCurrentApicId() {
 
     return UINT32_MAX; // Error 
 }
-
+*/
 
 

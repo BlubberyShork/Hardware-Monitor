@@ -17,23 +17,28 @@
 
 // TODO!
 // Forward declarations
+NTSTATUS DriverEntry(
+    _In_    PDRIVER_OBJECT      driver_obj,
+    _In_    PUNICODE_STRING     registry_path
+);
+
 NTSTATUS EvtDeviceAdd(
-    _In_ WDFDRIVER driver,
-    _Inout_ PWDFDEVICE_INIT device_init
+    _In_    WDFDRIVER           driver,
+    _Inout_ PWDFDEVICE_INIT     device_init
 );
 
 VOID EvtIoDeviceControl(
-    _In_ WDFQUEUE queue,
-    _In_ WDFREQUEST request,
-    _In_ size_t OutputBufferLength,
-    _In_ size_t InputBufferLength,
-    _In_ ULONG IoControlCode
+    _In_    WDFQUEUE            queue,
+    _In_    WDFREQUEST          request,
+    _In_    size_t              OutputBufferLength,
+    _In_    size_t              InputBufferLength,
+    _In_    ULONG               IoControlCode
 );
 
 /***************************************************
 *                   Helper Funcs                   *
 ***************************************************/
 
-int getCurrentApicId()
+//int32_t getCurrentApicId()
 
 #endif
