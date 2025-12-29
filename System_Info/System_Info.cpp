@@ -101,7 +101,7 @@ int main(int arcg, char *argv[])
         GENERIC_READ | GENERIC_WRITE,
         0,
         NULL,
-        OPEN_EXISTING,
+        CREATE_NEW,
         0,
         NULL
     );
