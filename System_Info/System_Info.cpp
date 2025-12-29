@@ -114,25 +114,29 @@ int main(int arcg, char *argv[])
     BYTE* buffer = nullptr;
     DWORD buffer_sz = sizeof(CPU_DATA_HEADER); 
     DWORD bytes_returned;
+    CPU_DATA_BUFFER* cpu_info = NULL;
     
     buffer = (BYTE*)malloc(buffer_sz);
-
     while(true) {
         BOOL success = DeviceIoControl(
                 h_device, IOCTL_GET_DATA,
                 NULL, 0,
-                &buffer, buffer_sz,   
+                buffer, buffer_sz,   
                 &bytes_returned, NULL
         );
         
         // TODO - Handling to ensure the size is correct, adjusting as needed 
         if(success) {
-            PCPU_DATA_BUFFER = (PCPU_DATA_BUFFER) buffer;
-            //TODO - store this somewhere and display it 
+            cpu_info = (CPU_DATA_BUFFER*) buffer;
+            OUTPUT_HEADER("Processor Temp/Load");
+            for(std::size_t i = 0; i < cpu_info->header.required_size; i += sizeof(CPU_DATA)) {
+                std::wcout << L"CPU ID: " << cpu_info->data[i].cpu_id << L"C\n";
+                std::wcout << L"Temp: " << cpu_info->data[i].temp << L"C\n";
+            }
             break;
         }
 
-        DWORD err = GetLastError();
+        DWORD err = GetLastError(); 
         if(err != ERROR_MORE_DATA && err != ERROR_INSUFFICIENT_BUFFER) {
             std::cout << "DeviceIoControl failed permanently. Error: " << err << "\n";
             break;
@@ -143,7 +147,7 @@ int main(int arcg, char *argv[])
            break;
         }
 
-        DWORD new_sz = ((PCPU_DATA_HEADER)buffer)->required_size;
+        DWORD new_sz = ((CPU_DATA_HEADER*)buffer)->required_size;
         free(buffer);
         buffer = (BYTE*)malloc(new_sz);
         if(!buffer) {
@@ -174,8 +178,6 @@ int main(int arcg, char *argv[])
     }
     std::wcout << "\n";
 
-    //TODO - maybe the cpudriver should be handled here for each cpu? 
-  
     OUTPUT_HEADER("Storage Devices");
     for (int i = 0; i < sd_list.size(); i++) {
         sd_list[i].outSDInfo();

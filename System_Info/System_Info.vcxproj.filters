@@ -56,5 +56,8 @@
     <ClInclude Include="hardware_info.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="../shared_headers/cpu_shared_info.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

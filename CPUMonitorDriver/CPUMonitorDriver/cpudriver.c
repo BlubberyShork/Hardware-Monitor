@@ -1,5 +1,38 @@
 #include "cpudriver.h"
 
+UNICODE_STRING device_name =
+    RTL_CONSTANT_STRING(L"\\Device\\CPUMonitorDriver");
+
+UNICODE_STRING symlink_name =
+    RTL_CONSTANT_STRING(L"\\DosDevices\\CPUMonitorDriver");
+
+CPU_VENDOR DetectCpuVendor(VOID) {
+    int vendor_str_len = 13;
+
+    int cpu_info[4];
+    CHAR vendor[vendor_str_len];
+
+    int eax = 0;
+    int ebx = 1;
+    int ecx = 2;
+    int edx = 3;
+    __cpuid(cpu_info, eax);
+
+    *(int*)&vendor[0] = cpu_info[ebx];
+    *(int*)&vendor[4] = cpu_info[edx];
+    *(int*)&vendor[8] = cpu_info[ecx];
+    vendor[12] = '\0';
+
+    if(RtlCompareMemory(&vendor, "GenuineIntel", 12)) {
+        return CPU_VENDOR_INTEL; 
+    }
+    else if(RtlCompareMemory(&vendor, "AuthenticAMD", 12)) {
+        return CPU_VENDOR_AMD; 
+    } else {
+        return CPU_VENDOR_UNKNOWN;
+    }
+}
+
 NTSTATUS DriverEntry(
     _In_ PDRIVER_OBJECT     driver_obj,
     _In_ PUNICODE_STRING    registry_path
@@ -33,7 +66,6 @@ NTSTATUS EvtDeviceAdd(
 
     NTSTATUS status;
     WDFDEVICE h_device;
-    WDFQUEUE queue;
 
     UNREFERENCED_PARAMETER(driver);
 
@@ -46,22 +78,22 @@ NTSTATUS EvtDeviceAdd(
     }
 
     // creates link for user mode code to interact with our device
-    status = WdfDeviceCreateSymbolicLink(SYMLINK_NAME, DEVICE_NAME);
+    status = WdfDeviceCreateSymbolicLink(h_device, &symlink_name);
     if(!NT_SUCCESS(status)) {
         KdPrint(("WdfDriverCreateSymbolicLink failed: 0x%x\n", status));
         return status;
     }
 
-    WDF_IO_QUEUE_CONFIG = io_queue_config;
-    WDFQUEUE = h_queue;
+    WDF_IO_QUEUE_CONFIG io_queue_config;
+    WDFQUEUE h_queue;
     WDF_IO_QUEUE_CONFIG_INIT_DEFAULT_QUEUE(
         &io_queue_config,
         WdfIoQueueDispatchSequential
     );
 
     status = WdfIoQueueCreate(
-        device,
-        &ioQueueConfig,
+        h_device,
+        &io_queue_config,
         WDF_NO_OBJECT_ATTRIBUTES,
         &h_queue
     );
@@ -69,9 +101,12 @@ NTSTATUS EvtDeviceAdd(
     if (!NT_SUCCESS (status)) {
         return status;
     }
+
+    io_queue_config.EvtIoDeviceControl = EvtIoDeviceControl; 
+    return STATUS_SUCCESS;
 }
 
-NTSTATUS EvtDeviceUnload(WDFDRIVER driver) {
+NTSTATUS EvtDeviceUnload(_In_ WDFDRIVER driver) {
     UNREFERENCED_PARAMETER(driver);
     KdPrint(("WDF driver unloaded\n"));
 
@@ -89,7 +124,7 @@ VOID EvtIoDeviceControl(
     UNREFERENCED_PARAMETER(InputBufferLength);
     UNREFERENCED_PARAMETER(Queue);
 
-    PCPU_DATA_BUFFER outbuffer = NULL;
+    CPU_DATA_BUFFER* outbuffer = NULL;
     size_t bytes_to_cpy = 0;
     NTSTATUS status;
 
@@ -99,7 +134,7 @@ VOID EvtIoDeviceControl(
     }
 
     ULONG total_procs = KeQueryActiveProcessorCountEx(ALL_PROCESSOR_GROUPS);
-    ULONG required_size = sizeof(CPU_DATA_HEADER) + total_procs * sizeof(CPU_DATA)
+    ULONG required_size = sizeof(CPU_DATA_HEADER) + total_procs * sizeof(CPU_DATA);
 
     // Must have room for header
     if (OutputBufferLength < sizeof(CPU_DATA_HEADER)) {
@@ -107,7 +142,7 @@ VOID EvtIoDeviceControl(
         return;
     }
 
-    status = WdfRequestRetrieveOutputBuffer(Request, sizeof(CPU_DATA_HEADER), (PVOID*)&outbuffer, NULL);
+    status = WdfRequestRetrieveOutputBuffer(Request, sizeof(CPU_DATA_HEADER), (VOID**)&outbuffer, NULL);
     if (!NT_SUCCESS(status)) {
         WdfRequestComplete(Request, status);
         return;
@@ -122,17 +157,11 @@ VOID EvtIoDeviceControl(
         return;
     }
 
-    // Full buffer available, retrieve full pointer
-    status = WdfRequestRetrieveOutputBuffer(Request, required_size, (PVOID*)&outbuffer, NULL);
-    if (!NT_SUCCESS(status)) {
-        WdfRequestComplete(Request, status);
-        return;
-    }
-
     GROUP_AFFINITY old_affinity = {0};
     GROUP_AFFINITY new_affinity = {0};
     KeSetSystemGroupAffinityThread(&new_affinity, &old_affinity);
 
+    CPU_VENDOR vendor = DetectCpuVendor();
     // Loops thru all logical processors
     for(ULONG i = 0; i < total_procs; i++) {
         PROCESSOR_NUMBER proc_num = {0};
@@ -142,31 +171,43 @@ VOID EvtIoDeviceControl(
         RtlZeroMemory(&new_affinity, sizeof(GROUP_AFFINITY));
         new_affinity.Group = proc_num.Group;
         new_affinity.Mask = (KAFFINITY)(1ULL << proc_num.Number);
-
         KeSetSystemGroupAffinityThread(&new_affinity, NULL);
 
-        //TODO - Make this be based on processor type (w/ macros)
-        uint64_t THERM_STATUS = __rdmsr(INTEL_THERM_STATUS);
-        uint64_t THERM_TARGET = __rdmsr(INTEL_THERM_TARGET);
-
-        // TODO - If CPUID.06H:EAX[0] = 1 -> add this check before both
-        uint32_t temp_max = (THERM_TARGET >> 16) & 0xFF;
-        uint32_t temp_offset = (THERM_STATUS >> 16) & 0x7F; //32bit int is safer here
-        
-        int16_t real_temp = (int16_t) temp_max - (int16_t) temp_offset;
-
-        CPU_DATA curr_data;
-        curr_data.temp = real_temp;
-        // TODO - curr_data.load = load;
-        curr_data.core_id = i;
-        cpu_data_list[i] = curr_data; 
-    }
-    KeSetSystemGroupAffinityThread(&old_affinity, NULL);
+        // Check CPU Vendor
+        // then handle
+        switch(vendor) {
+            case(CPU_VENDOR_INTEL):
+                ReadIntelMsrs(&outbuffer, i);
+                break;
+            case(CPU_VENDOR_AMD):
+                //TODO- ReadAMDMsrs(&outbuffer, i); 
+                break;
+            default:
+                break;
+        }
     
-    bytesToCopy = requiredSize;
-    WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, bytesToCopy);
+        KeRevertToUserGroupAffinityThread(&old_affinity);
+    }
+     
+    bytes_to_cpy = required_size;
+    WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, bytes_to_cpy);
 }
 
+void ReadIntelMsrs(CPU_DATA_BUFFER* outbuffer, ULONG cpu_index) {
+    uint64_t THERM_STATUS = __rdmsr(INTEL_THERM_STATUS);
+    uint64_t THERM_TARGET = __rdmsr(INTEL_THERM_TARGET);
+
+    // TODO - If CPUID.06H:EAX[0] = 1 -> add this check before both
+    uint32_t temp_max = (THERM_TARGET >> 16) & 0xFF;
+    uint32_t temp_offset = (THERM_STATUS >> 16) & 0x7F; //32bit int is safer here
+    int16_t real_temp = (int16_t)(temp_max - temp_offset);
+
+    CPU_DATA curr_data;
+    curr_data.temp = real_temp;
+    // TODO - curr_data.load = load;
+    curr_data.cpu_id = cpu_index;
+    outbuffer->data[cpu_index] = curr_data; 
+}
 
 /**
 *   Gets the current APIC_ID for the active thread
