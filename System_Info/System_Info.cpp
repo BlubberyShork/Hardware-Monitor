@@ -97,11 +97,11 @@ int main(int arcg, char *argv[])
     infoPhysicalDrive(sd_list, d_hmap, p_hmap, v_hmap, pd_hmap);
 
     HANDLE h_device = CreateFile(
-        L"\\\\.\\CpuInfo", // Name of the driver
+        L"\\\\.\\CPUMonitorDriver", // Name of the driver
         GENERIC_READ | GENERIC_WRITE,
         0,
         NULL,
-        CREATE_NEW,
+        OPEN_EXISTING,
         0,
         NULL
     );
