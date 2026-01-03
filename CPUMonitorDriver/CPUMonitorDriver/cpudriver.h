@@ -5,16 +5,14 @@
 #include <ntddk.h>
 #include <wdf.h>
 #include <intrin.h>
-//#include <stdint.h>
-//#include <winnt.h>
 
 #include "../shared_headers/cpu_shared_info.h"
 
 #define INTEL_THERM_STATUS 0x19C
 #define INTEL_THERM_TARGET 0x1A2
 
-extern UNICODE_STRING device_name;
-extern UNICODE_STRING symlink_name;
+extern UNICODE_STRING DEVICE_NAME;
+extern UNICODE_STRING SYMLINK_NAME;
 
 typedef enum _CPU_VENDOR {
     CPU_VENDOR_UNKNOWN = 0,
@@ -31,18 +29,19 @@ NTSTATUS DriverEntry(
     _In_    PUNICODE_STRING     registry_path
 );
 
-NTSTATUS EvtDeviceAdd(
-    _In_    WDFDRIVER           driver,
-    _Inout_ PWDFDEVICE_INIT     device_init
-);
+/**
+ *
+ * TODO - Documentation
+ *
+ **/
+NTSTATUS HandleIOCTLDispatchRoutine(PDEVICE_OBJECT dev_obj, PIRP irp);
 
-VOID EvtIoDeviceControl(
-    _In_    WDFQUEUE            queue,
-    _In_    WDFREQUEST          request,
-    _In_    size_t              OutputBufferLength,
-    _In_    size_t              InputBufferLength,
-    _In_    ULONG               IoControlCode
-);
+/**
+ *
+ * TODO - Documentation
+ *
+ **/
+NTSTATUS MajorFunctions(PDEVICE_OBJECT dev_obj, PIRP irp);
 
 VOID EvtDriverUnload(
     _In_ WDFDRIVER Driver
@@ -51,7 +50,23 @@ VOID EvtDriverUnload(
 /***************************************************
 *                   Helper Funcs                   *
 ***************************************************/
-void ReadIntelMsrs(CPU_DATA_BUFFER* buffer);
+void ReadIntelMsrs(CPU_DATA_BUFFER* buffer, ULONG cpu_index);
+
+/////////////////////////////////////////////////////////////////////////
+/* Deprecated Code */ 
+/*NTSTATUS EvtDeviceAdd(
+    _In_    WDFDRIVER           driver,
+    _Inout_ PWDFDEVICE_INIT     device_init
+)
+
+VOID EvtIoDeviceControl(
+    _In_    WDFQUEUE            queue,
+    _In_    WDFREQUEST          request,
+    _In_    size_t              OutputBufferLength,
+    _In_    size_t              InputBufferLength,
+    _In_    ULONG               IoControlCode
+);
+*/
 
 
 //int32_t getCurrentApicId()
