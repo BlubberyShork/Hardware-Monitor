@@ -112,6 +112,8 @@ int main(int arcg, char* argv[])
         return 1;
     }
 
+    // Create the device using CreateFile()
+
     BYTE* buffer = nullptr;
     DWORD buffer_sz = sizeof(CPU_DATA_HEADER);
     DWORD bytes_returned;
