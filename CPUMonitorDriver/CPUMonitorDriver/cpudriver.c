@@ -10,7 +10,7 @@ CPU_VENDOR DetectCpuVendor(VOID) {
     int cpu_info[4];
     CHAR vendor[CPU_VENDOR_STRING_LEN];
 
-    int eax = 0;
+    int eax = 0; 
     int ebx = 1; 
     int ecx = 2;
     int edx = 3;
@@ -117,7 +117,7 @@ VOID EvtIoDeviceControl(
         return;
     }
 
-    status = WdfRequestRetrieveOutputBuffer(Request, sizeof(CPU_DATA_HEADER), (PVOID*)&outbuffer, NULL);
+    status = WdfRequestRetrieveOutputBuffer(Request, sizeof(CPU_DATA_HEADER), &outbuffer, NULL);
     if (!NT_SUCCESS(status)) {
         WdfRequestComplete(Request, status);
         return;
@@ -160,7 +160,6 @@ VOID EvtIoDeviceControl(
             default:
                 break;
         }
-    
         KeRevertToUserGroupAffinityThread(&old_affinity);
     }
      
