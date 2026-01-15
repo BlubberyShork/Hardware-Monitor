@@ -5,12 +5,12 @@
 extern "C" {
 #endif
 
-// Needs separate handling
+// User-Space include
 #ifndef _KERNEL_MODE
 #include <winioctl.h>
 #else
 
-// kernel mode CTL_CODE from wdm.h/ntddk.h
+// kernel mode CTL_CODE from wdm.h
 #include <wdm.h>
 #define CTL_CODE(DeviceType, Function, Method, Access) \
     (((DeviceType) << 16) | ((Access) << 14) | ((Function) << 2) | (Method))

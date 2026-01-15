@@ -131,6 +131,7 @@
   <ItemGroup>
     <ClCompile Include="GraphicsProcessor.cpp" />
     <ClCompile Include="motherboard.cpp" />
+    <ClCompile Include="OutputGenerator.cpp" />
     <ClCompile Include="processor.cpp" />
     <ClCompile Include="projutils.cpp" />
     <ClCompile Include="hardware_info.cpp" />
@@ -141,6 +142,7 @@
     <ClInclude Include="GraphicsProcessor.h" />
     <ClInclude Include="hardware_info.h" />
     <ClInclude Include="motherboard.h" />
+    <ClInclude Include="OutputGenerator.h" />
     <ClInclude Include="processor.h" />
     <ClInclude Include="projutils.h" />
     <ClInclude Include="storagedevice.h" />

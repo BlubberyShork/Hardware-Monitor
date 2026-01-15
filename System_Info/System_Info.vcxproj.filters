@@ -36,6 +36,9 @@
     <ClCompile Include="hardware_info.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="OutputGenerator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GraphicsProcessor.h">
@@ -57,6 +60,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="../shared_headers/cpu_shared_info.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="OutputGenerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

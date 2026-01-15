@@ -18,6 +18,8 @@
 #include <mutex>
 #include <intrin.h>
 
+// TODO - Should break this into HardwareQueries.h, ComWbem.h, and StorageQueries.h
+
 void InitializeCOM();
 void setupW32Wbem(IWbemLocator*& loc, IWbemServices*& svcs);
 void setupMSFTWbem(IWbemLocator*& loc, IWbemServices*& svcs);
@@ -50,10 +52,6 @@ void infoPhysicalDrive(std::vector<StorageDevice>& sd_list,
 	std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash>& p_hmap,
 	std::unordered_map<wchar_t, Volume>& v_hmap,
 	std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual>& pd_hmap);
-
-int coreCount();
-
-/* Storage Device */
 
 #endif // HARDWARE_INFO_H
 #pragma once

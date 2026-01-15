@@ -7,8 +7,13 @@
 
 #include "../shared_headers/cpu_shared_info.h"
 
-#define INTEL_THERM_STATUS 0x19C
-#define INTEL_THERM_TARGET 0x1A2
+// TODO - Good comments for these
+#define INTEL_CORE_ERA_THERM_STATUS         0x19C
+#define INTEL_CORE_ERA_THERM_TARGET         0x1A2
+#define INTEL_CPUID_THERM_SENSOR_LEAF       0x06
+#define INTEL_CPUID_THERM_SENSOR_DTS_BIT    0x1
+#define AMD_ZEN_ERA_THERM_STATUS            0xC0010015
+#define AMD_ZEN_ERA_TEMPERATURE_TARGET      0xC0010064
 
 extern UNICODE_STRING DEVICE_NAME;
 extern UNICODE_STRING SYMLINK_NAME;
@@ -47,7 +52,9 @@ VOID EvtIoDeviceControl(
 /***************************************************
 *                   Helper Funcs                   *
 ***************************************************/
-void ReadIntelMsrs(CPU_DATA_BUFFER* buffer, ULONG cpu_index);
+BOOLEAN ReadCoreEraIntelMsrs(CPU_DATA_BUFFER* buffer, ULONG cpu_idx, ULONG cpu_cnt);
+BOOLEAN ReadZenEraAmdMsrs(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_cnt);
+
 //int32_t getCurrentApicId()
 
 #endif

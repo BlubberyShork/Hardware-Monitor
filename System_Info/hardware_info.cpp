@@ -648,27 +648,6 @@ void infoPhysicalDrive(
     }
 }
 
-/*
-int coreCount() {
-    int info[4];
-
-    // FIX - doesnt work
-    //      Seems the bit-shifts are going the wrong way.
-
-    __cpuid(info, 0x01);
-    int logical_procs = (info[1] >> 16) & 0xFF;
-    int htt_flag = (info[3] >> 28) & 0xF;
- 
-    int threads_per_core = htt_flag ? 2 : 1;
-    int physical_cores = logical_procs / threads_per_core;
-
-    std::cout << "Number of cores: " << physical_cores << "\n";
-  
-    return physical_cores;
-}
-
-
-*/
 
 
 
