@@ -33,8 +33,8 @@ CPU_VENDOR DetectCpuVendor(VOID) {
 }
 
 NTSTATUS DriverEntry(
-    _In_ PDRIVER_OBJECT     driver_obj,
-    _In_ PUNICODE_STRING    registry_path
+    _In_ PDRIVER_OBJECT  driver_obj,
+    _In_ PUNICODE_STRING registry_path
 ) {
     NTSTATUS status = STATUS_SUCCESS;
 
@@ -142,8 +142,7 @@ VOID EvtIoDeviceControl(
     KeSetSystemGroupAffinityThread(&new_affinity, &old_affinity);
 
     CPU_VENDOR vendor = DetectCpuVendor();
-    // Loops thru all logical processors
-    for(ULONG i = 0; i < total_procs; i++) {
+    for(ULONG i = 0; i < total_procs; i++) { // Loops thru all logical processors
         PROCESSOR_NUMBER proc_num = {0};
         if(!NT_SUCCESS(KeGetProcessorNumberFromIndex(i, &proc_num)))
             continue;

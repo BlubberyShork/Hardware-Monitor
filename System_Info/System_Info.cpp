@@ -39,7 +39,7 @@ int main(int arcg, char* argv[])
 
     // TODO - Implement this with the constexpr's above to handle static thread count, do not use the driver (dynamic read, unsuitable)
     //unsigned cpu_threads = std::thread::hardware_concurrency();
-    //unsigned query_threads = std::min(cpu_threads, 8u);c
+    //unsigned query_threads = std::min(cpu_threads, 8u);
     std::thread svcs_threads[NUM_SVCS];
     std::function<void(IWbemLocator*&)> svcs_init_funcs[NUM_THREADS] = {
         [&w32_svcs](IWbemLocator*& loc) { setupW32Wbem(loc, w32_svcs); },
