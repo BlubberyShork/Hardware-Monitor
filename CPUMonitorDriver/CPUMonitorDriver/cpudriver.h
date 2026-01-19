@@ -3,6 +3,7 @@
 #define CPU_DRIVER_H
 
 #include <ntddk.h>
+#include <intrin.h>
 #include <wdf.h>
 
 #include "../shared_headers/cpu_shared_info.h"

@@ -12,11 +12,11 @@ extern "C" {
 
 // kernel mode CTL_CODE from wdm.h
 #include <wdm.h>
-#define CTL_CODE(DeviceType, Function, Method, Access) \
-    (((DeviceType) << 16) | ((Access) << 14) | ((Function) << 2) | (Method))
-#define FILE_DEVICE_UNKNOWN 0x00000022
-#define METHOD_BUFFERED     0
-#define FILE_ANY_ACCESS     0
+//#define CTL_CODE(DeviceType, Function, Method, Access) \
+//    (((DeviceType) << 16) | ((Access) << 14) | ((Function) << 2) | (Method))
+//#define FILE_DEVICE_UNKNOWN 0x00000022
+//#define METHOD_BUFFERED     0
+//#define FILE_ANY_ACCESS     0
 #endif
 
 // kernel-compatible types

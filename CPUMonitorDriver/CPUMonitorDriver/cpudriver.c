@@ -63,6 +63,8 @@ NTSTATUS DriverEntry(
 NTSTATUS EvtDriverUnload(_In_ WDFDRIVER driver) {
     UNREFERENCED_PARAMETER(driver);
     DbgPrint("WDF driver unloaded\n");
+
+    return STATUS_SUCCESS;
 }
 
 // WDFDRIVER is a wrapper for a PDRIVER_OBJECT
@@ -76,7 +78,7 @@ NTSTATUS EvtDeviceAdd(
     NTSTATUS status;
     WDFDEVICE h_device;
 
-    status = WdfDeviceCreate(device_init, WDF_NO_OBJECT_ATTRIBUTES, &h_device);
+    status = WdfDeviceCreate(&device_init, WDF_NO_OBJECT_ATTRIBUTES, &h_device);
     if (!NT_SUCCESS(status)) {
         KdPrint(("WdfDeviceCreate failed: 0x%x\n", status));
         return status;
@@ -102,7 +104,7 @@ VOID EvtIoDeviceControl(
     UNREFERENCED_PARAMETER(Queue);
 
     PCPU_DATA_BUFFER  outbuffer     = NULL;
-    NTSTATUS          status        = NULL;
+    NTSTATUS          status;
     size_t            bytes_to_cpy  = 0;
 
     if (IoControlCode != IOCTL_GET_DATA) {
@@ -155,13 +157,13 @@ VOID EvtIoDeviceControl(
         switch(vendor) {
             case(CPU_VENDOR_INTEL):
                 KdPrint(("CPU Vendor Intel detected\n"));
-                if (!ReadCoreEraIntelMsrs(&outbuffer, i, total_procs)) {
+                if (!ReadCoreEraIntelMsrs(outbuffer, i, total_procs)) {
                     KdPrint(("Failed to return MSR data\n"));
                 }
                 break;
             case(CPU_VENDOR_AMD):
                 KdPrint(("CPU Vendor AMD detected\n"));
-                if (!ReadZenEraAmdMsrs(&outbuffer, i, total_procs)) {
+                if (!ReadZenEraAmdMsrs(outbuffer, i, total_procs)) {
                     KdPrint(("Failed to return AMD MSR data\n"));
                 }
                 break;
@@ -191,13 +193,13 @@ BOOLEAN ReadCoreEraIntelMsrs(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cp
         return FALSE; // Digital Thermal Sensor not supported
     }
 
-    ULONGLONG therm_target = __rdmsr(INTEL_CORE_ERA_THERM_TARGET);
-    ULONGLONG therm_status = __rdmsr(INTEL_CORE_ERA_THERM_STATUS);
+    ULONGLONG therm_status = __readmsr(INTEL_CORE_ERA_THERM_STATUS);
 
     if ((therm_status & (1ULL << 31)) == 0) {
         KdPrint(("ReadCoreEraIntelMsrs: Invalid temperature bit\n"));
         return FALSE; // Invalid temperature bit
     }
+    ULONGLONG therm_target = __readmsr(INTEL_CORE_ERA_THERM_TARGET);
 
     ULONG temp_max = (therm_target >> 16) & 0xFF;
     ULONG temp_offset = (therm_status >> 16) & 0x7F; //32bit is safer here
