@@ -27,9 +27,9 @@ constexpr int NUM_SVCS = 2;
 int main(int arcg, char* argv[])
 {
     // TODO - Initialize COM and Wbem stuff in a separate class & file
-    IWbemLocator* loc = nullptr;
-    IWbemServices* w32_svcs = nullptr;
-    IWbemServices* msft_svcs = nullptr;
+    IWbemLocator*   loc       = nullptr;
+    IWbemServices*  w32_svcs  = nullptr;
+    IWbemServices*  msft_svcs = nullptr;
     IWbemRefresher* refresher = nullptr;
 
     std::cout << "before initializations\n";
