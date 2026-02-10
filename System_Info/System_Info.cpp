@@ -27,10 +27,10 @@ constexpr int NUM_SVCS = 2;
 int main(int arcg, char* argv[])
 {
     // TODO - Initialize COM and Wbem stuff in a separate class & file
-    IWbemLocator*   loc       = nullptr;
-    IWbemServices*  w32_svcs  = nullptr;
-    IWbemServices*  msft_svcs = nullptr;
-    IWbemRefresher* refresher = nullptr;
+    IWbemLocator*   loc         = nullptr;
+    IWbemServices*  w32_svcs    = nullptr;
+    IWbemServices*  msft_svcs   = nullptr;
+    IWbemRefresher* refresher   = nullptr;
 
     std::cout << "before initializations\n";
     auto start = std::chrono::high_resolution_clock::now();
@@ -106,10 +106,10 @@ int main(int arcg, char* argv[])
     HANDLE h_device = CreateFile(
         L"\\\\.\\CPUMonitorDriver", // Name of the driver
         GENERIC_READ | GENERIC_WRITE,
-        0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
         NULL,
         OPEN_EXISTING,
-        0,
+        FILE_ATTRIBUTE_NORMAL,
         NULL
     );
 
@@ -119,44 +119,53 @@ int main(int arcg, char* argv[])
         return 1;
     }
 
-    BYTE* buffer = nullptr;
+    BYTE* buffer = (BYTE*)malloc(sizeof(CPU_DATA_HEADER));
     DWORD buffer_sz = sizeof(CPU_DATA_HEADER);
-    DWORD bytes_ret;
-    CPU_DATA_BUFFER* cpu_info = NULL;
+    DWORD bytes_ret = 0;
 
-    buffer = (BYTE*)malloc(buffer_sz); // TODO - Use a vector to avoid needing to free -> Can use vector.data() to get the memarr and static_cast<void*>()
     while (true) {
         BOOL success = DeviceIoControl(
-            h_device,   IOCTL_GET_DATA,
-            NULL,       0,
-            buffer,     buffer_sz,
-            &bytes_ret, NULL
+            h_device,
+            IOCTL_GET_DATA,
+            nullptr, 0,
+            buffer, buffer_sz,
+            &bytes_ret,
+            nullptr
         );
 
         if (success) {
-            cpu_info = (CPU_DATA_BUFFER*)buffer;
+            // Temporary output on the buffer (needs to be modularized with other outputs)
+            CPU_DATA_BUFFER* cpu_info = (CPU_DATA_BUFFER*)buffer;
+            OUTPUT_HEADER("Processor Temp/Load");
+            for (ULONG i = 0; i < cpu_info->header.processor_count; i++) {
+                std::wcout << L"CPU ID: " << cpu_info->data[i].cpu_id << L"\n";
+                std::wcout << L"Temp: " << cpu_info->data[i].temp << L"C\n";
+            }
             break;
-        }
+        } else {
+            DWORD err = GetLastError();
+            if (err == ERROR_MORE_DATA || err == ERROR_INSUFFICIENT_BUFFER) {
+                // Read required size from the header (driver writes at least header first)
+                CPU_DATA_HEADER* hdr = (CPU_DATA_HEADER*)buffer;
+                DWORD new_sz = hdr->required_size;
 
-        DWORD err = GetLastError();
-        if (err != ERROR_MORE_DATA && err != ERROR_INSUFFICIENT_BUFFER) {
-            std::cout << "DeviceIoControl failed permanently. Error: " << err << "\n";
-            break;
+                BYTE* tmp = (BYTE*)realloc(buffer, new_sz);
+                if (!tmp) {
+                    std::cout << "Memory allocation failed\n";
+                    free(buffer);
+                    buffer = nullptr;
+                    break;
+                }
+                buffer = tmp;
+                buffer_sz = new_sz;
+                continue;
+            } else {
+                std::cout << "DeviceIoControl failed permanently. Error: " << err << "\n";
+                free(buffer);
+                buffer = nullptr;
+                break;
+            }
         }
-
-        if (bytes_ret < sizeof(CPU_DATA_HEADER)) {
-            std::cout << "Driver didn't return header.\n";
-            break;
-        }
-
-        DWORD new_sz = ((CPU_DATA_HEADER*)buffer)->required_size;
-        if(buffer) free(buffer);
-        buffer = (BYTE*)malloc(new_sz);
-        if (!buffer) {
-            std::cout << "malloc failed\n";
-            break;
-        }
-        buffer_sz = new_sz;
     }
 
     // TODO -> Do this with all the outputs
@@ -178,13 +187,6 @@ int main(int arcg, char* argv[])
         proc_list[i].outProcInfo();
     }
     std::wcout << "\n";
-
-    OUTPUT_HEADER("Processor Temp/Load");
-    for (ULONG i = 0; buffer && i < cpu_info->header.processor_count; i++) {
-        std::wcout << L"CPU ID: " << cpu_info->data[i].cpu_id << L"C\n";
-        std::wcout << L"Temp: " << cpu_info->data[i].temp << L"C\n";
-    }
-    std::wcout << std::endl;
 
     OUTPUT_HEADER("Storage Devices");
     for (int i = 0; i < sd_list.size(); i++) {
