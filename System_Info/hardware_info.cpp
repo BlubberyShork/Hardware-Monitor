@@ -69,7 +69,7 @@ void setupWBEM(IWbemLocator*& loc, IWbemServices*& w_svcs, IWbemServices*& m_svc
         NULL,
         NULL,
         0,
-        NULL, 
+        NULL,
         0,
         0,
         &m_svcs);
