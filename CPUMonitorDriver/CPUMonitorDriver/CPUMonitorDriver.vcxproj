@@ -86,8 +86,11 @@
       <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
     </DriverSign>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(WindowsSdkDir)Include\$(WindowsSDKVersion)km;$(WindowsSdkDir)Include\$(WindowsSDKVersion)km\wdf;C:\Users\robby\source\repos\Hardware-Monitor\shared_headers;C:\Users\robby\source\repos\System_Info\shared_headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(WindowsSdkDir)Include\$(WindowsSDKVersion)km;$(WindowsSdkDir)Include\$(WindowsSDKVersion)km\wdf;C:\Users\robby\projects\Hardware-Monitor\shared_headers;C:\Users\robby\source\repos\System_Info\shared_headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>$(DDK_LIB_PATH)\wdmsec.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <DriverSign>

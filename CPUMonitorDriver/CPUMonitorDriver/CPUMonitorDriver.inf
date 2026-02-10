@@ -1,62 +1,53 @@
-;
-; CPUMonitorDriver.inf
-;
-
 [Version]
-Signature   = "$WINDOWS NT$"
-Class       = System ; TODO: specify appropriate Class
-ClassGuid   = {4d36e97d-e325-11ce-bfc1-08002be10318} ; TODO: specify appropriate ClassGuid
-Provider    = %ManufacturerName%
-CatalogFile = CPUMonitorDriver.cat
-DriverVer   = ; TODO: set DriverVer in stampinf property pages
-PnpLockdown = 1
+Signature="$WINDOWS NT$"
+Class=System
+ClassGuid={4d36e97d-e325-11ce-bfc1-08002be10318}
+Provider=%ManufacturerName%
+DriverVer=02/06/2026,1.0.0.0
+CatalogFile=CPUMonitorDriver.cat
 
 [DestinationDirs]
-DefaultDestDir = 13
+DefaultDestDir=13 ; System32\drivers
 
 [SourceDisksNames]
-1 = %DiskName%,,,""
+1 = %DiskName%,,,
 
 [SourceDisksFiles]
-CPUMonitorDriver.sys = 1,,
-
-;*****************************************
-; Install Section
-;*****************************************
+CPUMonitorDriver.sys=1
 
 [Manufacturer]
-%ManufacturerName% = Standard,NT$ARCH$.10.0...16299 ; %13% support introduced in build 16299
+%ManufacturerName% = Standard,NTx86,NTamd64
 
-[Standard.NT$ARCH$.10.0...16299]
-%CPUMonitorDriver.DeviceDesc% = CPUMonitorDriver_Device, Root\CPUMonitorDriver ; TODO: edit hw-id
+[Standard.NTx86]
+%CPUMonitorDriver.DeviceDesc% = CPUMonitorDriver_Install, ROOT\CPUMonitorDriver
 
-[CPUMonitorDriver_Device.NT]
-CopyFiles = File_Copy
+[Standard.NTamd64]
+%CPUMonitorDriver.DeviceDesc% = CPUMonitorDriver_Install, ROOT\CPUMonitorDriver
 
-[File_Copy]
+[CPUMonitorDriver_Install.NT]
+CopyFiles=DriverCopy
+
+[DriverCopy]
 CPUMonitorDriver.sys
 
-;-------------- Service installation
-[CPUMonitorDriver_Device.NT.Services]
-AddService = CPUMonitorDriver,%SPSVCINST_ASSOCSERVICE%, CPUMonitorDriver_Service_Inst
+[CPUMonitorDriver_Install.NT.Services]
+AddService = CPUMonitorDriver, 0x00000002, CPUMonitorDriver_Service_Inst
 
-; -------------- CPUMonitorDriver driver install sections
 [CPUMonitorDriver_Service_Inst]
-DisplayName    = %CPUMonitorDriver.SVCDESC%
-ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
-StartType      = 3               ; SERVICE_DEMAND_START
-ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
-ServiceBinary  = %13%\CPUMonitorDriver.sys
+DisplayName = %CPUMonitorDriver.SVCDESC%
+ServiceType = 1
+StartType = 3
+ErrorControl = 1
+ServiceBinary = %13%\CPUMonitorDriver.sys
 
-[CPUMonitorDriver_Device.NT.Wdf]
+[CPUMonitorDriver_Install.NT.Wdf]
 KmdfService = CPUMonitorDriver, CPUMonitorDriver_wdfsect
 
 [CPUMonitorDriver_wdfsect]
 KmdfLibraryVersion = $KMDFVERSION$
 
 [Strings]
-SPSVCINST_ASSOCSERVICE = 0x00000002
-ManufacturerName = "<Your manufacturer name>" ;TODO: Replace with your manufacturer name
+ManufacturerName = "MyManufacturer"
 DiskName = "CPUMonitorDriver Installation Disk"
 CPUMonitorDriver.DeviceDesc = "CPUMonitorDriver Device"
 CPUMonitorDriver.SVCDESC = "CPUMonitorDriver Service"

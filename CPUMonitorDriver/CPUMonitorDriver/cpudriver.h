@@ -5,6 +5,8 @@
 #include <ntddk.h>
 #include <intrin.h>
 #include <wdf.h>
+#include <wdfdevice.h>
+#include <wdmsec.h>
 
 #include "../shared_headers/cpu_shared_info.h"
 
@@ -17,8 +19,17 @@
 #define AMD_ZEN_ERA_THERM_STATUS            0xC0010015
 #define AMD_ZEN_ERA_TEMPERATURE_TARGET      0xC0010064
 
+#define DEVICE_SDDL L"D:P(A;;GA;;;SY)(A;;GA;;;BA)"
+
 extern UNICODE_STRING DEVICE_NAME;
 extern UNICODE_STRING SYMLINK_NAME;
+extern WDFDEVICE      dev;          // The driver device
+
+typedef struct CONTROL_DEVICE_EXTENSION {
+    HANDLE fileHandle;
+} CONTROL_DEVICE_EXTENSION;
+
+WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(CONTROL_DEVICE_EXTENSION, ControlGetData)
 
 typedef enum _CPU_VENDOR {
     CPU_VENDOR_UNKNOWN = 0,
@@ -28,17 +39,18 @@ typedef enum _CPU_VENDOR {
 #define CPU_VENDOR_STRING_LEN 13
 CPU_VENDOR DetectCpuVendor(VOID);
 
+DRIVER_INITIALIZE DriverEntry;
 
 NTSTATUS DriverEntry(
     _In_    PDRIVER_OBJECT      driver_obj,
     _In_    PUNICODE_STRING     registry_path
 );
 
-NTSTATUS EvtDriverUnload(
+VOID EvtDriverUnload(
     _In_    WDFDRIVER           Driver
 );
 
-NTSTATUS EvtDeviceAdd(
+NTSTATUS NonPnpDeviceAdd(
     _In_    WDFDRIVER           driver,
     _Inout_ PWDFDEVICE_INIT     device_init
 );
@@ -51,12 +63,18 @@ VOID EvtIoDeviceControl(
     _In_    ULONG               IoControlCode
 );
 
+VOID Shutdown(
+    WDFDEVICE device
+);
+
+VOID EvtDriverContextCleanup(
+    _In_    WDFOBJECT           Driver
+);
+
 /***************************************************
 *                   Helper Funcs                   *
 ***************************************************/
 BOOLEAN ReadCoreEraIntelMsrs(CPU_DATA_BUFFER* buffer, ULONG cpu_idx, ULONG cpu_cnt);
 BOOLEAN ReadZenEraAmdMsrs(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_cnt);
 
-//int32_t getCurrentApicId()
-
-#endif
+#endif // CPU_DRIVER_H

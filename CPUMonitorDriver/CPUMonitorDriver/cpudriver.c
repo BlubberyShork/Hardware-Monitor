@@ -1,10 +1,16 @@
 #include "cpudriver.h"
 
-UNICODE_STRING DEVICE_NAME =
+UNICODE_STRING DEVICE_NAME = 
     RTL_CONSTANT_STRING(L"\\Device\\CPUMonitorDriver");
 
 UNICODE_STRING SYMLINK_NAME =
-    RTL_CONSTANT_STRING(L"\\DosDevices\\CPUMonitorDriver");
+    RTL_CONSTANT_STRING(L"\\??\\CPUMonitorDriver");
+    
+WDFDEVICE dev = NULL;
+
+//4d36e97d-e325-11ce-bfc1-08002be10318
+DEFINE_GUID(GUID_DEVINTERFACE_HWMONITOR,
+    0x4d36e97dL, 0xe324, 0x11ce, 0xbf, 0xc1, 0x08, 0x00, 0x2b, 0xe1, 0x03, 0x18);
 
 CPU_VENDOR DetectCpuVendor(VOID) {
     int cpu_info[4];
@@ -36,76 +42,139 @@ NTSTATUS DriverEntry(
     _In_ PDRIVER_OBJECT  driver_obj,
     _In_ PUNICODE_STRING registry_path
 ) {
-    NTSTATUS status = STATUS_SUCCESS;
+    KdPrint(("DriverEntry ENTERED\n"));
+   
+    NTSTATUS                status;
+    WDFDRIVER               h_driver;
+    PWDFDEVICE_INIT         p_init = NULL;
+    WDF_DRIVER_CONFIG       config;
+    WDF_OBJECT_ATTRIBUTES   attributes;
 
-    WDF_DRIVER_CONFIG config;
-
-    WDF_DRIVER_CONFIG_INIT(&config, EvtDeviceAdd);
+    WDF_DRIVER_CONFIG_INIT(&config, WDF_NO_EVENT_CALLBACK);
+    config.DriverInitFlags |= WdfDriverInitNonPnpDriver;
     config.EvtDriverUnload = EvtDriverUnload;
 
+    WDF_OBJECT_ATTRIBUTES_INIT(&attributes);
+    attributes.EvtCleanupCallback = EvtDriverContextCleanup;
     status = WdfDriverCreate(
         driver_obj,
         registry_path,
-        WDF_NO_OBJECT_ATTRIBUTES,
+        &attributes,
         &config,
-        WDF_NO_HANDLE
+        &h_driver
     );
     if (!NT_SUCCESS(status)) {
         KdPrint(("WdfDriverCreate failed: 0x%x\n", status));
         return status;
     }
 
+    p_init = WdfControlDeviceInitAllocate(
+        h_driver,
+        &SDDL_DEVOBJ_SYS_ALL_ADM_RWX_WORLD_R_RES_R
+    );
+    if (p_init == NULL) {
+        status = STATUS_INSUFFICIENT_RESOURCES;
+        return status;
+    }
+
+    status = NonPnpDeviceAdd(h_driver, p_init);
+
     return status;
 }
 
-//Dont actually need to do work here, this is basically empty
-//the routine by default deletes the driver thru config.
-NTSTATUS EvtDriverUnload(_In_ WDFDRIVER driver) {
+VOID EvtDriverUnload(_In_ WDFDRIVER driver) {
     UNREFERENCED_PARAMETER(driver);
-    DbgPrint("WDF driver unloaded\n");
 
-    return STATUS_SUCCESS;
+    KdPrint(("Unloading KMDF Driver..."));
+    if (dev) {
+        IoDeleteSymbolicLink(&SYMLINK_NAME);
+        WdfObjectDelete(dev);
+        dev = NULL;
+    }
+    KdPrint(("KMDF driver unloaded\n"));
 }
 
 // WDFDRIVER is a wrapper for a PDRIVER_OBJECT
 // Creates WDF device, which represents the MSR reading device for us to use
-NTSTATUS EvtDeviceAdd(
+NTSTATUS NonPnpDeviceAdd(
     _In_    WDFDRIVER       driver,
     _Inout_ PWDFDEVICE_INIT device_init
 ) {
+    KdPrint(("NonPnpDeviceAdd ENTERED\n"));
+ 
     UNREFERENCED_PARAMETER(driver);
 
-    NTSTATUS status;
-    WDFDEVICE h_device;
+    NTSTATUS                status;
+    WDFDEVICE               control_device;
+    WDF_OBJECT_ATTRIBUTES   attributes;
 
-    status = WdfDeviceCreate(&device_init, WDF_NO_OBJECT_ATTRIBUTES, &h_device);
+    WdfDeviceInitSetExclusive(device_init, TRUE);
+    WdfDeviceInitSetIoType(device_init, WdfDeviceIoBuffered);
+
+    status = WdfDeviceInitAssignSDDLString(device_init, &SDDL_DEVOBJ_SYS_ALL_ADM_RWX_WORLD_R_RES_R);
+    if (!NT_SUCCESS(status)) {
+        KdPrint(("Failed to set SDDL: 0x%x\n", status));
+        goto END;
+    }
+
+    status = WdfDeviceInitAssignName(device_init, &DEVICE_NAME);
+    if (!NT_SUCCESS(status)) {
+        KdPrint(("WdfDeviceInitAssignName failed: 0x%x\n", status));
+        goto END;
+    }
+
+    WdfControlDeviceInitSetShutdownNotification(device_init, Shutdown, WdfDeviceShutdown);
+
+    WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&attributes, CONTROL_DEVICE_EXTENSION);
+
+    status = WdfDeviceCreate(&device_init, &attributes, &control_device);
     if (!NT_SUCCESS(status)) {
         KdPrint(("WdfDeviceCreate failed: 0x%x\n", status));
-        return status;
+        goto END;
     }
 
-    status = WdfDeviceCreateSymbolicLink(h_device, &SYMLINK_NAME);
+    status = WdfDeviceCreateSymbolicLink(control_device, &SYMLINK_NAME);
     if (!NT_SUCCESS(status)) {
         KdPrint(("WdfDriverCreateSymbolicLink failed: 0x%x\n", status));
-        return status;
+        goto END;
     }
 
+    dev = control_device;
+
+    WDF_IO_QUEUE_CONFIG queue_config;
+    WDF_IO_QUEUE_CONFIG_INIT_DEFAULT_QUEUE(&queue_config, WdfIoQueueDispatchSequential);
+    queue_config.EvtIoDeviceControl = EvtIoDeviceControl;
+
+    status = WdfIoQueueCreate(control_device, &queue_config, WDF_NO_OBJECT_ATTRIBUTES, WDF_NO_HANDLE);
+    if (!NT_SUCCESS(status)) {
+        KdPrint(("WdfIoQueueCreate failed: 0x%x\n", status));
+        goto END;
+    }
+
+    WdfControlFinishInitializing(control_device);
+
+END:
+    if (device_init != NULL) {
+        WdfDeviceInitFree(device_init);
+    }
     return status;
 }
 
 VOID EvtIoDeviceControl(
-    _In_ WDFQUEUE   Queue, 
-    _In_ WDFREQUEST Request, 
+    _In_ WDFQUEUE   Queue,
+    _In_ WDFREQUEST Request,
     _In_ size_t     OutputBufferLength,
-    _In_ size_t     InputBufferLength, 
+    _In_ size_t     InputBufferLength,
     _In_ ULONG      IoControlCode
 ) {
+    KdPrint(("Entered EvtIoDeviceControl"));
+
     UNREFERENCED_PARAMETER(InputBufferLength);
     UNREFERENCED_PARAMETER(Queue);
 
-    PCPU_DATA_BUFFER  outbuffer     = NULL;
+    PCPU_DATA_BUFFER  outbuffer = NULL;
     NTSTATUS          status;
-    size_t            bytes_to_cpy  = 0;
+    size_t            bytes_to_cpy = 0;
 
     if (IoControlCode != IOCTL_GET_DATA) {
         WdfRequestComplete(Request, STATUS_INVALID_DEVICE_REQUEST);
@@ -144,9 +213,9 @@ VOID EvtIoDeviceControl(
     KeSetSystemGroupAffinityThread(&new_affinity, &old_affinity);
 
     CPU_VENDOR vendor = DetectCpuVendor();
-    for(ULONG i = 0; i < total_procs; i++) { // Loops thru all logical processors
-        PROCESSOR_NUMBER proc_num = {0};
-        if(!NT_SUCCESS(KeGetProcessorNumberFromIndex(i, &proc_num)))
+    for (ULONG i = 0; i < total_procs; i++) { // Loops thru all logical processors
+        PROCESSOR_NUMBER proc_num = { 0 };
+        if (!NT_SUCCESS(KeGetProcessorNumberFromIndex(i, &proc_num)))
             continue;
 
         RtlZeroMemory(&new_affinity, sizeof(GROUP_AFFINITY));
@@ -154,28 +223,42 @@ VOID EvtIoDeviceControl(
         new_affinity.Mask = (KAFFINITY)(1ULL << proc_num.Number);
         KeSetSystemGroupAffinityThread(&new_affinity, NULL);
 
-        switch(vendor) {
-            case(CPU_VENDOR_INTEL):
-                KdPrint(("CPU Vendor Intel detected\n"));
-                if (!ReadCoreEraIntelMsrs(outbuffer, i, total_procs)) {
-                    KdPrint(("Failed to return MSR data\n"));
-                }
-                break;
-            case(CPU_VENDOR_AMD):
-                KdPrint(("CPU Vendor AMD detected\n"));
-                if (!ReadZenEraAmdMsrs(outbuffer, i, total_procs)) {
-                    KdPrint(("Failed to return AMD MSR data\n"));
-                }
-                break;
-            default:
-                KdPrint(("Invalid vendor\n"));
-                break;
+        switch (vendor) {
+        case(CPU_VENDOR_INTEL):
+            KdPrint(("CPU Vendor Intel detected\n"));
+            if (!ReadCoreEraIntelMsrs(outbuffer, i, total_procs)) {
+                KdPrint(("Failed to return MSR data\n"));   
+            }
+            break;
+        case(CPU_VENDOR_AMD):
+            KdPrint(("CPU Vendor AMD detected\n"));
+            if (!ReadZenEraAmdMsrs(outbuffer, i, total_procs)) {
+                KdPrint(("Failed to return AMD MSR data\n"));
+            }
+            break;
+        default:
+            KdPrint(("Invalid vendor\n"));
+            break;
         }
-        KeRevertToUserGroupAffinityThread(&old_affinity);
     }
-     
+    KeRevertToUserGroupAffinityThread(&old_affinity);
+
     bytes_to_cpy = required_size;
     WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, bytes_to_cpy);
+}
+
+VOID EvtDriverContextCleanup(
+    _In_ WDFOBJECT driver
+) {
+    UNREFERENCED_PARAMETER(driver);
+    return;
+}
+
+VOID Shutdown(
+    WDFDEVICE device
+) {
+    UNREFERENCED_PARAMETER(device);
+    return;
 }
 
 BOOLEAN ReadCoreEraIntelMsrs(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_cnt) {
@@ -233,16 +316,18 @@ BOOLEAN ReadZenEraAmdMsrs(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_c
     }
 
     ULONGLONG therm_status = __readmsr(AMD_ZEN_ERA_THERM_STATUS);
-    if ((therm_status & (1ULL << 31)) == 0) { // Invalid temperature bit 
-        KdPrint(("ReadZenEraAmdMsrs: Invalid temperature bit\n"));
-        return FALSE;
-    }
-
+    
     ULONG temp_offset = therm_status & 0x7F;
     if (temp_offset > temp_max) {
         KdPrint(("ReadZenEraAmdMsrs: Temp offset > temp max\n"));
         return FALSE;
     }
+
+    BOOLEAN temp_reading_supported = (therm_status & (1ULL << 31)) != 0;
+    if (!temp_reading_supported) {
+        temp_offset == 0; 
+    }
+
     USHORT real_temp = (USHORT)(temp_max - temp_offset);
 
     CPU_DATA* curr_data = &outbuffer->data[cpu_idx];
@@ -252,46 +337,3 @@ BOOLEAN ReadZenEraAmdMsrs(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_c
     KdPrint(("ReadZenEraAmdMsrs: Returning true...\n"));
     return TRUE;
 }
-
-
-/**
-*   Gets the current APIC_ID for the active thread
-*
-*   If RET_VAL = UINT32_MAX, then an error has occured
-*/
-/* 
-int32_t getCurrentApicId() { 
-    uint32_t apic_id = 0;
-
-    int cpu_info[4];
-
-    // Get highest valid func id
-    __cpuid(cpu_info, 0x0);
-    uint32_t highest_leaf = cpu_info[0];
-
-    // Check if x2APIC is supported
-    __cpuid(cpu_info, 0x1);
-    bool x2apic_supported = (cpu_info[2] >> 21) & 1;
-
-    if(!x2apic_supported) {
-        return cpu_info[1] >> 24 & 0xFF;
-    }
-
-    // TODO - comment this because now I have no clue what this is doing 3 months later. What the hell is this
-    if(highest_leaf >= 0x1F) {
-        __cpuid(cpu_info, 0x1F);
-        uint32_t leaf_1fh_valid = cpu_info[0] >> 4 & 0xF;
-        if(leaf_1fh_valid > 0) {
-            return cpu_info[3] >> 31 & 0xFFFFFFFF;
-        }
-    } else if(highest_leaf >= 0x0B) {
-        __cpuid(cpu_info, 0x0B);
-        uint32_t leaf_1fh_valid = cpu_info[0] >> 4 & 0xF;
-        if(leaf_1fh_valid > 0) {
-            return cpu_info[3] >> 31 & 0xFFFFFFFF;
-        }
-    }
-
-    return UINT32_MAX; // Error 
-}
-*/
