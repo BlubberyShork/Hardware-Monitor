@@ -21,19 +21,19 @@ extern "C" {
 
 // kernel-compatible types
 typedef struct _CPU_DATA {
-    USHORT temp;        
-    ULONGLONG cpu_load;
-    ULONG cpu_id;
+    USHORT          temp;        
+    ULONGLONG       cpu_load;
+    ULONG           cpu_id;
 } CPU_DATA, *PCPU_DATA;
 
 typedef struct _CPU_DATA_HEADER {
-    ULONG required_size;
-    ULONG processor_count;
+    ULONG           required_size;
+    ULONG           processor_count;
 } CPU_DATA_HEADER, *PCPU_DATA_HEADER;
 
 typedef struct _CPU_DATA_BUFFER {
     CPU_DATA_HEADER header;
-    CPU_DATA data[1];   // [1] instead of [0] for C compliance
+    CPU_DATA        data[1];   // [1] instead of [0] for C compliance
 } CPU_DATA_BUFFER, *PCPU_DATA_BUFFER;
 
 // shared IOCTL code for kernel mode and user mode 
