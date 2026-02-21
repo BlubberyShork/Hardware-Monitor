@@ -30,11 +30,12 @@ int main(int arcg, char* argv[])
 
     auto end = std::chrono::high_resolution_clock::now();
     auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "Threads took: " << dur.count() << " ms";
 
     OutputHandler out(hw_mngr.GetHardwareData());
     out.output();
-
+    
+    std::cout << "Threads took: " << dur.count() << " ms";
+    
     return 0;
 }
     
