@@ -42,8 +42,7 @@ ULONGLONG VTConvertNumeric(VARIANT v) {
     case VT_BSTR:  // Used in some storage device sizings, etc
         return (v.bstrVal != nullptr) ? _wtoi64(v.bstrVal) : 0ULL;
     case VT_NULL:
-    case VT_EMPTY:
-        return 0ULL;
+    case VT_EMPTY: return 0ULL;
     default:
         // Fallback, attempt coercion
         VARIANT vConv;
