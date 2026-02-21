@@ -129,6 +129,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ComManager.cpp" />
     <ClCompile Include="GraphicsProcessor.cpp" />
     <ClCompile Include="motherboard.cpp" />
     <ClCompile Include="OutputGenerator.cpp" />
@@ -137,8 +138,10 @@
     <ClCompile Include="hardware_info.cpp" />
     <ClCompile Include="storagedevice.cpp" />
     <ClCompile Include="System_Info.cpp" />
+    <ClCompile Include="WbemManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ComManager.h" />
     <ClInclude Include="GraphicsProcessor.h" />
     <ClInclude Include="hardware_info.h" />
     <ClInclude Include="motherboard.h" />
@@ -147,6 +150,7 @@
     <ClInclude Include="projutils.h" />
     <ClInclude Include="storagedevice.h" />
     <ClInclude Include="../shared_headers/cpu_shared_info.h" />
+    <ClInclude Include="WbemManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

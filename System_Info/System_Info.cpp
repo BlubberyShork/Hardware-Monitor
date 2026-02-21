@@ -3,208 +3,37 @@
 
 #include "hardware_info.h"
 #include "../shared_headers/cpu_shared_info.h"
+#include "DriverClient.h"
 #include "OutputGenerator.h"
+#include "ComManager.h"
+#include "WbemManager.h"
+//#include "HardwareManager.h"
+#include "OutputHandler.h"
 
-#define _CRTDBG_MAP_ALLOC
-#include <crtdbg.h>
-
-#include <functional>
-#include <mutex>
 #include <ctime>
 #include <chrono>
 
-#pragma comment(lib, "wbemuuid.lib")
- 
-constexpr int NUM_THREADS = 7;
-constexpr int NUM_W32_THREADS = 3;
-constexpr int NUM_MSFT_THREADS = 4;
-constexpr int NUM_SVCS = 2;
-
-#define OUTPUT_HEADER(header_msg) \
-        std::cout << "--------------------------------------------------------------\n"; \
-        std::cout << "     ** " << header_msg << "** \n\n";
-
 int main(int arcg, char* argv[])
 {
-    // TODO - Initialize COM and Wbem stuff in a separate class & file
-    IWbemLocator*   loc         = nullptr;
-    IWbemServices*  w32_svcs    = nullptr;
-    IWbemServices*  msft_svcs   = nullptr;
-    IWbemRefresher* refresher   = nullptr;
-
     std::cout << "before initializations\n";
     auto start = std::chrono::high_resolution_clock::now();
 
-    InitializeCOM();
+    ComManager  com_mngr;
+    WbemManager wbem_mngr;
 
-    // TODO - Implement this with the constexpr's above to handle static thread count, do not use the driver (dynamic read, unsuitable)
-    //unsigned cpu_threads = std::thread::hardware_concurrency();
-    //unsigned query_threads = std::min(cpu_threads, 8u);
-    std::thread svcs_threads[NUM_SVCS];
-    std::function<void(IWbemLocator*&)> svcs_init_funcs[NUM_THREADS] = {
-        [&w32_svcs](IWbemLocator*& loc) { setupW32Wbem(loc, w32_svcs); },
-        [&msft_svcs](IWbemLocator*& loc) { setupMSFTWbem(loc, msft_svcs); }
-    };
+    HardwareManager hw_mngr(&wbem_mngr);
+    hw_mngr.ExecuteQueryThreadPool();
 
-    for (int i = 0; i < NUM_SVCS; i++) {
-        svcs_threads[i] = std::thread(svcs_init_funcs[i], std::ref(loc));
-    }
+    DriverClient dc;
+    std::vector<BYTE> cpu_info = dc.getCpuData();
+    // TODO - Add this to the output
 
-    for (int i = 0; i < NUM_SVCS; i++) {
-        svcs_threads[i].join();
-    }
-
-    // TODO - Separate into HardwareComponentDataHandler class
-
-    std::cout << "Finished initializations\n";
-    std::vector<Motherboard> mboard_list;
-    std::vector<GraphicsProcessor> gpu_list;
-    std::vector<Processor> proc_list;
-    std::vector<StorageDevice> sd_list;
-    std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual> d_hmap;
-    std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash> p_hmap;
-    std::unordered_map<wchar_t, Volume> v_hmap;
-    std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual> pd_hmap;
-
-    std::mutex w32_mtx;
-    std::mutex msft_mtx;
-    std::thread threads[NUM_THREADS];
-
-    // TODO - Separate into ThreadQueryPool class/file
-
-    // FIX - Optimize this to work based on # cores. NUM_THREADS should depend on if u have 4,6,8 cores
-        // For now, it is good enough but the kernel driver can retrieve it from EBX in __cpuid
-        // This might be more efficient but we have I/O thru the queries so maybe not?
-            // At the least, change the queries to only pull stuff used and
-            // use less connectservers synchronized w/ mutexes
-    std::function<void(IWbemLocator*&, IWbemServices*&, std::mutex&)> functions[NUM_THREADS] = {
-        [&mboard_list](IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx) { infoMotherboard(loc, svcs, mtx, mboard_list); },
-        [&gpu_list](IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx) { infoGPU(loc, svcs, mtx, gpu_list); },
-        [&proc_list](IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx) { infoCPU(loc, svcs, mtx, proc_list); },
-        [&d_hmap](IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx) { sd_DiskQuery(loc, svcs, mtx, d_hmap); },
-        [&p_hmap](IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx) { sd_PartitionQuery(loc, svcs, mtx, p_hmap); },
-        [&v_hmap](IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx) { sd_VolumeQuery(loc, svcs, mtx, v_hmap); },
-        [&pd_hmap](IWbemLocator*& loc, IWbemServices*& svcs, std::mutex& mtx) { sd_PhysicalDiskQuery(loc, svcs, mtx, pd_hmap); }
-    };
-
-    for (int i = 0; i < NUM_W32_THREADS; i++) {
-        threads[i] = std::thread(functions[i], std::ref(loc), std::ref(w32_svcs), std::ref(w32_mtx));
-    }
-    for (int i = NUM_W32_THREADS; i < NUM_THREADS; i++) {
-        threads[i] = std::thread(functions[i], std::ref(loc), std::ref(msft_svcs), std::ref(msft_mtx));
-    }
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        threads[i].join();
-    }
     auto end = std::chrono::high_resolution_clock::now();
-    infoPhysicalDrive(sd_list, d_hmap, p_hmap, v_hmap, pd_hmap);
-
-    // TODO - Separate into DriverClient class (Since it is still a state/lifetime object, the internal queries are just work)
-
-    // TODO - Build and deploy the driver first
-    HANDLE h_device = CreateFile(
-        L"\\\\.\\CPUMonitorDriver", // Name of the driver
-        GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        NULL,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
-        NULL
-    );
-
-    std::cout << "Checking handle...\n";
-    if (h_device == INVALID_HANDLE_VALUE) {
-        std::cout << "Failed to open device. Error: " << GetLastError() << "\n";
-        return 1;
-    }
-
-    BYTE* buffer = (BYTE*)malloc(sizeof(CPU_DATA_HEADER));
-    DWORD buffer_sz = sizeof(CPU_DATA_HEADER);
-    DWORD bytes_ret = 0;
-
-    while (true) {
-        BOOL success = DeviceIoControl(
-            h_device,
-            IOCTL_GET_DATA,
-            nullptr, 0,
-            buffer, buffer_sz,
-            &bytes_ret,
-            nullptr
-        );
-
-        if (success) {
-            // Temporary output on the buffer (needs to be modularized with other outputs)
-            CPU_DATA_BUFFER* cpu_info = (CPU_DATA_BUFFER*)buffer;
-            OUTPUT_HEADER("Processor Temp/Load");
-            for (ULONG i = 0; i < cpu_info->header.processor_count; i++) {
-                std::wcout << L"CPU ID: " << cpu_info->data[i].cpu_id << L"\n";
-                std::wcout << L"Temp: " << cpu_info->data[i].temp << L"C\n";
-            }
-            break;
-        } else {
-            DWORD err = GetLastError();
-            if (err == ERROR_MORE_DATA || err == ERROR_INSUFFICIENT_BUFFER) {
-                // Read required size from the header (driver writes at least header first)
-                CPU_DATA_HEADER* hdr = (CPU_DATA_HEADER*)buffer;
-                DWORD new_sz = hdr->required_size;
-
-                BYTE* tmp = (BYTE*)realloc(buffer, new_sz);
-                if (!tmp) {
-                    std::cout << "Memory allocation failed\n";
-                    free(buffer);
-                    buffer = nullptr;
-                    break;
-                }
-                buffer = tmp;
-                buffer_sz = new_sz;
-                continue;
-            } else {
-                std::cout << "DeviceIoControl failed permanently. Error: " << err << "\n";
-                free(buffer);
-                buffer = nullptr;
-                break;
-            }
-        }
-    }
-
-    // TODO -> Do this with all the outputs
-        // For buffer, do a smart pointer
-    OUTPUT_HEADER("Motherboard");
-    for (int i = 0; i < mboard_list.size(); i++) {
-        mboard_list[i].outputMotherboardInfo();
-    }
-    std::wcout << std::endl;
-
-    OUTPUT_HEADER("GPUs and Graphics Processors");
-    for (int i = 0; i < gpu_list.size(); i++) {
-        gpu_list[i].outputGPUInfo();
-    }
-    std::wcout << std::endl;
-
-    OUTPUT_HEADER("Processors");
-    for (int i = 0; i < proc_list.size(); i++) {
-        proc_list[i].outProcInfo();
-    }
-    std::wcout << "\n";
-
-    OUTPUT_HEADER("Storage Devices");
-    for (int i = 0; i < sd_list.size(); i++) {
-        sd_list[i].outSDInfo();
-    }
-    std::wcout << std::endl;
-
-    if (buffer) free(buffer);
-    CloseHandle(h_device);
-
     auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "Threads took: " << dur.count() << " ms";
 
-    if (loc) loc->Release();
-    CoUninitialize();
-
-    // Check for mem leaks
-    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+    OutputHandler out(hw_mngr.GetHardwareData());
+    out.output();
 
     return 0;
 }

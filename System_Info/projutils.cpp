@@ -131,3 +131,39 @@ bstr_t explainAvailability(USHORT av_status) {
 
     return ret;
 }
+
+// TODO - Un-AI this and make it half decent
+inline std::string wideToUtf8(const wchar_t* wstr)
+{
+    if (!wstr)
+        return {};
+
+    int size_needed = WideCharToMultiByte(
+        CP_UTF8,
+        0,
+        wstr,
+        -1,
+        nullptr,
+        0,
+        nullptr,
+        nullptr
+    );
+
+    if (size_needed <= 0)
+        return {};
+
+    std::string result(size_needed - 1, 0); // exclude null terminator
+
+    WideCharToMultiByte(
+        CP_UTF8,
+        0,
+        wstr,
+        -1,
+        result.data(),
+        size_needed,
+        nullptr,
+        nullptr
+    );
+
+    return result;
+}

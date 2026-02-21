@@ -20,6 +20,7 @@
 bstr_t simplifyBytesAsString(ULONGLONG sz);
 bstr_t explainAvailability(USHORT av_status);
 ULONGLONG VTConvertNumeric(VARIANT v);
+inline std::string wideToUtf8(const wchar_t* wstr);
 
 /*
  *	Hashing functor for bstr_t hashing
