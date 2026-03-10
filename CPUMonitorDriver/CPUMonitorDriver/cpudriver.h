@@ -25,7 +25,7 @@ extern UNICODE_STRING DEVICE_NAME;
 extern UNICODE_STRING SYMLINK_NAME;
 extern WDFDEVICE      dev;          // The driver device
 
-typedef struct CONTROL_DEVICE_EXTENSION {
+typedef struct _CONTROL_DEVICE_EXTENSION {
     HANDLE fileHandle;
 } CONTROL_DEVICE_EXTENSION;
 

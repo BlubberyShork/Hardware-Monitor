@@ -19,9 +19,9 @@ public:
 	WbemManager& operator=(const WbemManager&) = delete;
 
 	// Accessors (non-owning)
-	IWbemLocator*  getW32Locator()   const { return w32_loc.get(); }
-	IWbemLocator*  getMsftLocator()  const { return w32_loc.get(); }
-	IWbemServices* getW32Services()  const { return w32_svcs.get(); }
+	IWbemLocator*  getW32Locator()   const { return w32_loc.get();   }
+	IWbemLocator*  getMsftLocator()	 const { return w32_loc.get();   }
+	IWbemServices* getW32Services()  const { return w32_svcs.get();  }
 	IWbemServices* getMsftServices() const { return msft_svcs.get(); }
 
 private:
@@ -33,7 +33,8 @@ private:
 	void connect(
 		winrt::com_ptr<IWbemLocator>& locator,
 		winrt::com_ptr<IWbemServices>& svcs,
-		const wchar_t* ns);
+		const wchar_t* ns
+	);
 	void connectAll();
 	void setProxySecurity(IWbemServices* services);
 

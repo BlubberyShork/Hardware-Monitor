@@ -23,37 +23,39 @@ bool DriverClient::isValid() const {
 }
 
 std::vector<BYTE> DriverClient::getCpuData() {
-        if (!isValid())
-            return {};
+     if (!isValid())
+        return {};
 
-        std::vector<BYTE> buffer(sizeof(CPU_DATA_HEADER));
-        DWORD bytes_ret = 0;
+    std::vector<BYTE> buffer(sizeof(CPU_DATA_HEADER));
+    DWORD bytes_ret = 0;
 
-        while (true) {
-            BOOL success = DeviceIoControl(
-                h_device,
-                IOCTL_GET_DATA,
-                nullptr, 0,
-                buffer.data(),
-                static_cast<DWORD>(buffer.size()),
-                &bytes_ret,
-                nullptr
-            );
+    while (true) {
+        BOOL success = DeviceIoControl(
+            h_device,
+            IOCTL_GET_DATA,
+            nullptr, 0,
+            buffer.data(),
+            static_cast<DWORD>(buffer.size()),
+            &bytes_ret,
+            nullptr
+        );
 
-            if (success) {
-                buffer.resize(bytes_ret);
-                return buffer;
-            } else {
-                DWORD err = GetLastError();
+        if (success) {
+            buffer.resize(bytes_ret);
+            return buffer;
+        }
+        else {
+            DWORD err = GetLastError();
 
-                if (err == ERROR_MORE_DATA || err == ERROR_INSUFFICIENT_BUFFER) {
-                    auto* hdr = reinterpret_cast<CPU_DATA_HEADER*>(buffer.data());
-                    buffer.resize(hdr->required_size);
-                    continue;
-                } else {
-                    std::cout << "DeviceIoControl failed permanently. Error: " << err << "\n";
-                    return {};
-                }
+            if (err == ERROR_MORE_DATA || err == ERROR_INSUFFICIENT_BUFFER) {
+                auto* hdr = reinterpret_cast<CPU_DATA_HEADER*>(buffer.data());
+                buffer.resize(hdr->required_size);
+                continue;
+            }
+            else {
+                std::cout << "DeviceIoControl failed permanently. Error: " << err << "\n";
+                return {};
             }
         }
     }
+} 

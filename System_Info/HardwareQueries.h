@@ -9,8 +9,11 @@
 #include <unordered_map>
 
 namespace HardwareQueries {
-
-    inline void QueryGPUs(IWbemServices* svcs, std::mutex& mtx, std::vector<GraphicsProcessor>& gpus) {
+    inline void QueryGPUs(
+        IWbemServices* svcs, 
+        std::mutex& mtx, 
+        std::vector<GraphicsProcessor>& gpus) 
+    {
         WmiHelper::ExecuteWmiQuery<GraphicsProcessor>(
             svcs,
             L"SELECT Name, AdapterRAM, DeviceID, Availability, CurrentRefreshRate, Status FROM Win32_VideoController",
@@ -40,7 +43,10 @@ namespace HardwareQueries {
         );
     }
 
-    inline void QueryMotherboards(IWbemServices* svcs, std::mutex& mtx, std::vector<Motherboard>& boards) {
+    inline void QueryMotherboards(
+        IWbemServices* svcs, std::mutex& mtx, 
+        std::vector<Motherboard>& boards) 
+    {
         WmiHelper::ExecuteWmiQuery<Motherboard>(
             svcs,
             L"SELECT Description, HostingBoard, PoweredOn, Product, Status FROM Win32_BaseBoard",
@@ -68,28 +74,16 @@ namespace HardwareQueries {
         );
     }
 
-    inline void QueryCPUs(IWbemServices* svcs, std::mutex& mtx, std::vector<Processor>& cpus) {
+    inline void QueryCPUs(
+        IWbemServices* svcs, 
+        std::mutex& mtx, 
+        std::vector<Processor>& cpus) 
+    {
         WmiHelper::ExecuteWmiQuery<Processor>(
             svcs,
             L"SELECT UniqueId, DeviceID, ProcessorId, ProcessorType, Family, Architecture, Manufacturer, Name, NumberOfCores, NumberOfLogicalProcessors, ThreadCount, CurrentClockSpeed, CurrentVoltage, DataWidth FROM Win32_Processor",
             [&](IWbemClassObject* obj, Processor& cpu) {
                 VARIANT vtProp;
-
-                auto GetBSTR = [&](const wchar_t* prop) {
-                    VariantInit(&vtProp);
-                    obj->Get(prop, 0, &vtProp, nullptr, nullptr);
-                    std::wstring res = (vtProp.vt == VT_BSTR && vtProp.bstrVal != nullptr) ? vtProp.bstrVal : L"";
-                    VariantClear(&vtProp);
-                    return res;
-                    };
-
-                auto GetUInt = [&](const wchar_t* prop) {
-                    VariantInit(&vtProp);
-                    obj->Get(prop, 0, &vtProp, nullptr, nullptr);
-                    ULONG val = VTConvertNumeric(vtProp);
-                    VariantClear(&vtProp);
-                    return val;
-                    };
 
                 cpu.unq_id = GetBSTR(L"UniqueId");
                 cpu.dev_id = GetBSTR(L"DeviceID");
@@ -111,7 +105,9 @@ namespace HardwareQueries {
     }
 
     // Storage queries
-    inline void QueryDisks(IWbemServices* svcs, std::mutex& mtx,
+    inline void QueryDisks(
+        IWbemServices* svcs, 
+        std::mutex& mtx,
         std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual>& disks)
     {
         WmiHelper::ExecuteWmiQuery<Disk>(
@@ -121,6 +117,13 @@ namespace HardwareQueries {
                 VARIANT unq_id, num, fname, manufacturer, model, size, num_parts;
                 VariantInit(&unq_id); VariantInit(&num); VariantInit(&fname);
                 VariantInit(&manufacturer); VariantInit(&model); VariantInit(&size); VariantInit(&num_parts);
+
+                //        auto extractIndex = [](const bstr_t& dev_id) {
+//            //assert(dev_id);
+//            std::wstring ws_dev_id(dev_id);
+//            auto pos = ws_dev_id.find_last_of(L"0123456789");
+//            return (ULONG)std::stoi(ws_dev_id.substr(pos));
+//            };
 
                 obj->Get(L"UniqueId", 0, &unq_id, nullptr, nullptr);
                 obj->Get(L"Number", 0, &num, nullptr, nullptr);
@@ -143,11 +146,13 @@ namespace HardwareQueries {
 
                 disks.insert({ disk.unq_id, disk });
             },
-            std::vector<Disk>()  // dummy, map insert inside lambda
+            std::vector<Disk>() 
         );
     }
 
-    inline void QueryPartitions(IWbemServices* svcs, std::mutex& mtx,
+    inline void QueryPartitions(
+        IWbemServices* svcs, 
+        std::mutex& mtx,
         std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash>& parts)
     {
         WmiHelper::ExecuteWmiQuery<Partition>(
@@ -176,7 +181,9 @@ namespace HardwareQueries {
         );
     }
 
-    inline void QueryVolumes(IWbemServices* svcs, std::mutex& mtx,
+    inline void QueryVolumes(
+        IWbemServices* svcs, 
+        std::mutex& mtx,
         std::unordered_map<wchar_t, Volume>& volumes)
     {
         WmiHelper::ExecuteWmiQuery<Volume>(
@@ -204,5 +211,24 @@ namespace HardwareQueries {
         );
     }
 
-    // Similarly, you can add QueryPhysicalDisks() etc.
 } // namespace HardwareQueries
+
+
+namespace {
+    auto GetBSTR(VARIANT vtProp, IWbemClassObject* obj, const wchar_t* prop) {
+        VariantInit(&vtProp);
+        obj->Get(prop, 0, &vtProp, nullptr, nullptr);
+        std::wstring res = (vtProp.vt == VT_BSTR && vtProp.bstrVal != nullptr) ? vtProp.bstrVal : L"";
+        VariantClear(&vtProp);
+        return res;
+    };
+
+    auto GetUInt(VARIANT vtProp, IWbemClassObject* obj, const wchar_t* prop) {
+        VariantInit(&vtProp);
+        obj->Get(prop, 0, &vtProp, nullptr, nullptr);
+        auto val = VTConvertNumeric(vtProp);
+        VariantClear(&vtProp);
+        return val;
+    };
+
+} // Private helpers
