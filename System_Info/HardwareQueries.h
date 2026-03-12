@@ -14,7 +14,7 @@ namespace HardwareQueries {
         std::mutex& mtx, 
         std::vector<GraphicsProcessor>& gpus) 
     {
-        WmiHelper::ExecuteWmiQuery<GraphicsProcessor>(
+        WmiHelper::ExecuteWmiQuery<GraphicsProcessor, std::vector<GraphicsProcessor>>(
             svcs,
             L"SELECT Name, AdapterRAM, DeviceID, Availability, CurrentRefreshRate, Status FROM Win32_VideoController",
             [&](IWbemClassObject* obj, GraphicsProcessor& gpu) {
@@ -85,6 +85,7 @@ namespace HardwareQueries {
             [&](IWbemClassObject* obj, Processor& cpu) {
                 VARIANT vtProp;
 
+                // TODO - change parameters to match properly & check with previous setup
                 cpu.unq_id = GetBSTR(L"UniqueId");
                 cpu.dev_id = GetBSTR(L"DeviceID");
                 cpu.proc_id = GetBSTR(L"ProcessorId");
@@ -118,13 +119,6 @@ namespace HardwareQueries {
                 VariantInit(&unq_id); VariantInit(&num); VariantInit(&fname);
                 VariantInit(&manufacturer); VariantInit(&model); VariantInit(&size); VariantInit(&num_parts);
 
-                //        auto extractIndex = [](const bstr_t& dev_id) {
-//            //assert(dev_id);
-//            std::wstring ws_dev_id(dev_id);
-//            auto pos = ws_dev_id.find_last_of(L"0123456789");
-//            return (ULONG)std::stoi(ws_dev_id.substr(pos));
-//            };
-
                 obj->Get(L"UniqueId", 0, &unq_id, nullptr, nullptr);
                 obj->Get(L"Number", 0, &num, nullptr, nullptr);
                 obj->Get(L"FriendlyName", 0, &fname, nullptr, nullptr);
@@ -143,10 +137,8 @@ namespace HardwareQueries {
 
                 VariantClear(&unq_id); VariantClear(&num); VariantClear(&fname);
                 VariantClear(&manufacturer); VariantClear(&model); VariantClear(&size); VariantClear(&num_parts);
-
-                disks.insert({ disk.unq_id, disk });
             },
-            std::vector<Disk>() 
+            disks 
         );
     }
 
@@ -172,12 +164,10 @@ namespace HardwareQueries {
                 p.drv_ltr = static_cast<wchar_t>(drv_ltr.uiVal);
                 p.sz = VTConvertNumeric(sz);
 
-                parts.insert({ p.id, p });
-
                 VariantClear(&disk_num); VariantClear(&part_num);
                 VariantClear(&drv_ltr); VariantClear(&sz);
             },
-            std::vector<Partition>()
+            parts
         );
     }
 
@@ -203,11 +193,9 @@ namespace HardwareQueries {
                 v.sz_rmng = VTConvertNumeric(sz_rem);
                 v.hstatus = hstat.uiVal;
 
-                volumes.insert({ v.drv_ltr, v });
-
                 VariantClear(&drv); VariantClear(&sz); VariantClear(&sz_rem); VariantClear(&hstat);
             },
-            std::vector<Volume>()
+            volumes
         );
     }
 
@@ -215,6 +203,15 @@ namespace HardwareQueries {
 
 
 namespace {
+
+    /*void IntializeVariants(VARIANT&...) {
+
+    }
+
+    void ClearVariants(VARIANT&...) {
+
+    }*/
+
     auto GetBSTR(VARIANT vtProp, IWbemClassObject* obj, const wchar_t* prop) {
         VariantInit(&vtProp);
         obj->Get(prop, 0, &vtProp, nullptr, nullptr);
