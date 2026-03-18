@@ -16,4 +16,5 @@ void Processor::outProcInfo() {
     std::wcout << L"  Current Clock Speed: " << curr_clk_spd << L" MHz\n";
     std::wcout << L"  Current Voltage: " << curr_vltg << L" V\n";
     std::wcout << L"  Data Width: " << data_width << L" bits\n";
+    std::wcout << L"\n";
 }

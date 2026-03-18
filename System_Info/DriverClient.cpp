@@ -22,9 +22,9 @@ bool DriverClient::isValid() const {
     return h_device != INVALID_HANDLE_VALUE;
 }
 
-std::vector<BYTE> DriverClient::getCpuData() {
+void DriverClient::runDriver() {
      if (!isValid())
-        return {};
+        return;
 
     std::vector<BYTE> buffer(sizeof(CPU_DATA_HEADER));
     DWORD bytes_ret = 0;
@@ -42,7 +42,9 @@ std::vector<BYTE> DriverClient::getCpuData() {
 
         if (success) {
             buffer.resize(bytes_ret);
-            return buffer;
+            size_t num_obj = buffer.size() / sizeof(CPU_DATA_BUFFER);
+            std::memcpy(ret_data.data(), buffer.data(), buffer.size());
+            return;
         }
         else {
             DWORD err = GetLastError();
@@ -54,8 +56,15 @@ std::vector<BYTE> DriverClient::getCpuData() {
             }
             else {
                 std::cout << "DeviceIoControl failed permanently. Error: " << err << "\n";
-                return {};
+                return;
             }
         }
     }
 } 
+
+void DriverClient::printDriverOutput() {
+    for (ULONG i = 0; i < ret_data.data()->header.processor_count; i++) {
+        std::wcout << L"CPU ID: " << ret_data.data()->data[i].cpu_id << L"\n";
+        std::wcout << L"Temp: " << ret_data.data()->data[i].temp << L"C\n";
+    }
+}

@@ -1,5 +1,8 @@
 #pragma once
-#include "hardware_info.h"
+#include "GraphicsProcessor.h"
+#include "processor.h"
+#include "motherboard.h"
+#include "storagedevice.h"
 #include "ThreadManager.h"
 #include "WbemManager.h"
 #include "HardwareQueries.h"
@@ -38,7 +41,7 @@ private:
     std::mutex              mtx;
     Hardware_List_Container hw_data;
 
-    // Maps
+    // Maps TODO - maybe move these into a private struct or dont cuz it probably doesnt need the added layer of complication
     std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual>                       disks;
     std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash> partitions;
     std::unordered_map<wchar_t, Volume>                                         volumes;

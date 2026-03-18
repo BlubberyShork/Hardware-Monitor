@@ -1,13 +1,10 @@
 #ifdef _WIN32
 #define _WIN32_DCOM
 
-#include "hardware_info.h"
-#include "../shared_headers/cpu_shared_info.h"
 #include "DriverClient.h"
 #include "OutputGenerator.h"
 #include "ComManager.h"
 #include "WbemManager.h"
-//#include "HardwareManager.h"
 #include "OutputHandler.h"
 
 #include <ctime>
@@ -25,13 +22,12 @@ int main(int arcg, char* argv[])
     hw_mngr.ExecuteQueryThreadPool();
 
     DriverClient dc;
-    std::vector<BYTE> cpu_info = dc.getCpuData();
-    // TODO - Add this to the output
+    dc.runDriver();
 
     auto end = std::chrono::high_resolution_clock::now();
     auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-    OutputHandler out(hw_mngr.GetHardwareData());
+    OutputHandler out(hw_mngr.GetHardwareData(), dc);
     out.output();
     
     std::cout << "Threads took: " << dur.count() << " ms";

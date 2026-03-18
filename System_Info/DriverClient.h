@@ -9,8 +9,10 @@ public:
     ~DriverClient();
 
     bool isValid() const;
-    std::vector<BYTE> getCpuData();
+    void runDriver();
+    void printDriverOutput();
 
 private:
     HANDLE h_device = INVALID_HANDLE_VALUE;
+    std::vector<CPU_DATA_BUFFER> ret_data;
 };

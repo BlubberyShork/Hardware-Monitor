@@ -1,6 +1,6 @@
 #pragma once
-#include "projutils.h"
 #include "windows.h"
+#include "projutils.h"
 #include <wbemidl.h>
 #include <comdef.h>
 

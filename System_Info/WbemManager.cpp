@@ -27,7 +27,7 @@ void WbemManager::connect(
     }
 
     hr = loc->ConnectServer(
-        _bstr_t(ns),     // Namespace
+        BSTR(ns),     // Namespace
         nullptr,         // User
         nullptr,         // Password
         0,               // Locale

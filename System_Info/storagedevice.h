@@ -6,8 +6,6 @@
 #include <comdef.h>
 #include "projutils.h"
 
-// TODO - refactor as struct
-
 /*
     Storage container for MSFT_Disk data
 */
@@ -71,9 +69,9 @@ class StorageDevice
 {
 private:
     Disk disk;
-    std::vector<Partition> partitions;
-    std::vector<Volume> volumes;
-    PhysDisk physical_disk;
+    std::vector<Partition>  partitions;
+    std::vector<Volume>     volumes;
+    PhysDisk                physical_disk;
 
 public:
     StorageDevice() = default;

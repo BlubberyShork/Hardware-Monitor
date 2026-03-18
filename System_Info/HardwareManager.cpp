@@ -7,7 +7,8 @@ void HardwareManager::ExecuteQueryThreadPool() {
         [&] { HardwareQueries::QueryMotherboards(wbem_mngr->getW32Services(), mtx, hw_data.motherboards); },
         [&] { HardwareQueries::QueryDisks(wbem_mngr->getMsftServices(), mtx, disks); },
         [&] { HardwareQueries::QueryPartitions(wbem_mngr->getMsftServices(), mtx, partitions); },
-        [&] { HardwareQueries::QueryVolumes(wbem_mngr->getMsftServices(), mtx, volumes); }
+        [&] { HardwareQueries::QueryVolumes(wbem_mngr->getMsftServices(), mtx, volumes); },
+        [&] { HardwareQueries::QueryPhysicalDisks(wbem_mngr->getMsftServices(), mtx, phys_disks); }
     };
 
     thrd_mngr.ExecuteThreadPool(queries);
@@ -31,7 +32,7 @@ void HardwareManager::infoPhysicalDrive(
         sd.setDisk(disk);
 
         // Add partitions
-        for (int i = 0; i < disk.num_partitions; ++i) {
+        for (size_t i = 0; i < disk.num_partitions; ++i) {
             ULONG part_num = static_cast<ULONG>(i);
             Partition::partition_id pid = { d_disk_num, part_num };
             if (p_hmap.find(pid) != p_hmap.end()) {

@@ -19,6 +19,10 @@ void OutputHandler::output() {
 	}
 	std::wcout << "\n";
 
+	OUTPUT_HEADER("Active CPU Hardware Details")
+	dc.printDriverOutput();
+	std::wcout << "\n";
+
 	OUTPUT_HEADER("Storage Devices")
 	for (auto& storage_dev : hw_data.storage_dvcs) {
 		storage_dev.outSDInfo();
