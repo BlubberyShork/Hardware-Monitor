@@ -43,7 +43,7 @@ void DriverClient::runDriver() {
         if (success) {
             buffer.resize(bytes_ret);
             size_t num_obj = buffer.size() / sizeof(CPU_DATA_BUFFER);
-            std::memcpy(ret_data.data(), buffer.data(), buffer.size());
+            memcpy(ret_data.data(), buffer.data(), buffer.size());
             return;
         }
         else {
