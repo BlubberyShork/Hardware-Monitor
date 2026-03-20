@@ -104,6 +104,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>C:\Users\robby\source\repos\System_Info\shared_headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -127,17 +129,39 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ComManager.cpp" />
+    <ClCompile Include="DriverClient.cpp" />
     <ClCompile Include="GraphicsProcessor.cpp" />
+    <ClCompile Include="HardwareManager.cpp" />
+    <ClCompile Include="HardwareQueries.cpp" />
     <ClCompile Include="motherboard.cpp" />
+    <ClCompile Include="OutputGenerator.cpp" />
+    <ClCompile Include="OutputHandler.cpp" />
+    <ClCompile Include="processor.cpp" />
     <ClCompile Include="projutils.cpp" />
+    <ClCompile Include="hardware_info.cpp" />
     <ClCompile Include="storagedevice.cpp" />
     <ClCompile Include="System_Info.cpp" />
+    <ClCompile Include="ThreadManager.cpp" />
+    <ClCompile Include="WbemManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ComManager.h" />
+    <ClInclude Include="DriverClient.h" />
     <ClInclude Include="GraphicsProcessor.h" />
+    <ClInclude Include="HardwareManager.h" />
+    <ClInclude Include="HardwareQueries.h" />
+    <ClInclude Include="hardware_info.h" />
     <ClInclude Include="motherboard.h" />
+    <ClInclude Include="OutputGenerator.h" />
+    <ClInclude Include="OutputHandler.h" />
+    <ClInclude Include="processor.h" />
     <ClInclude Include="projutils.h" />
     <ClInclude Include="storagedevice.h" />
+    <ClInclude Include="../shared_headers/cpu_shared_info.h" />
+    <ClInclude Include="ThreadManager.h" />
+    <ClInclude Include="WbemManager.h" />
+    <ClInclude Include="WmiHelper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

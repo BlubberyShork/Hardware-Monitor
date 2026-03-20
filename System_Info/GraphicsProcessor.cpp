@@ -1,8 +1,17 @@
 #include "GraphicsProcessor.h"
 
-GraphicsProcessor::~GraphicsProcessor() {
-
-}
+//GraphicsProcessor::GraphicsProcessor() {
+//    this->name = bstr_t();
+//    this->adapter_RAM = ULONG();
+//    this->device_id = bstr_t();
+//    this->availability = USHORT();
+//    this->curr_ref_rate = ULONG();
+//    this->status = bstr_t();
+//}
+//
+//GraphicsProcessor::~GraphicsProcessor() {
+//}
+//
 
 void GraphicsProcessor::outputGPUInfo() {
 	std::wcout << "Name: " << name << std::endl;

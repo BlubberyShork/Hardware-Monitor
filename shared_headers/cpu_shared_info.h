@@ -1,0 +1,39 @@
+#ifndef CPU_SHARED_INFO_H
+#define CPU_SHARED_INFO_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// User-Space include
+#ifndef _KERNEL_MODE
+#include <winioctl.h>
+#else
+#include <wdm.h>
+#endif
+
+// kernel-compatible types
+typedef struct _CPU_DATA {
+    USHORT          temp;        
+    ULONGLONG       cpu_load;
+    ULONG           cpu_id;
+} CPU_DATA, *PCPU_DATA;
+
+typedef struct _CPU_DATA_HEADER {
+    ULONG           required_size;
+    ULONG           processor_count;
+} CPU_DATA_HEADER, *PCPU_DATA_HEADER;
+
+typedef struct _CPU_DATA_BUFFER {
+    CPU_DATA_HEADER header;
+    CPU_DATA        data[1];   // [1] instead of [0] for C compliance
+} CPU_DATA_BUFFER, *PCPU_DATA_BUFFER;
+
+// shared IOCTL code for kernel mode and user mode 
+#define IOCTL_GET_DATA CTL_CODE(FILE_DEVICE_UNKNOWN, 0x800, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // CPU_SHARED_INFO_H

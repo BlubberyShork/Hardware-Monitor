@@ -1,0 +1,53 @@
+[Version]
+Signature="$WINDOWS NT$"
+Class=System
+ClassGuid={4d36e97d-e325-11ce-bfc1-08002be10318}
+Provider=%ManufacturerName%
+DriverVer=02/06/2026,1.0.0.0
+CatalogFile=CPUMonitorDriver.cat
+
+[DestinationDirs]
+DefaultDestDir=13 ; System32\drivers
+
+[SourceDisksNames]
+1 = %DiskName%,,,
+
+[SourceDisksFiles]
+CPUMonitorDriver.sys=1
+
+[Manufacturer]
+%ManufacturerName% = Standard,NTx86,NTamd64
+
+[Standard.NTx86]
+%CPUMonitorDriver.DeviceDesc% = CPUMonitorDriver_Install, ROOT\CPUMonitorDriver
+
+[Standard.NTamd64]
+%CPUMonitorDriver.DeviceDesc% = CPUMonitorDriver_Install, ROOT\CPUMonitorDriver
+
+[CPUMonitorDriver_Install.NT]
+CopyFiles=DriverCopy
+
+[DriverCopy]
+CPUMonitorDriver.sys
+
+[CPUMonitorDriver_Install.NT.Services]
+AddService = CPUMonitorDriver, 0x00000002, CPUMonitorDriver_Service_Inst
+
+[CPUMonitorDriver_Service_Inst]
+DisplayName = %CPUMonitorDriver.SVCDESC%
+ServiceType = 1
+StartType = 3
+ErrorControl = 1
+ServiceBinary = %13%\CPUMonitorDriver.sys
+
+[CPUMonitorDriver_Install.NT.Wdf]
+KmdfService = CPUMonitorDriver, CPUMonitorDriver_wdfsect
+
+[CPUMonitorDriver_wdfsect]
+KmdfLibraryVersion = $KMDFVERSION$
+
+[Strings]
+ManufacturerName = "MyManufacturer"
+DiskName = "CPUMonitorDriver Installation Disk"
+CPUMonitorDriver.DeviceDesc = "CPUMonitorDriver Device"
+CPUMonitorDriver.SVCDESC = "CPUMonitorDriver Service"
