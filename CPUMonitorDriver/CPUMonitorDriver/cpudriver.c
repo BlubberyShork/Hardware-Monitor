@@ -325,7 +325,7 @@ BOOLEAN ReadZenEraAmdMsrs(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_c
 
     BOOLEAN temp_reading_supported = (therm_status & (1ULL << 31)) != 0;
     if (!temp_reading_supported) {
-        temp_offset == 0; 
+        temp_offset = 0; 
     }
 
     USHORT real_temp = (USHORT)(temp_max - temp_offset);

@@ -27,6 +27,10 @@ public:
         return hw_data;
     }
 
+    Hardware_List_Container* GetHardwareDataPtr() {
+        return &hw_data;
+    }
+
     void infoPhysicalDrive(
         std::vector<StorageDevice>& sd_list,
         std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual>& d_hmap,
