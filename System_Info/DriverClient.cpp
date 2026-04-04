@@ -92,6 +92,6 @@ void DriverClient::runDriver() {
 void DriverClient::printDriverOutput() {
     for (ULONG i = 0; i < ret_data->header.processor_count; i++) {
         std::wcout << L"CPU ID: " << ret_data->data[i].cpu_id;
-        std::wcout << L"  Temp: " << ret_data->data[i].temp << L"C\n\n";
+        std::wcout << L"  Temp: " << ret_data->data[i].temp << L"C\n";
     }
 }
