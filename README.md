@@ -17,8 +17,8 @@ WIP:
 
 ## Architecture
 
-- **Kernel-mode driver** (`driver/`): Written in C using the Kernel-Mode Driver Framework (KMDF). Handles low-level hardware access that requires elevated privilege.
-- **User-space app** (`userspace/`): Written in C++. Queries hardware via Windows WMI/WBEM and communicates with the driver through IOCTLs. Compiles to a console executable (`HardwareMonitor.exe`).
+- **Kernel-mode driver**: Written in C using the Kernel-Mode Driver Framework (KMDF). Handles low-level hardware access that requires elevated privilege.
+- **User-space app**: Written in C++. Queries hardware via Windows WMI/WBEM and communicates with the driver through IOCTLs. Compiles to an executable.
 
 ---
 
