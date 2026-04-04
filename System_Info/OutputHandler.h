@@ -10,13 +10,13 @@ class OutputHandler
 {
 public:
 	OutputHandler() = default;
-	OutputHandler(Hardware_List_Container container, DriverClient driver) : hw_data(container, driver) {}
+	OutputHandler(Hardware_List_Container *container, DriverClient *driver) : hw_data(container), dc(driver) {}
 	~OutputHandler() = default;
 
 	void output();
 
 private:
-	Hardware_List_Container hw_data;
-	DriverClient			dc;
+	Hardware_List_Container* hw_data;
+	DriverClient*			dc;
 };
 
