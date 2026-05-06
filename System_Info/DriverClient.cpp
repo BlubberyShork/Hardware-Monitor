@@ -50,7 +50,7 @@ void DriverClient::runDriver() {
             DWORD err = GetLastError();
 
             if (err == ERROR_MORE_DATA || err == ERROR_INSUFFICIENT_BUFFER) {
-                auto* hdr = reinterpret_cast<CPU_DATA_HEADER*>(buffer.data());
+                CPU_DATA_HEADER* hdr = reinterpret_cast<CPU_DATA_HEADER*>(buffer.data());
                 buffer.resize(hdr->required_size);
                 continue;
             }

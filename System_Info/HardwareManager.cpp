@@ -14,6 +14,7 @@ void HardwareManager::ExecuteQueryThreadPool() {
     thrd_mngr.ExecuteThreadPool(queries);
 
     infoPhysicalDrive(hw_data.storage_dvcs, disks, partitions, volumes, phys_disks);
+    // Put together GPU data
 }
 
 void HardwareManager::infoPhysicalDrive(
