@@ -118,12 +118,12 @@ void LiveGPUHandler::fetchLiveNvidiaGPUMetrics() {
             live_data.curr_video_engine_utilization = pstates_info_ex.utilization[NV_GPU_CLIENT_UTIL_DOMAIN_VIDEO].percentage;
 
         // TODO - Fan speed, need to update library for modern features
-        //NvU32 fan_spd = {};
-        //status = NvAPI_GPU_GetTachReading(handle, &fan_spd);
-        //if (status != NVAPI_OK) {
-        //    fan_spd = 0;
-        //}
-        //live_data.fan_speed = fan_spd;
+        NvU32 fan_spd = {};
+        status = NvAPI_GPU_GetTachReading(handle, &fan_spd);
+        if (status != NVAPI_OK) {
+            fan_spd = 0;
+        }
+        live_data.fan_speed = fan_spd;
 
         //Finally put it all together
         all_gpu_live_data[handle] = live_data;

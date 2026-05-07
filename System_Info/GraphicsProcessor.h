@@ -36,11 +36,6 @@ typedef struct _GPULiveData {
 // TODO - Refactor into a class
 struct GraphicsProcessor
 {
-private:
-	GPULiveData live_data;
-
-public:
-
 	bstr_t	name;
 	ULONG	adapter_RAM;
 	bstr_t	device_id;
@@ -52,9 +47,6 @@ public:
 
 	// Output Functions
 	void outputGPUInfo();
-	void setLiveData(GPULiveData& live_data) { this->live_data = live_data; };
-	GPULiveData getLiveData() { return this->live_data; };
-
 };
 
 // }
