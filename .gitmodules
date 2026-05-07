@@ -1,6 +1,0 @@
-[submodule "third_party/nvapi/nvapi"]
-	path = third_party/nvapi/nvapi
-	url = https://github.com/NVIDIA/nvapi.git
-[submodule "third_party/--force"]
-	path = third_party/--force
-	url = https://github.com/NVIDIA/nvapi.git
