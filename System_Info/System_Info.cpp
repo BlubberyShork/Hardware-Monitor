@@ -9,7 +9,6 @@
 
 #include <ctime>
 #include <chrono>
-//#include ".\..\third_party\nvapi\nvapi.h"
 
 int main(int arcg, char* argv[])
 {
@@ -28,8 +27,10 @@ int main(int arcg, char* argv[])
     auto end = std::chrono::high_resolution_clock::now();
     auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-    OutputHandler out(hw_mngr.GetHardwareData(), dc);
+    OutputHandler out(hw_mngr.GetHardwareData(), hw_mngr.GetLiveGPUHandler(), dc);
     out.output();
+    //OutputHandler out(hw_mngr.GetHardwareData(), hw_mngr.GetLiveGPUHandler());
+    //out.outputNoDriver();
     
     std::cout << "Threads took: " << dur.count() << " ms";
     

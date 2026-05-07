@@ -8,13 +8,13 @@ void HardwareManager::ExecuteQueryThreadPool() {
         [&] { HardwareQueries::QueryDisks(wbem_mngr->getMsftServices(), mtx, disks); },
         [&] { HardwareQueries::QueryPartitions(wbem_mngr->getMsftServices(), mtx, partitions); },
         [&] { HardwareQueries::QueryVolumes(wbem_mngr->getMsftServices(), mtx, volumes); },
-        [&] { HardwareQueries::QueryPhysicalDisks(wbem_mngr->getMsftServices(), mtx, phys_disks); }
+        [&] { HardwareQueries::QueryPhysicalDisks(wbem_mngr->getMsftServices(), mtx, phys_disks); },
+        [&] { live_gpu_handler.fetchCurrentLiveGPUMetrics(); }
     };
 
     thrd_mngr.ExecuteThreadPool(queries);
 
     infoPhysicalDrive(hw_data.storage_dvcs, disks, partitions, volumes, phys_disks);
-    // Put together GPU data
 }
 
 void HardwareManager::infoPhysicalDrive(
@@ -25,7 +25,7 @@ void HardwareManager::infoPhysicalDrive(
     std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual>& pd_hmap
 ) {
     // Build sd_list from the collected data
-    for (const auto& disk_pair : d_hmap) {  // O(d) time, d = num_disks
+    for (const auto& disk_pair : d_hmap) {
         StorageDevice sd;
         bstr_t d_unq_id = disk_pair.first;
         Disk disk = disk_pair.second;

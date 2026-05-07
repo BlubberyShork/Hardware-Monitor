@@ -10,46 +10,51 @@
 // TODO - Wrap these in a namespace for organizational purposes
 // namespace GPUContainers {
 
-	typedef struct _GPULiveData {
-		// Temperatures
-		signed int curr_avg_temp = 0;
-		signed int curr_hotspot_temp = 0;
+// TODO - AMD ADLX handling for AMD GPU's
 
-		// Clock speeds
-		unsigned int curr_core_clock_speed = 0;
-		unsigned int curr_memory_clock_speed = 0;
-		unsigned int curr_shader_clock_speed = 0;
+typedef struct _GPULiveData {
+	// Temperatures
+	signed int curr_avg_temp = 0;
+	signed int curr_hotspot_temp = 0;
 
-		//Utilization
-		unsigned int curr_core_utilization = 0;
-		unsigned int curr_frame_buffer_utilization = 0;
-		unsigned int curr_video_engine_utilization = 0;
-		unsigned int curr_bus_interface_utilization = 0;
-		unsigned int curr_memory_utilization = 0;
-	} GPULiveData;
+	// Clock speeds
+	typedef struct ClockEntry {
+		NV_GPU_PUBLIC_CLOCK_ID clk_type;
+		unsigned int clk_spd;
+	} ClockEntry;
+	std::vector<ClockEntry> clks;
 
-	// TODO - Refactor into a class
-	struct GraphicsProcessor
-	{
-	private:
-		GPULiveData live_data;
+	// Utilization
+	unsigned int curr_graphics_utilization = 0;
+	unsigned int curr_frame_buffer_utilization = 0;
+	unsigned int curr_video_engine_utilization = 0;
 
-	public:
+	// Fan Speed
+	unsigned int fan_speed = 0;
+} GPULiveData;
 
-		bstr_t	name;
-		ULONG	adapter_RAM;
-		bstr_t	device_id;
-		USHORT	availability;
-		ULONG	curr_ref_rate;
-		bstr_t  status;
-		//bstr_t  system_name;
-		//USHORT  status_info;
+// TODO - Refactor into a class
+struct GraphicsProcessor
+{
+private:
+	GPULiveData live_data;
 
-		// Output Functions
-		void outputGPUInfo();
-		void setLiveData(GPULiveData& live_data) { this->live_data = live_data; };
-		GPULiveData getLiveData() { return this->live_data; };
+public:
 
-	};
+	bstr_t	name;
+	ULONG	adapter_RAM;
+	bstr_t	device_id;
+	USHORT	availability;
+	ULONG	curr_ref_rate;
+	bstr_t  status;
+	//bstr_t  system_name;
+	//USHORT  status_info;
+
+	// Output Functions
+	void outputGPUInfo();
+	void setLiveData(GPULiveData& live_data) { this->live_data = live_data; };
+	GPULiveData getLiveData() { return this->live_data; };
+
+};
 
 // }

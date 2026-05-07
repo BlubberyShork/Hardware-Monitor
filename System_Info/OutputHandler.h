@@ -10,13 +10,27 @@ class OutputHandler
 {
 public:
 	OutputHandler() = default;
-	OutputHandler(Hardware_List_Container container, DriverClient driver) : hw_data(container, driver) {}
+	OutputHandler(
+		const Hardware_List_Container& container, 
+		const LiveGPUHandler& live_gpu_handler,
+		DriverClient driver) 
+		: hw_data(container), live_gpu_handler(live_gpu_handler), dc(driver) {}
+
+	// Test constructor: no driver
+	OutputHandler(
+		const Hardware_List_Container& container,
+		const LiveGPUHandler& gpu_handler)
+		: hw_data(container), live_gpu_handler(gpu_handler) {
+	}
+
 	~OutputHandler() = default;
 
 	void output();
+	void outputNoDriver();
 
 private:
 	Hardware_List_Container hw_data;
+	LiveGPUHandler			live_gpu_handler;
 	DriverClient			dc;
 };
 

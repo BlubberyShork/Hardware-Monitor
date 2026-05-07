@@ -105,11 +105,14 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Users\robby\source\repos\System_Info\shared_headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\robby\source\repos\System_Info\shared_headers;C:\Users\robby\source\repos\System_Info\third_party\nvapi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>dxgi.lib
+;nvapi64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)third_party\nvapi\amd64\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -134,6 +137,7 @@
     <ClCompile Include="GraphicsProcessor.cpp" />
     <ClCompile Include="HardwareManager.cpp" />
     <ClCompile Include="HardwareQueries.cpp" />
+    <ClCompile Include="LiveGPUHandler.cpp" />
     <ClCompile Include="motherboard.cpp" />
     <ClCompile Include="OutputGenerator.cpp" />
     <ClCompile Include="OutputHandler.cpp" />
@@ -152,6 +156,7 @@
     <ClInclude Include="HardwareManager.h" />
     <ClInclude Include="HardwareQueries.h" />
     <ClInclude Include="hardware_info.h" />
+    <ClInclude Include="LiveGPUHandler.h" />
     <ClInclude Include="motherboard.h" />
     <ClInclude Include="OutputGenerator.h" />
     <ClInclude Include="OutputHandler.h" />
