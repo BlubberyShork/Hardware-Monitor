@@ -14,5 +14,5 @@ public:
 
 private:
     HANDLE h_device = INVALID_HANDLE_VALUE;
-    std::vector<CPU_DATA_BUFFER> ret_data;
+    CPU_DATA_BUFFER* ret_data;
 };

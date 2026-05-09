@@ -27,6 +27,10 @@ public:
     const Hardware_List_Container& GetHardwareData() const { return hw_data; }
     const LiveGPUHandler& GetLiveGPUHandler() const { return live_gpu_handler; }
 
+    Hardware_List_Container* GetHardwareDataPtr() {
+        return &hw_data;
+    }
+
     void infoPhysicalDrive(
         std::vector<StorageDevice>& sd_list,
         std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual>& d_hmap,
