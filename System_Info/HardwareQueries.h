@@ -107,6 +107,8 @@ namespace HardwareQueries {
                 obj->Get(L"CurrentVoltage", 0, &curr_vltg, 0, 0);
                 obj->Get(L"DataWidth", 0, &data_width, 0, 0);
 
+                VARIANT v;
+
                 cpu.unq_id = (unq_id.vt == VT_BSTR && unq_id.bstrVal) ? unq_id.bstrVal : L"";
                 cpu.dev_id = (dev_id.vt == VT_BSTR && dev_id.bstrVal) ? dev_id.bstrVal : L"";
                 cpu.proc_id = (proc_id.vt == VT_BSTR && proc_id.bstrVal) ? proc_id.bstrVal : L"";

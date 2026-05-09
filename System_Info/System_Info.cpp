@@ -16,7 +16,7 @@ int main(int arcg, char* argv[])
     auto start = std::chrono::high_resolution_clock::now();
 
     ComManager  com_mngr;
-    WbemManager wbem_mngr;
+    WbemManager wbem_mngr; 
 
     HardwareManager hw_mngr(&wbem_mngr);
     hw_mngr.ExecuteQueryThreadPool();
@@ -27,8 +27,10 @@ int main(int arcg, char* argv[])
     auto end = std::chrono::high_resolution_clock::now();
     auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-    OutputHandler out(hw_mngr.GetHardwareDataPtr(), &dc);
+    OutputHandler out(hw_mngr.GetHardwareData(), hw_mngr.GetLiveGPUHandler(), dc);
     out.output();
+    //OutputHandler out(hw_mngr.GetHardwareData(), hw_mngr.GetLiveGPUHandler());
+    //out.outputNoDriver();
     
     std::cout << "Threads took: " << dur.count() << " ms";
     
