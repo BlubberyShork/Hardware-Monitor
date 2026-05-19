@@ -8,6 +8,8 @@ UNICODE_STRING SYMLINK_NAME =
     
 WDFDEVICE dev = NULL;
 
+FAST_MUTEX smn_mutex;
+
 //4d36e97d-e325-11ce-bfc1-08002be10318
 DEFINE_GUID(GUID_DEVINTERFACE_HWMONITOR,
     0x4d36e97dL, 0xe324, 0x11ce, 0xbf, 0xc1, 0x08, 0x00, 0x2b, 0xe1, 0x03, 0x18);
@@ -38,6 +40,32 @@ CPU_VENDOR DetectCpuVendor(VOID) {
     }
 }
 
+AMD_MODEL_AND_FAMILY DetectAMDModelAndFamily(VOID) {
+    AMD_MODEL_AND_FAMILY info;
+    RtlZeroMemory(&info, sizeof(AMD_MODEL_AND_FAMILY));
+
+    int cpu_info[4];
+    __cpuid(cpu_info, 0x1);
+    // https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/programmer-references/56255_OSRR.pdf pg. 50
+    // EAX layout:
+    // bits 11:8  - base family
+    // bits 19:16 - extended family  
+    // bits 7:4   - base model
+    // bits 19:16 - extended model (bits 7:4 of this field)
+
+    ULONG base_family    = (cpu_info[0] >> 8)  & 0xF;
+    ULONG ext_family     = (cpu_info[0] >> 20) & 0xFF;
+    ULONG base_model     = (cpu_info[0] >> 4)  & 0xF;
+    ULONG ext_model      = (cpu_info[0] >> 16) & 0xF;
+
+    ULONG family = base_family + ext_family;
+    ULONG model  = (ext_model << 4) | base_model;
+
+    info.family = family;
+    info.model = model;
+    return info;
+}
+
 NTSTATUS DriverEntry(
     _In_ PDRIVER_OBJECT  driver_obj,
     _In_ PUNICODE_STRING registry_path
@@ -49,6 +77,8 @@ NTSTATUS DriverEntry(
     PWDFDEVICE_INIT         p_init = NULL;
     WDF_DRIVER_CONFIG       config;
     WDF_OBJECT_ATTRIBUTES   attributes;
+
+    ExInitializeFastMutex(&smn_mutex);
 
     WDF_DRIVER_CONFIG_INIT(&config, WDF_NO_EVENT_CALLBACK);
     config.DriverInitFlags |= WdfDriverInitNonPnpDriver;
@@ -213,6 +243,7 @@ VOID EvtIoDeviceControl(
     KeSetSystemGroupAffinityThread(&new_affinity, &old_affinity);
 
     CPU_VENDOR vendor = DetectCpuVendor();
+    AMD_MODEL_AND_FAMILY amd_info = { 0 };
     for (ULONG i = 0; i < total_procs; i++) { // Loops thru all logical processors
         PROCESSOR_NUMBER proc_num = { 0 };
         if (!NT_SUCCESS(KeGetProcessorNumberFromIndex(i, &proc_num)))
@@ -231,9 +262,10 @@ VOID EvtIoDeviceControl(
             }
             break;
         case(CPU_VENDOR_AMD):
+            amd_info = DetectAMDModelAndFamily();
             KdPrint(("CPU Vendor AMD detected\n"));
-            if (!ReadZenEraAmdMsrs(outbuffer, i, total_procs)) {
-                KdPrint(("Failed to return AMD MSR data\n"));
+            if (!ReadAMD17HTemps(outbuffer, i, total_procs, amd_info)) {
+                KdPrint(("Failed to return MSR data\n"));
             }
             break;
         default:
@@ -259,6 +291,47 @@ VOID Shutdown(
 ) {
     UNREFERENCED_PARAMETER(device);
     return;
+}
+
+ULONG ReadSmn(ULONG address, ULONG* result) {
+    PCI_SLOT_NUMBER slot = {0};
+    slot.u.bits.DeviceNumber   = 0;
+    slot.u.bits.FunctionNumber = 0;
+
+    // Write SMN address to index register
+    ExAcquireFastMutex(&smn_mutex);
+    ULONG written = HalSetBusDataByOffset(
+        PCIConfiguration,
+        0,
+        slot.u.AsULONG,
+        &address,
+        0x60,
+        sizeof(ULONG)
+    );
+    if (written != sizeof(ULONG)) {
+        KdPrint(("ReadSmn: Failed to write SMN address\n"));
+        ExReleaseFastMutex(&smn_mutex);
+        return FALSE;
+    }
+
+    // Read result from data register
+    ULONG read = HalGetBusDataByOffset(
+        PCIConfiguration,
+        0,
+        slot.u.AsULONG,
+        result,
+        0x64,
+        sizeof(ULONG)
+    );
+    if (read != sizeof(ULONG)) {
+        KdPrint(("ReadSmn: Failed to read SMN data\n"));
+        ExReleaseFastMutex(&smn_mutex);
+        return FALSE;
+    }
+
+    ExReleaseFastMutex(&smn_mutex);
+
+    return TRUE;
 }
 
 BOOLEAN ReadCoreEraIntelMsrs(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_cnt) {
@@ -302,38 +375,98 @@ BOOLEAN ReadCoreEraIntelMsrs(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cp
     return TRUE;
 }
 
-BOOLEAN ReadZenEraAmdMsrs(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_cnt) {
+BOOLEAN ReadAMD17HTemps(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_cnt, AMD_MODEL_AND_FAMILY amd_info) {
+    switch (amd_info.model) {
+    case AMD_MODEL_ZEN:
+    case AMD_MODEL_ZEN_APU:
+        //if (!ReadZenAmdData(outbuffer, cpu_idx)) {
+        //    KdPrint(("Failed to read Zen model data\n"));
+        //}
+        break;
+    case AMD_MODEL_ZEN_PLUS:
+    case AMD_MODEL_ZEN_PLUS_APU:
+        if (!ReadZenPlusAmdData(outbuffer, cpu_idx, cpu_cnt)) {
+            KdPrint(("Failed to read Zen+ model temperature data\n"));
+        }
+        break;
+    case AMD_MODEL_ZEN2:
+    case AMD_MODEL_ZEN2_APU:
+    case AMD_MODEL_ZEN2_THREADRIPPER:
+        //ReadZen2AmdData(outbuffer, cpu_idx);
+        break;
+    default:
+        KdPrint(("ReadZenEraAmdMsrs: Unrecognized AMD model: 0x%x\n", amd_info.model));
+        return FALSE;
+        break;
+    }
+    return TRUE;
+}
+
+BOOLEAN ReadZenPlusAmdData(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_cnt) {
+    ULONG temperature = 0;
+    ULONG address = (ULONG)AMD_FAMILY_17H_M01H_THM_TCON_CUR_TEMP;
+    ULONG status = ReadSmn(address, &temperature);
+
+    if (status == 0) return FALSE;
+
+    // Pulled from LibreHardwareMonitor : https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/blob/master/LibreHardwareMonitorLib/Hardware/Cpu/Amd17Cpu.cs#L23 
+    BOOLEAN tempOffsetFlag = ((temperature & AMD_FAMILY_17H_M01H_THM_TCON_TEMP_RANGE_SEL_MASK) != 0)
+        || ((temperature & AMD_FAMILY_17H_TEMP_TJ_SEL_MASK) == AMD_FAMILY_17H_TEMP_TJ_SEL_MASK);
+    temperature = (temperature >> 21) * 125; // Raw 11-bit value from [31:21]
+
+    float real_temp = temperature * 0.001f;
+    if (tempOffsetFlag) {
+        real_temp += -49.0f;
+    }
+    if (real_temp < 0.0f || real_temp > 150.0f) {
+        KdPrint(("ReadZenPlusAmdData: Suspicious temperature reading: %d\n", (int)real_temp));
+        return FALSE;
+    }
+
+    CPU_DATA* curr_data = &outbuffer->data[cpu_idx];
+    curr_data->temp = (USHORT)real_temp; // loses accuracy slightly, but its fine enough for now.
+    curr_data->cpu_id = cpu_idx;
+
+    return TRUE;
+}
+
+/*
+boolean readZenEraAMDMsrs(cpu_data_buffer* outbuffer, ulong cpu_idx, ulong cpu_cnt) {
     if (!outbuffer || cpu_idx >= cpu_cnt) {
-        KdPrint(("ReadZenEraAmdMsrs: Buffer invalid or indexed CPU out of bounds of CPU count\n"));
-        return FALSE;
+        kdprint(("readzeneraamdmsrs: buffer invalid or indexed cpu out of bounds of cpu count\n"));
+        return false;
     }
 
-    ULONGLONG therm_target = __readmsr(AMD_ZEN_ERA_TEMPERATURE_TARGET);
-    ULONG temp_max = (therm_target >> 16) & 0xFF;
+    ulonglong therm_target = __readmsr(amd_zen_era_temperature_target);
+    ulong temp_max = (therm_target >> 16) & 0xff;
     if (temp_max == 0) {
-        KdPrint(("ReadZenEraAmdMsrs: Temp Max == 0\n"));
-        return FALSE;
+        kdprint(("readzeneraamdmsrs: temp max == 0\n"));
+        return false;
     }
 
-    ULONGLONG therm_status = __readmsr(AMD_ZEN_ERA_THERM_STATUS);
+    ulonglong therm_status = __readmsr(amd_zen_era_therm_status);
     
-    ULONG temp_offset = therm_status & 0x7F;
+    ulong temp_offset = therm_status & 0x7f;
     if (temp_offset > temp_max) {
-        KdPrint(("ReadZenEraAmdMsrs: Temp offset > temp max\n"));
-        return FALSE;
+        kdprint(("readzeneraamdmsrs: temp offset > temp max\n"));
+        return false;
     }
 
-    BOOLEAN temp_reading_supported = (therm_status & (1ULL << 31)) != 0;
+    boolean temp_reading_supported = (therm_status & (1ull << 31)) != 0;
     if (!temp_reading_supported) {
         temp_offset = 0; 
     }
 
-    USHORT real_temp = (USHORT)(temp_max - temp_offset);
+    ushort real_temp = (ushort)(temp_max - temp_offset);
 
-    CPU_DATA* curr_data = &outbuffer->data[cpu_idx];
+    cpu_data* curr_data = &outbuffer->data[cpu_idx];
     curr_data->temp = real_temp;
     curr_data->cpu_id = cpu_idx;
 
-    KdPrint(("ReadZenEraAmdMsrs: Returning true...\n"));
-    return TRUE;
+    kdprint(("readzeneraamdmsrs: returning true...\n"));
+    return true;
 }
+*/
+
+
+
