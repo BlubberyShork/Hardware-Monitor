@@ -47,3 +47,4 @@ private:
     std::unordered_map<wchar_t, Volume>                                         volumes;
     std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual>                  phys_disks;
 };
+
