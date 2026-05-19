@@ -46,6 +46,7 @@ AMD_MODEL_AND_FAMILY DetectAMDModelAndFamily(VOID) {
 
     int cpu_info[4];
     __cpuid(cpu_info, 0x1);
+    // https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/programmer-references/56255_OSRR.pdf pg. 50
     // EAX layout:
     // bits 11:8  - base family
     // bits 19:16 - extended family  
