@@ -1,5 +1,7 @@
 #include "cpudriver.h"
 
+//#pragma comment(lib, "hal.lib")
+
 UNICODE_STRING DEVICE_NAME = 
     RTL_CONSTANT_STRING(L"\\Device\\CPUMonitorDriver");
 
@@ -403,6 +405,11 @@ BOOLEAN ReadAMD17HTemps(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_cnt
 }
 
 BOOLEAN ReadZenPlusAmdData(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_cnt) {
+    if (!outbuffer || cpu_idx >= cpu_cnt) {
+        KdPrint(("ReadCoreEraIntelMsrs: Buffer invalid or indexed CPU out of bounds of CPU count\n"));
+        return FALSE;
+    }
+
     ULONG temperature = 0;
     ULONG address = (ULONG)AMD_FAMILY_17H_M01H_THM_TCON_CUR_TEMP;
     ULONG status = ReadSmn(address, &temperature);
@@ -414,17 +421,18 @@ BOOLEAN ReadZenPlusAmdData(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_
         || ((temperature & AMD_FAMILY_17H_TEMP_TJ_SEL_MASK) == AMD_FAMILY_17H_TEMP_TJ_SEL_MASK);
     temperature = (temperature >> 21) * 125; // Raw 11-bit value from [31:21]
 
-    float real_temp = temperature * 0.001f;
+    LONG real_temp_milli = (LONG)(temperature);
     if (tempOffsetFlag) {
-        real_temp += -49.0f;
+        real_temp_milli -= 49000;
     }
-    if (real_temp < 0.0f || real_temp > 150.0f) {
-        KdPrint(("ReadZenPlusAmdData: Suspicious temperature reading: %d\n", (int)real_temp));
+
+    if (real_temp_milli < 0 || real_temp_milli > 150000) {
+        KdPrint(("ReadZenPlusAmdData: Suspicious temperature: %d mdeg\n", real_temp_milli));
         return FALSE;
     }
 
     CPU_DATA* curr_data = &outbuffer->data[cpu_idx];
-    curr_data->temp = (USHORT)real_temp; // loses accuracy slightly, but its fine enough for now.
+    curr_data->temp = (USHORT)real_temp_milli / 1000; // loses accuracy slightly, but its fine enough for now.
     curr_data->cpu_id = cpu_idx;
 
     return TRUE;

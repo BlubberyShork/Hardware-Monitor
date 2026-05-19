@@ -67,11 +67,6 @@ void DriverClient::runDriver() {
             DWORD err = GetLastError();
 
             if (err == ERROR_MORE_DATA || err == ERROR_INSUFFICIENT_BUFFER) {
-<<<<<<< robert
-                CPU_DATA_HEADER* hdr = reinterpret_cast<CPU_DATA_HEADER*>(buffer.data());
-                buffer.resize(hdr->required_size);
-                continue;
-=======
                 CPU_DATA_HEADER* hdr = (CPU_DATA_HEADER*)buffer;
 
                 buffer_size = hdr->required_size;
@@ -84,7 +79,6 @@ void DriverClient::runDriver() {
                 }
 
                 buffer = new_buffer;
->>>>>>> main
             }
             else {
                 std::cout << "DeviceIoControl failed permanently. Error: " << err << "\n";
