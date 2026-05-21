@@ -2,7 +2,6 @@
 #define _WIN32_DCOM
 
 #include "DriverClient.h"
-#include "OutputGenerator.h"
 #include "ComManager.h"
 #include "WbemManager.h"
 #include "OutputHandler.h"

@@ -16,8 +16,17 @@
 #define INTEL_CPUID_THERM_SENSOR_LEAF       0x06
 #define INTEL_CPUID_THERM_SENSOR_DTS_BIT    0x1
 
-#define AMD_ZEN_ERA_THERM_STATUS            0xC0010015
-#define AMD_ZEN_ERA_TEMPERATURE_TARGET      0xC0010064
+#define AMD_MODEL_ZEN                       0x01  
+#define AMD_MODEL_ZEN_APU                   0x11  
+#define AMD_MODEL_ZEN_PLUS                  0x08  
+#define AMD_MODEL_ZEN_PLUS_APU              0x18  
+#define AMD_MODEL_ZEN2                      0x71  
+#define AMD_MODEL_ZEN2_APU                  0x60  
+#define AMD_MODEL_ZEN2_THREADRIPPER         0x31
+
+#define AMD_FAMILY_17H_M01H_THM_TCON_CUR_TEMP   0x00059800
+#define AMD_FAMILY_17H_M01H_THM_TCON_TEMP_RANGE_SEL_MASK 0x80000
+#define AMD_FAMILY_17H_TEMP_TJ_SEL_MASK         0x30000
 
 #define DEVICE_SDDL L"D:P(A;;GA;;;SY)(A;;GA;;;BA)"
 
@@ -38,6 +47,13 @@ typedef enum _CPU_VENDOR {
 } CPU_VENDOR;
 #define CPU_VENDOR_STRING_LEN 13
 CPU_VENDOR DetectCpuVendor(VOID);
+
+typedef struct _AMD_MODEL_AND_FAMILY {
+    ULONG       family;
+    ULONG       model;
+    // TODO - brand string
+} AMD_MODEL_AND_FAMILY;
+AMD_MODEL_AND_FAMILY DetectAMDModelAndFamily(VOID); 
 
 DRIVER_INITIALIZE DriverEntry;
 
@@ -74,7 +90,10 @@ VOID EvtDriverContextCleanup(
 /***************************************************
 *                   Helper Funcs                   *
 ***************************************************/
+ULONG ReadSmn(ULONG address, ULONG* result); 
 BOOLEAN ReadCoreEraIntelMsrs(CPU_DATA_BUFFER* buffer, ULONG cpu_idx, ULONG cpu_cnt);
-BOOLEAN ReadZenEraAmdMsrs(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_cnt);
+BOOLEAN ReadAMD17HTemps(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_cnt, AMD_MODEL_AND_FAMILY amd_info);
+BOOLEAN ReadZenPlusAmdData(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_cnt);
+//BOOLEAN ReadZenEraAmdMsrs(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_cnt);
 
 #endif // CPU_DRIVER_H
