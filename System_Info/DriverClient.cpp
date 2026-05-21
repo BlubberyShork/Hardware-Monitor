@@ -52,7 +52,10 @@ void DriverClient::runDriver() {
 
         if (success) {
             // Allocate final return buffer
+            /*std::cout << "success bytes_ret: " << bytes_ret << "\n";
+            std::cout << "proc_count in buffer: " << ((CPU_DATA_BUFFER*)buffer)->header.processor_count << "\n";*/
             ret_data = (CPU_DATA_BUFFER*)malloc(bytes_ret);
+
             if (!ret_data) {
                 std::cout << "ret_data malloc failed\n";
                 free(buffer);
@@ -64,6 +67,9 @@ void DriverClient::runDriver() {
             return;
         }
         else {
+            /*std::cout << "success: " << success << " err: " << GetLastError() << " bytes_ret: " << bytes_ret << "\n";
+            std::cout << "header required_size: " << ((CPU_DATA_HEADER*)buffer)->required_size << "\n";
+            std::cout << "header proc_count: " << ((CPU_DATA_HEADER*)buffer)->processor_count << "\n"*/;
             DWORD err = GetLastError();
 
             if (err == ERROR_MORE_DATA || err == ERROR_INSUFFICIENT_BUFFER) {
@@ -74,6 +80,7 @@ void DriverClient::runDriver() {
 
                 if (!new_buffer) {
                     std::cout << "realloc failed\n";
+                    std::cout << "DeviceIoControl error: " << GetLastError() << " bytes_ret: " << bytes_ret << "\n";
                     free(buffer);
                     return;
                 }

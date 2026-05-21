@@ -13,7 +13,7 @@ public:
 	OutputHandler(
 		const Hardware_List_Container& container, 
 		const LiveGPUHandler& live_gpu_handler,
-		DriverClient driver) 
+		DriverClient &driver) 
 		: hw_data(container), live_gpu_handler(live_gpu_handler), dc(driver) {}
 
 	// Test constructor: no driver

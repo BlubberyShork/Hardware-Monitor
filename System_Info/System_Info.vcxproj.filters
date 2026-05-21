@@ -33,12 +33,6 @@
     <ClCompile Include="processor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="hardware_info.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="OutputGenerator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ComManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -80,13 +74,7 @@
     <ClInclude Include="processor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="hardware_info.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="../shared_headers/cpu_shared_info.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="OutputGenerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ComManager.h">

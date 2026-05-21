@@ -1,7 +1,5 @@
 #include "cpudriver.h"
 
-//#pragma comment(lib, "hal.lib")
-
 UNICODE_STRING DEVICE_NAME = 
     RTL_CONSTANT_STRING(L"\\Device\\CPUMonitorDriver");
 
@@ -119,7 +117,7 @@ VOID EvtDriverUnload(_In_ WDFDRIVER driver) {
 
     KdPrint(("Unloading KMDF Driver..."));
     if (dev) {
-        IoDeleteSymbolicLink(&SYMLINK_NAME);
+        //IoDeleteSymbolicLink(&SYMLINK_NAME); --> Symbolic link cleaned up automatically
         WdfObjectDelete(dev);
         dev = NULL;
     }
@@ -246,6 +244,9 @@ VOID EvtIoDeviceControl(
 
     CPU_VENDOR vendor = DetectCpuVendor();
     AMD_MODEL_AND_FAMILY amd_info = { 0 };
+    if (vendor == CPU_VENDOR_AMD) {
+        amd_info = DetectAMDModelAndFamily();
+    }
     for (ULONG i = 0; i < total_procs; i++) { // Loops thru all logical processors
         PROCESSOR_NUMBER proc_num = { 0 };
         if (!NT_SUCCESS(KeGetProcessorNumberFromIndex(i, &proc_num)))
@@ -264,7 +265,6 @@ VOID EvtIoDeviceControl(
             }
             break;
         case(CPU_VENDOR_AMD):
-            amd_info = DetectAMDModelAndFamily();
             KdPrint(("CPU Vendor AMD detected\n"));
             if (!ReadAMD17HTemps(outbuffer, i, total_procs, amd_info)) {
                 KdPrint(("Failed to return MSR data\n"));
@@ -378,6 +378,7 @@ BOOLEAN ReadCoreEraIntelMsrs(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cp
 }
 
 BOOLEAN ReadAMD17HTemps(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_cnt, AMD_MODEL_AND_FAMILY amd_info) {
+    KdPrint(("AMD model: %d\n", amd_info.model));
     switch (amd_info.model) {
     case AMD_MODEL_ZEN:
     case AMD_MODEL_ZEN_APU:
@@ -432,8 +433,10 @@ BOOLEAN ReadZenPlusAmdData(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_
     }
 
     CPU_DATA* curr_data = &outbuffer->data[cpu_idx];
-    curr_data->temp = (USHORT)real_temp_milli / 1000; // loses accuracy slightly, but its fine enough for now.
+    curr_data->temp = (USHORT)(real_temp_milli / 1000); // loses accuracy slightly, but its fine enough for now.
     curr_data->cpu_id = cpu_idx;
+
+    KdPrint(("Retrieved AMD Zen+ temp: %d\n", curr_data->temp));
 
     return TRUE;
 }
