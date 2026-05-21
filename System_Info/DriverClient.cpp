@@ -44,8 +44,7 @@ void DriverClient::runDriver() {
             h_device,
             IOCTL_GET_DATA,
             nullptr, 0,
-            buffer,
-            buffer_size,
+            buffer, buffer_size,
             &bytes_ret,
             nullptr
         );

@@ -9,7 +9,6 @@
 class OutputHandler
 {
 public:
-	OutputHandler() = default;
 	OutputHandler(
 		const Hardware_List_Container& container, 
 		const LiveGPUHandler& live_gpu_handler,
@@ -22,6 +21,10 @@ public:
 		const LiveGPUHandler& gpu_handler)
 		: hw_data(container), live_gpu_handler(gpu_handler) {
 	}
+
+	OutputHandler(const OutputHandler&) = delete;
+	OutputHandler& operator=(const OutputHandler&) = delete;
+
 	~OutputHandler() = default;
 
 	void output();
@@ -29,7 +32,7 @@ public:
 
 private:
 	Hardware_List_Container hw_data;
-	LiveGPUHandler			live_gpu_handler;
+	const LiveGPUHandler&	live_gpu_handler;
 	DriverClient			dc;
 };
 

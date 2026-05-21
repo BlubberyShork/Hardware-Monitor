@@ -21,6 +21,9 @@ public:
 
     HardwareManager(WbemManager *wbem) : wbem_mngr(wbem) {}
 
+    HardwareManager(const HardwareManager&) = delete;
+    HardwareManager& operator=(const HardwareManager&) = delete;
+
     void ExecuteQueryThreadPool();
 
     // Accessors

@@ -48,10 +48,10 @@ AMD_MODEL_AND_FAMILY DetectAMDModelAndFamily(VOID) {
     __cpuid(cpu_info, 0x1);
     // https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/programmer-references/56255_OSRR.pdf pg. 50
     // EAX layout:
-    // bits 11:8  - base family
-    // bits 19:16 - extended family  
-    // bits 7:4   - base model
-    // bits 19:16 - extended model (bits 7:4 of this field)
+    // bits 11:8    base family
+    // bits 19:16   extended family  
+    // bits 7:4     base model
+    // bits 19:16   extended model (bits 7:4 of this field)
 
     ULONG base_family    = (cpu_info[0] >> 8)  & 0xF;
     ULONG ext_family     = (cpu_info[0] >> 20) & 0xFF;
@@ -419,7 +419,8 @@ BOOLEAN ReadZenPlusAmdData(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_
 
     // Pulled from LibreHardwareMonitor : https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/blob/master/LibreHardwareMonitorLib/Hardware/Cpu/Amd17Cpu.cs#L23 
     BOOLEAN tempOffsetFlag = ((temperature & AMD_FAMILY_17H_M01H_THM_TCON_TEMP_RANGE_SEL_MASK) != 0)
-        || ((temperature & AMD_FAMILY_17H_TEMP_TJ_SEL_MASK) == AMD_FAMILY_17H_TEMP_TJ_SEL_MASK);
+                          || ((temperature & AMD_FAMILY_17H_TEMP_TJ_SEL_MASK) == AMD_FAMILY_17H_TEMP_TJ_SEL_MASK);
+
     temperature = (temperature >> 21) * 125; // Raw 11-bit value from [31:21]
 
     LONG real_temp_milli = (LONG)(temperature);
@@ -441,43 +442,6 @@ BOOLEAN ReadZenPlusAmdData(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_
     return TRUE;
 }
 
-/*
-boolean readZenEraAMDMsrs(cpu_data_buffer* outbuffer, ulong cpu_idx, ulong cpu_cnt) {
-    if (!outbuffer || cpu_idx >= cpu_cnt) {
-        kdprint(("readzeneraamdmsrs: buffer invalid or indexed cpu out of bounds of cpu count\n"));
-        return false;
-    }
-
-    ulonglong therm_target = __readmsr(amd_zen_era_temperature_target);
-    ulong temp_max = (therm_target >> 16) & 0xff;
-    if (temp_max == 0) {
-        kdprint(("readzeneraamdmsrs: temp max == 0\n"));
-        return false;
-    }
-
-    ulonglong therm_status = __readmsr(amd_zen_era_therm_status);
-    
-    ulong temp_offset = therm_status & 0x7f;
-    if (temp_offset > temp_max) {
-        kdprint(("readzeneraamdmsrs: temp offset > temp max\n"));
-        return false;
-    }
-
-    boolean temp_reading_supported = (therm_status & (1ull << 31)) != 0;
-    if (!temp_reading_supported) {
-        temp_offset = 0; 
-    }
-
-    ushort real_temp = (ushort)(temp_max - temp_offset);
-
-    cpu_data* curr_data = &outbuffer->data[cpu_idx];
-    curr_data->temp = real_temp;
-    curr_data->cpu_id = cpu_idx;
-
-    kdprint(("readzeneraamdmsrs: returning true...\n"));
-    return true;
-}
-*/
 
 
 

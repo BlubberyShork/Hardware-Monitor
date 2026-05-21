@@ -112,7 +112,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>dxgi.lib
 ;nvapi64.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Users\robby\projects\Hardware-Monitor\third_party\nvapi\amd64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\robby\projects\Hardware-Monitor\third_party\nvapi\amd64;C:\Users\robby\source\repos\System_Info\third_party\nvapi\amd64;C:\Users\robby\source\repos\System_Info\third_party\adlx\SDK\ADLXHelper\Windows\Cpp\;C:\Users\robby\source\repos\System_Info\third_party\adlx\SDK\Include\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ShowProgress>LinkVerboseLib</ShowProgress>
     </Link>
   </ItemDefinitionGroup>
@@ -133,6 +133,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\third_party\adlx\SDK\ADLXHelper\Windows\Cpp\ADLXHelper.cpp" />
+    <ClCompile Include="..\third_party\adlx\SDK\Platform\Windows\WinAPIs.cpp" />
+    <ClCompile Include="AMDLiveGPUMetrics.cpp" />
     <ClCompile Include="ComManager.cpp" />
     <ClCompile Include="DriverClient.cpp" />
     <ClCompile Include="GraphicsProcessor.cpp" />
@@ -143,12 +146,14 @@
     <ClCompile Include="OutputHandler.cpp" />
     <ClCompile Include="processor.cpp" />
     <ClCompile Include="projutils.cpp" />
+    <ClCompile Include="NvidiaLiveGPUMetrics.cpp" />
     <ClCompile Include="storagedevice.cpp" />
     <ClCompile Include="System_Info.cpp" />
     <ClCompile Include="ThreadManager.cpp" />
     <ClCompile Include="WbemManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AMDLiveGPUMetrics.h" />
     <ClInclude Include="ComManager.h" />
     <ClInclude Include="DriverClient.h" />
     <ClInclude Include="GraphicsProcessor.h" />
@@ -156,6 +161,7 @@
     <ClInclude Include="HardwareQueries.h" />
     <ClInclude Include="LiveGPUHandler.h" />
     <ClInclude Include="motherboard.h" />
+    <ClInclude Include="NvidiaLiveGPUMetrics.h" />
     <ClInclude Include="OutputHandler.h" />
     <ClInclude Include="processor.h" />
     <ClInclude Include="projutils.h" />
