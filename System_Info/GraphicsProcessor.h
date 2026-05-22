@@ -15,8 +15,6 @@ struct GraphicsProcessor
 	USHORT	availability;
 	ULONG	curr_ref_rate;
 	bstr_t  status;
-	//bstr_t  system_name;
-	//USHORT  status_info;
 
 	// Output Functions
 	void outputGPUInfo();

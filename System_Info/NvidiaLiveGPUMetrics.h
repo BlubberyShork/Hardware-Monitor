@@ -8,7 +8,7 @@
 class NvidiaLiveGPUMetrics : public ILiveGPUMetrics {
 public:
     NvidiaLiveGPUMetrics();
-    ~NvidiaLiveGPUMetrics() override;
+    ~NvidiaLiveGPUMetrics()    override;
 
     void fetchMetrics()        override;
     void outputMetrics() const override;

@@ -112,7 +112,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>dxgi.lib
 ;nvapi64.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Users\robby\projects\Hardware-Monitor\third_party\nvapi\amd64;C:\Users\robby\source\repos\System_Info\third_party\nvapi\amd64;C:\Users\robby\source\repos\System_Info\third_party\adlx\SDK\ADLXHelper\Windows\Cpp\;C:\Users\robby\source\repos\System_Info\third_party\adlx\SDK\Include\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)third_party\nvapi\amd64;$(SolutionDir)..\third_party\nvapi\amd64;$(SolutionDir)third_party\adlx\SDK\ADLXHelper\Windows\Cpp;$(SolutionDir)..\third_party\adlx\SDK\ADLXHelper\Windows\Cpp;$(SolutionDir)third_party\adlx\SDK\Include;$(SolutionDir)..\third_party\adlx\SDK\Include;$(SolutionDir)third_party\adl\include;$(SolutionDir)..\third_party\adl\include;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ShowProgress>LinkVerboseLib</ShowProgress>
     </Link>
   </ItemDefinitionGroup>

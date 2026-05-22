@@ -118,7 +118,7 @@ void NvidiaLiveGPUMetrics::checkAndHandleError(const char* custom_msg, NvAPI_Sta
     if (status != NVAPI_OK) {
         NvAPI_ShortString err_msg;
         NvAPI_GetErrorMessage(status, err_msg);
-        throw std::runtime_error(custom_msg + std::string(err_msg));
+        std::cerr << custom_msg << err_msg << "\n";
     }
 }
 

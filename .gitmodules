@@ -4,3 +4,6 @@
 [submodule "third_party/adlx"]
 	path = third_party/adlx
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/ADLX
+[submodule "third_party/adl"]
+	path = third_party/adl
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/display-library
