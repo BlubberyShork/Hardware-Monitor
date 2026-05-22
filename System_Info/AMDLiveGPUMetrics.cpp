@@ -178,25 +178,25 @@ void AMDLiveGPUMetrics::fetchGPUMetrics(adlx::IADLXGPU* gpu, GPULiveData& live_d
     }
 
     // Clocks
-    //metrics_support->IsSupportedGPUClockSpeed(&supported);
-    //if (supported) {
-    adlx_int clk = 0;
-    //if (ADLX_SUCCEEDED(gpu_metrics->GPUClockSpeed(&clk)))
-        live_data.clks.push_back({ GPUClockDomain::Graphics, static_cast<double>(clk) });   // value of 0 if not supported 
-    //}
+    metrics_support->IsSupportedGPUClockSpeed(&supported);
+    if (supported) {
+        adlx_int clk = 0;
+        if (ADLX_SUCCEEDED(gpu_metrics->GPUClockSpeed(&clk))) 
+            live_data.clks.push_back({ GPUClockDomain::Graphics, static_cast<double>(clk) });
+    }
 
-    //metrics_support->IsSupportedGPUVRAMClockSpeed(&supported);
-    //if (supported) {
-    adlx_int clk = 0;
-    //if (ADLX_SUCCEEDED(gpu_metrics->GPUVRAMClockSpeed(&clk)))
-        live_data.clks.push_back({ GPUClockDomain::Memory, static_cast<double>(clk) });    // value of 0 if not supported 
-   // }
+    metrics_support->IsSupportedGPUVRAMClockSpeed(&supported);
+    if (supported) {
+        adlx_int mem_clk = 0;
+        if (ADLX_SUCCEEDED(gpu_metrics->GPUVRAMClockSpeed(&mem_clk))) 
+            live_data.clks.push_back({ GPUClockDomain::Memory, static_cast<double>(mem_clk) });
+    }
 
     // Utilization
     metrics_support->IsSupportedGPUUsage(&supported);
     if (supported) {
         adlx_double usage = 0;
-        if (ADLX_SUCCEEDED(gpu_metrics->GPUUsage(&usage)))
+        if (ADLX_SUCCEEDED(gpu_metrics->GPUUsage(&usage))) 
             live_data.curr_graphics_utilization = static_cast<unsigned int>(usage);
     }
 
