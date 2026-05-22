@@ -14,7 +14,6 @@ GPUClockDomain NvidiaLiveGPUMetrics::toClockDomain(NV_GPU_PUBLIC_CLOCK_ID nv_id)
     switch (nv_id) {
     case NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS:  return GPUClockDomain::Graphics;
     case NVAPI_GPU_PUBLIC_CLOCK_MEMORY:    return GPUClockDomain::Memory;
-    case NVAPI_GPU_PUBLIC_CLOCK_PROCESSOR: return GPUClockDomain::Processor;
     case NVAPI_GPU_PUBLIC_CLOCK_VIDEO:     return GPUClockDomain::Video;
     default:                               return GPUClockDomain::Unknown;
     }
@@ -100,11 +99,10 @@ void NvidiaLiveGPUMetrics::outputMetrics() const {
         std::wcout << "\n-- Clock Speeds --\n";
         for (auto& clk : live_data.clks) {
             switch (clk.clk_type) {
-            case GPUClockDomain::Graphics:  std::wcout << "Graphics:  "; break;
-            case GPUClockDomain::Memory:    std::wcout << "Memory:    "; break;
-            case GPUClockDomain::Processor: std::wcout << "Processor: "; break;
-            case GPUClockDomain::Video:     std::wcout << "Video:     "; break;
-            default:                        std::wcout << "Unknown:   "; break;
+            case GPUClockDomain::Graphics:  std::wcout << "Core / Graphics / GPU clock:  ";   break;
+            case GPUClockDomain::Memory:    std::wcout << "Memory / VRAM clock:    ";         break;
+            case GPUClockDomain::Video:     std::wcout << "Video / Media Engine clock:     "; break;
+            default:                        std::wcout << "Unknown:   ";                      break;
             }
             std::wcout << clk.clk_spd << " MHz\n";
         }

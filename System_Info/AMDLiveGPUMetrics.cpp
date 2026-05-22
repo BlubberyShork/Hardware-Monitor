@@ -79,11 +79,10 @@ void AMDLiveGPUMetrics::outputMetrics() const {
         std::wcout << "\n-- Clock Speeds --\n";
         for (auto& clk : live_data.clks) {
             switch (clk.clk_type) {
-            case GPUClockDomain::Graphics:  std::wcout << "Graphics:  "; break;
-            case GPUClockDomain::Memory:    std::wcout << "Memory:    "; break;
-            case GPUClockDomain::Processor: std::wcout << "Processor: "; break;
-            case GPUClockDomain::Video:     std::wcout << "Video:     "; break;
-            default:                        std::wcout << "Unknown:   "; break;
+            case GPUClockDomain::Graphics:  std::wcout << "Core / Graphics / GPU clock:  ";   break;
+            case GPUClockDomain::Memory:    std::wcout << "Memory / VRAM clock:    ";         break;
+            case GPUClockDomain::Video:     std::wcout << "Video / Media Engine clock:     "; break;
+            default:                        std::wcout << "Unknown:   ";                      break;
             }
             std::wcout << clk.clk_spd << " MHz\n";
         }
@@ -179,19 +178,19 @@ void AMDLiveGPUMetrics::fetchGPUMetrics(adlx::IADLXGPU* gpu, GPULiveData& live_d
     }
 
     // Clocks
-    metrics_support->IsSupportedGPUClockSpeed(&supported);
-    if (supported) {
-        adlx_int clk = 0;
-        if (ADLX_SUCCEEDED(gpu_metrics->GPUClockSpeed(&clk)))
-            live_data.clks.push_back({ GPUClockDomain::Graphics, static_cast<double>(clk) });
-    }
+    //metrics_support->IsSupportedGPUClockSpeed(&supported);
+    //if (supported) {
+    adlx_int clk = 0;
+    //if (ADLX_SUCCEEDED(gpu_metrics->GPUClockSpeed(&clk)))
+        live_data.clks.push_back({ GPUClockDomain::Graphics, static_cast<double>(clk) });   // value of 0 if not supported 
+    //}
 
-    metrics_support->IsSupportedGPUVRAMClockSpeed(&supported);
-    if (supported) {
-        adlx_int clk = 0;
-        if (ADLX_SUCCEEDED(gpu_metrics->GPUVRAMClockSpeed(&clk)))
-            live_data.clks.push_back({ GPUClockDomain::Memory, static_cast<double>(clk) });
-    }
+    //metrics_support->IsSupportedGPUVRAMClockSpeed(&supported);
+    //if (supported) {
+    adlx_int clk = 0;
+    //if (ADLX_SUCCEEDED(gpu_metrics->GPUVRAMClockSpeed(&clk)))
+        live_data.clks.push_back({ GPUClockDomain::Memory, static_cast<double>(clk) });    // value of 0 if not supported 
+   // }
 
     // Utilization
     metrics_support->IsSupportedGPUUsage(&supported);
@@ -246,14 +245,14 @@ void AMDLiveGPUMetrics::initADL() {
         return fn;
         };
 
-    adl_main_control_create = reinterpret_cast<ADL_MAIN_CONTROL_CREATE>         (resolve("ADL_Main_Control_Create"));
-    adl_main_control_destroy = reinterpret_cast<ADL_MAIN_CONTROL_DESTROY>        (resolve("ADL_Main_Control_Destroy"));
-    adl_adapter_number_get = reinterpret_cast<ADL_ADAPTER_NUMBEROFADAPTERS_GET>(resolve("ADL_Adapter_NumberOfAdapters_Get"));
-    adl_adapter_info_get = reinterpret_cast<ADL_ADAPTER_ADAPTERINFO_GET>     (resolve("ADL_Adapter_AdapterInfo_Get"));
-    adl_adapter_active_get = reinterpret_cast<ADL_ADAPTER_ACTIVE_GET>          (resolve("ADL_Adapter_Active_Get"));
-    adl_od5_temperature_get = reinterpret_cast<ADL_OD5_TEMPERATURE_GET>         (resolve("ADL_OD5_Temperature_Get"));
+    adl_main_control_create     = reinterpret_cast<ADL_MAIN_CONTROL_CREATE>         (resolve("ADL_Main_Control_Create"));
+    adl_main_control_destroy    = reinterpret_cast<ADL_MAIN_CONTROL_DESTROY>        (resolve("ADL_Main_Control_Destroy"));
+    adl_adapter_number_get      = reinterpret_cast<ADL_ADAPTER_NUMBEROFADAPTERS_GET>(resolve("ADL_Adapter_NumberOfAdapters_Get"));
+    adl_adapter_info_get        = reinterpret_cast<ADL_ADAPTER_ADAPTERINFO_GET>     (resolve("ADL_Adapter_AdapterInfo_Get"));
+    adl_adapter_active_get      = reinterpret_cast<ADL_ADAPTER_ACTIVE_GET>          (resolve("ADL_Adapter_Active_Get"));
+    adl_od5_temperature_get     = reinterpret_cast<ADL_OD5_TEMPERATURE_GET>         (resolve("ADL_OD5_Temperature_Get"));
     adl_od5_currentactivity_get = reinterpret_cast<ADL_OD5_CURRENTACTIVITY_GET>     (resolve("ADL_OD5_CurrentActivity_Get"));
-    adl_od5_fanspeed_get = reinterpret_cast<ADL_OD5_FANSPEED_GET>            (resolve("ADL_OD5_FanSpeed_Get"));
+    adl_od5_fanspeed_get        = reinterpret_cast<ADL_OD5_FANSPEED_GET>            (resolve("ADL_OD5_FanSpeed_Get"));
 
     int res = adl_main_control_create(adlMallocCallback, 1 /*iEnumConnectedAdapters*/);
     if (res != ADL_OK)

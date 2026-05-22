@@ -6,8 +6,8 @@
 #include ".\..\third_party\adlx\SDK\ADLXHelper\Windows\Cpp\ADLXHelper.h"
 #include ".\..\third_party\adlx\SDK\Include\ISystem.h"
 #include ".\..\third_party\adlx\SDK\Include\IPerformanceMonitoring.h"
-#include <.\..\third_party\adl\include\adl_sdk.h> // ADL fallback
-#include <.\..\third_party\adl\include\adl_structures.h>
+#include <adl_sdk.h> // ADL fallback
+#include <adl_structures.h>
 
 class AMDLiveGPUMetrics : public ILiveGPUMetrics {
 public:

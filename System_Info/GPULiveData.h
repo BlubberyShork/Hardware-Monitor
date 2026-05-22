@@ -2,10 +2,9 @@
 #include <vector>
 
 enum class GPUClockDomain {
-    Graphics,
-    Memory,
-    Processor,
-    Video,
+    Graphics,       // Core / Graphics / GPU clock
+    Memory,         // Memory / VRAM clock
+    Video,          // Video / Media engine clock  
     Unknown
 };
 
