@@ -136,10 +136,13 @@
   <ItemGroup>
     <ClCompile Include="..\third_party\adlx\SDK\ADLXHelper\Windows\Cpp\ADLXHelper.cpp" />
     <ClCompile Include="..\third_party\adlx\SDK\Platform\Windows\WinAPIs.cpp" />
-    <ClCompile Include="hardware\GPU\AMDPool.cpp" />
+    <ClCompile Include="hardware\GPU\AMD\Interop\ADLX.cpp" />
+    <ClCompile Include="hardware\GPU\AMD\Interop\ADL.cpp" />
+    <ClCompile Include="hardware\GPU\AMD\AMDPool.cpp" />
     <ClCompile Include="hardware\GPU\DxgiHandler.cpp" />
-    <ClCompile Include="hardware\GPU\AMDLiveGPUMetrics.cpp" />
+    <ClCompile Include="hardware\GPU\AMD\AMDLiveGPUMetrics.cpp" />
     <ClCompile Include="hardware\GPU\NvidiaPool.cpp" />
+    <ClCompile Include="hardware\IHardwareDevicePool.cpp" />
     <ClCompile Include="wmi\ComManager.cpp" />
     <ClCompile Include="driver_client\DriverClient.cpp" />
     <ClCompile Include="wmi\GraphicsProcessor.cpp" />
@@ -157,11 +160,14 @@
     <ClCompile Include="wmi\WbemManager.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="hardware\GPU\AMDPool.h" />
+    <ClInclude Include="hardware\GPU\AMD\Interop\ADLX.h" />
+    <ClInclude Include="hardware\GPU\AMD\Interop\ADL.h" />
+    <ClInclude Include="hardware\GPU\AMD\AMDPool.h" />
     <ClInclude Include="hardware\GPU\DxgiHandler.h" />
     <ClInclude Include="hardware\DeviceSensor.h" />
-    <ClInclude Include="hardware\GPU\AMDLiveGPUMetrics.h" />
+    <ClInclude Include="hardware\GPU\AMD\AMDLiveGPUMetrics.h" />
     <ClInclude Include="hardware\GPU\NvidiaPool.h" />
+    <ClInclude Include="hardware\IHardwareDevicePool.h" />
     <ClInclude Include="wmi\ComManager.h" />
     <ClInclude Include="driver_client\DriverClient.h" />
     <ClInclude Include="hardware\GPULiveData.h" />

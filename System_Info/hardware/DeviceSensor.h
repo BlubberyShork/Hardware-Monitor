@@ -35,17 +35,19 @@ namespace Sensors {
 	// Keep it around for now in case a reason arises and we need another sensor implementation 
 	class IDeviceSensor { 
 	public:
+		IDeviceSensor() = default;
 		virtual ~IDeviceSensor() = default;
-		virtual const std::string& getName()  const = 0;
-		virtual float              getValue() const = 0;
-		virtual const char*		   getUnit()  const = 0;
-		virtual SensorType         getType()  const = 0;
 
 		IDeviceSensor(const IDeviceSensor&) = delete;
 		IDeviceSensor& operator=(const IDeviceSensor&) = delete;
 
 		IDeviceSensor(IDeviceSensor&&) = default;
 		IDeviceSensor& operator=(IDeviceSensor&&) = default;
+
+		virtual const std::string& getName()  const = 0;
+		virtual float              getValue() const = 0;
+		virtual const char*		   getUnit()  const = 0;
+		virtual SensorType         getType()  const = 0;
 	};
 
 	template<SensorType T>

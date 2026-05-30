@@ -7,6 +7,7 @@
 #include "wmi\WbemManager.h"
 #include "wmi\HardwareQueries.h"
 #include "hardware\HardwareDevice.h"
+#include "hardware\GPU\DxgiHandler.h"
 #include <mutex>
 
 typedef struct _Hardware_List_Container {
@@ -44,7 +45,8 @@ private:
     ThreadManager                       thrd_mngr;
     std::mutex                          mtx;
     Hardware_List_Container             hw_data;
-    std::vector<A_HardwareDevice>         hardware_devices;
+    std::vector<A_HardwareDevice>       hardware_devices;
+    DxgiHandler                         gpu_exec;
 
     std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual>                       disks;
     std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash> partitions;

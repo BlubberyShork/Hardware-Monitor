@@ -11,15 +11,13 @@ class OutputHandler
 public:
 	OutputHandler(
 		const Hardware_List_Container& container, 
-		const HardwareDevice& hardware_device,
-		DriverClient &driver) 
-		: hw_data(container), hardware_device(hardware_device), dc(driver) {}
+		const DriverClient &driver) 
+		: hw_data(container), dc(driver) {}
 
 	// Test constructor: no driver
 	OutputHandler(
-		const Hardware_List_Container& container,
-		const HardwareDevice& gpu_handler)
-		: hw_data(container), hardware_device(gpu_handler) {}
+		const Hardware_List_Container& container)
+		: hw_data(container) {}
 
 	OutputHandler(const OutputHandler&) = delete;
 	OutputHandler& operator=(const OutputHandler&) = delete;
@@ -31,7 +29,6 @@ public:
 
 private:
 	Hardware_List_Container hw_data;
-	const HardwareDevice&   hardware_device;
 	DriverClient			dc;
 };
 

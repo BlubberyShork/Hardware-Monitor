@@ -2,11 +2,9 @@
 #include <iostream>
 
 // TODO - LUID and name check
-NvidiaLiveGPUMetrics::NvidiaLiveGPUMetrics(LUID luid, std::wstring dxgi_name)
-    : A_HardwareDevice(Vendor::NVIDIA, HardwareType::GPU, "NVIDIA GPU"),
-      luid(luid), dxgi_name(std::move(dxgi_name)) {
+NvidiaLiveGPUMetrics::NvidiaLiveGPUMetrics()
+    : A_HardwareDevice(Vendor::NVIDIA, HardwareType::GPU, "NVIDIA GPU") {
 
-    this->name = std::string(dxgi_name.begin(), dxgi_name.end());
     NvAPI_Status res = NvAPI_Initialize();
     if (res != NVAPI_OK) {
         NvAPI_ShortString err_msg;
@@ -93,32 +91,10 @@ void NvidiaLiveGPUMetrics::fetchMetrics() {
         else
             addSensor<Sensors::SensorType::FAN_SPEED>("GPU Fan Speed", 0.0f);
     }
-}
 
-//void NvidiaLiveGPUMetrics::outputMetrics() const {
-//    for (auto& [handle, live_data] : all_gpu_live_data) {
-//        std::wcout << "-- Live GPU Data --\n";
-//        std::wcout << "Avg Temp:     " << live_data.curr_avg_temp << "C\n";
-//        std::wcout << "Hotspot Temp: " << live_data.curr_hotspot_temp << "C\n\n";
-//        std::wcout << "Graphics Utilization:     " << live_data.curr_graphics_utilization << "%\n";
-//        std::wcout << "Frame Buffer Utilization: " << live_data.curr_frame_buffer_utilization << "%\n";
-//        std::wcout << "Video Engine Utilization: " << live_data.curr_video_engine_utilization << "%\n";
-//
-//        std::wcout << "\n-- Clock Speeds --\n";
-//        for (auto& clk : live_data.clks) {
-//            switch (clk.clk_type) {
-//            case GPUClockDomain::Graphics:  std::wcout << "Core / Graphics / GPU clock:  ";   break;
-//            case GPUClockDomain::Memory:    std::wcout << "Memory / VRAM clock:    ";         break;
-//            case GPUClockDomain::Video:     std::wcout << "Video / Media Engine clock:     "; break;
-//            default:                        std::wcout << "Unknown:   ";                      break;
-//            }
-//            std::wcout << clk.clk_spd << " MHz\n";
-//        }
-//
-//        std::wcout << "\n-- Fan Speed --\n";
-//        std::wcout << "Fan Speed: " << live_data.fan_speed << "\n\n";
-//    }
-//}
+    // TODO - Temp, delete later
+    outputMetrics();
+}
 
 void NvidiaLiveGPUMetrics::checkAndHandleError(const char* custom_msg, NvAPI_Status status) {
     if (status != NVAPI_OK) {

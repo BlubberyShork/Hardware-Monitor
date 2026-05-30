@@ -2,9 +2,8 @@
 #include "dxgi.h"
 #include <winnt.h>
 #include "..\HardwareDevice.h"
+#include "..\IHardwareDevicePool.h"
 #include <stdexcept>
-#include "NvidiaLiveGPUMetrics.h"
-#include "AMDLiveGPUMetrics.h"
 
 class DxgiHandler
 {
@@ -28,9 +27,10 @@ public:
 	DxgiHandler();
 	~DxgiHandler() = default;
 
-	std::vector<std::unique_ptr<A_HardwareDevice>> createGPUDevices();
+	void createGPUDevices();
 
 private:
+	std::vector<std::unique_ptr<IHardwareDevicePool>> pools;
 	std::vector<Adapter> detected_adapters;
 	void enumerateAdapters();
 };

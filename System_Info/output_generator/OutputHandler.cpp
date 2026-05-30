@@ -14,7 +14,7 @@ void OutputHandler::output() {
 	std::wcout << "\n";
 
 	OUTPUT_HEADER("Active GPU Hardware Details")
-	hardware_device.outputLiveGPUMetrics();
+	// TODO - From JSON, from now it will just output at the top of the terminal for testing
 
 	OUTPUT_HEADER("Processors")
 	for (auto& cpu : hw_data.cpus) {
@@ -45,7 +45,7 @@ void OutputHandler::outputNoDriver() {
 	std::wcout << "\n";
 
 	OUTPUT_HEADER("Active GPU Hardware Details")
-		hardware_device.outputLiveGPUMetrics();
+	// TODO - From JSON, from now it will just output at the top of the terminal for testing
 	std::wcout << "\n";
 
 	OUTPUT_HEADER("Processors")

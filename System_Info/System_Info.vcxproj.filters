@@ -78,6 +78,9 @@
     <ClCompile Include="hardware\GPU\NvidiaPool.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="hardware\IHardwareDevicePool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="../shared_headers/cpu_shared_info.h">
@@ -144,6 +147,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="hardware\GPU\NvidiaPool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hardware\IHardwareDevicePool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
