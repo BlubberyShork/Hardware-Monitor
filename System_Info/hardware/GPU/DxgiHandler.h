@@ -3,6 +3,7 @@
 #include <winnt.h>
 #include "..\HardwareDevice.h"
 #include "..\IHardwareDevicePool.h"
+#include <set>
 #include <stdexcept>
 
 class DxgiHandler
@@ -15,15 +16,6 @@ public:
 		UNKNOWN
 	};
 
-	struct Adapter {
-		Vendor          vendor;
-		LUID            luid;
-		std::wstring    name;
-		UINT            device_id;
-		UINT            vendor_id;
-
-	};
-
 	DxgiHandler();
 	~DxgiHandler() = default;
 
@@ -31,7 +23,10 @@ public:
 
 private:
 	std::vector<std::unique_ptr<IHardwareDevicePool>> pools;
-	std::vector<Adapter> detected_adapters;
+
+	// Since we use pools, we only need to detect which vendors exist, we need one pool per vendor
+	std::set<Vendor> detected_vendors;
+
 	void enumerateAdapters();
 };
 

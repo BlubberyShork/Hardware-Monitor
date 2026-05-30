@@ -33,23 +33,19 @@ void DxgiHandler::enumerateAdapters() {
         if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
             continue;
 
-        Adapter ad = {};
-        ad.luid = desc.AdapterLuid;
-        ad.name = desc.Description;
-        ad.device_id = desc.DeviceId;
-        ad.vendor_id = desc.VendorId;
+        Vendor ven = {};
 
-        if (desc.VendorId == VENDOR_ID_NVIDIA) ad.vendor = Vendor::NVIDIA;
-        else if (desc.VendorId == VENDOR_ID_AMD)    ad.vendor = Vendor::AMD;
-        else if (desc.VendorId == VENDOR_ID_INTEL)  ad.vendor = Vendor::INTEL;
-        else                                        ad.vendor = Vendor::UNKNOWN;
+        if (desc.VendorId == VENDOR_ID_NVIDIA)      ven = Vendor::NVIDIA;
+        else if (desc.VendorId == VENDOR_ID_AMD)    ven = Vendor::AMD;
+        else if (desc.VendorId == VENDOR_ID_INTEL)  ven = Vendor::INTEL;
+        else                                        ven = Vendor::UNKNOWN;
 
-        detected_adapters.push_back(ad);
+        detected_vendors.insert(ven);
     }
     factory->Release();
 
-    if (detected_adapters.empty())
-        throw std::runtime_error("No active GPU adapters detected via DXGI");
+    if (detected_vendors.empty())
+        std::cerr << "No active GPU adapters detected via DXGI\n";
 }
 
 // ---------------------------------------------------------------------------
@@ -63,8 +59,8 @@ void DxgiHandler::enumerateAdapters() {
 void DxgiHandler::createGPUDevices() {
     std::cout << "DxgiHandler::createGPUDevices called\n";
 
-    for (auto& adapter : detected_adapters) {
-        switch (adapter.vendor) {
+    for (auto& ven : detected_vendors) {
+        switch (ven) {
         case Vendor::AMD: {
             auto pool = std::make_unique<AMDPool>();
             pool->enumerateDevices();
