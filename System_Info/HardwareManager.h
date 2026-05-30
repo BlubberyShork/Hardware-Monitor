@@ -1,12 +1,12 @@
 #pragma once
-#include "GraphicsProcessor.h"
-#include "processor.h"
-#include "motherboard.h"
-#include "storagedevice.h"
+#include "wmi\GraphicsProcessor.h"
+#include "wmi\processor.h"
+#include "wmi\motherboard.h"
+#include "wmi\storagedevice.h"
 #include "ThreadManager.h"
-#include "WbemManager.h"
-#include "HardwareQueries.h"
-#include "LiveGPUHandler.h"
+#include "wmi\WbemManager.h"
+#include "wmi\HardwareQueries.h"
+#include "hardware\HardwareDevice.h"
 #include <mutex>
 
 typedef struct _Hardware_List_Container {
@@ -28,11 +28,8 @@ public:
 
     // Accessors
     const Hardware_List_Container& GetHardwareData() const { return hw_data; }
-    const LiveGPUHandler& GetLiveGPUHandler() const { return live_gpu_handler; }
-
-    Hardware_List_Container* GetHardwareDataPtr() {
-        return &hw_data;
-    }
+    const std::vector<A_HardwareDevice>& GetHardwareDevices() const { return hardware_devices; }
+    Hardware_List_Container* GetHardwareDataPtr() {  return &hw_data; }
 
     void infoPhysicalDrive(
         std::vector<StorageDevice>& sd_list,
@@ -43,11 +40,11 @@ public:
     );
 
 private:
-    WbemManager             *wbem_mngr;
-    ThreadManager           thrd_mngr;
-    std::mutex              mtx;
-    Hardware_List_Container hw_data;
-    LiveGPUHandler          live_gpu_handler;
+    WbemManager                         *wbem_mngr;
+    ThreadManager                       thrd_mngr;
+    std::mutex                          mtx;
+    Hardware_List_Container             hw_data;
+    std::vector<A_HardwareDevice>         hardware_devices;
 
     std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual>                       disks;
     std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash> partitions;

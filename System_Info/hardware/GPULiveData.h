@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 
+// TODO - Redesign this to be more scalabale and flexible, similar to Sensor in Libre
+
 enum class GPUClockDomain {
     Graphics,       // Core / Graphics / GPU clock
     Memory,         // Memory / VRAM clock

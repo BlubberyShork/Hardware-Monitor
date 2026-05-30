@@ -1,22 +1,22 @@
 #pragma once
 #include <map>
 #include <stdexcept>
-#include "LiveGPUHandler.h"
-#include "GPULiveData.h"
+#include "..\HardwareDevice.h"
+#include ".\..\GPULiveData.h"
 #include ".\..\third_party\nvapi\nvapi.h"
+//#include <winnt.h>
 
-class NvidiaLiveGPUMetrics : public ILiveGPUMetrics {
+class NvidiaLiveGPUMetrics : public A_HardwareDevice {
 public:
-    NvidiaLiveGPUMetrics();
+    NvidiaLiveGPUMetrics(LUID luid, std::wstring dxgi_name);
     ~NvidiaLiveGPUMetrics()    override;
 
     void fetchMetrics()        override;
-    void outputMetrics() const override;
 
 private:
-    std::map<NvPhysicalGpuHandle, GPULiveData> all_gpu_live_data;
+    LUID luid;
+    std::wstring dxgi_name;
 
-    static GPUClockDomain   toClockDomain(NV_GPU_PUBLIC_CLOCK_ID nv_id);
     void                    checkAndHandleError(const char* msg, NvAPI_Status status);
     int                     avgTemp(const NV_GPU_THERMAL_SETTINGS& ts) const;
     int                     hotspotTemp(const NV_GPU_THERMAL_SETTINGS& ts) const;

@@ -9,7 +9,7 @@ void HardwareManager::ExecuteQueryThreadPool() {
         [&] { HardwareQueries::QueryPartitions(wbem_mngr->getMsftServices(), mtx, partitions); },
         [&] { HardwareQueries::QueryVolumes(wbem_mngr->getMsftServices(), mtx, volumes); },
         [&] { HardwareQueries::QueryPhysicalDisks(wbem_mngr->getMsftServices(), mtx, phys_disks); },
-        [&] { live_gpu_handler.fetchCurrentLiveGPUMetrics(); }
+        [&] { hardware_device.fetchCurrentLiveGPUMetrics(); }
     };
 
     thrd_mngr.ExecuteThreadPool(queries);

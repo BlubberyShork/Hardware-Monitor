@@ -1,10 +1,10 @@
 #ifdef _WIN32
 #define _WIN32_DCOM
 
-#include "DriverClient.h"
-#include "ComManager.h"
-#include "WbemManager.h"
-#include "OutputHandler.h"
+#include "driver_client\DriverClient.h"
+#include "wmi\ComManager.h"
+#include "wmi\WbemManager.h"
+#include "output_generator\OutputHandler.h"
 
 #include <ctime>
 #include <chrono>

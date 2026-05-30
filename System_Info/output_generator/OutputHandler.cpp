@@ -14,7 +14,7 @@ void OutputHandler::output() {
 	std::wcout << "\n";
 
 	OUTPUT_HEADER("Active GPU Hardware Details")
-	live_gpu_handler.outputLiveGPUMetrics();
+	hardware_device.outputLiveGPUMetrics();
 
 	OUTPUT_HEADER("Processors")
 	for (auto& cpu : hw_data.cpus) {
@@ -45,7 +45,7 @@ void OutputHandler::outputNoDriver() {
 	std::wcout << "\n";
 
 	OUTPUT_HEADER("Active GPU Hardware Details")
-		live_gpu_handler.outputLiveGPUMetrics();
+		hardware_device.outputLiveGPUMetrics();
 	std::wcout << "\n";
 
 	OUTPUT_HEADER("Processors")
