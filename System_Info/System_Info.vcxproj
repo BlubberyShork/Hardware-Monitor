@@ -65,6 +65,7 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="PropertySheet.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -105,14 +106,14 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Users\robby\source\repos\System_Info\shared_headers;C:\Users\robby\projects\Hardware-Monitor\third_party\nvapi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)shared_headers;$(SolutionDir)third_party\adlx\SDK\Include;$(SolutionDir)..\third_party\adlx\SDK\Include;$(SolutionDir)third_party\adlx\SDK\ADLXHelper\Windows\Cpp;$(SolutionDir)..\third_party\adlx\SDK\ADLXHelper\Windows\Cpp;$(SolutionDir)third_party\adl\include;$(SolutionDir)..\third_party\adl\include;$(SolutionDir)third_party\nvapi\amd64;$(SolutionDir)..\third_party\nvapi\amd64;$(SolutionDir)..\shared_headers;$(SolutionDir)..\third_party\nvapi\;$(SolutionDir)third_party\nvapi\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>dxgi.lib
 ;nvapi64.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Users\robby\projects\Hardware-Monitor\third_party\nvapi\amd64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)third_party\nvapi\amd64;$(SolutionDir)..\third_party\nvapi\amd64;$(SolutionDir)third_party\adlx\SDK\ADLXHelper\Windows\Cpp;$(SolutionDir)..\third_party\adlx\SDK\ADLXHelper\Windows\Cpp;$(SolutionDir)third_party\adlx\SDK\Include;$(SolutionDir)..\third_party\adlx\SDK\Include;$(SolutionDir)third_party\adl\include;$(SolutionDir)..\third_party\adl\include;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ShowProgress>LinkVerboseLib</ShowProgress>
     </Link>
   </ItemDefinitionGroup>
@@ -133,37 +134,56 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="ComManager.cpp" />
-    <ClCompile Include="DriverClient.cpp" />
-    <ClCompile Include="GraphicsProcessor.cpp" />
+    <ClCompile Include="..\third_party\adlx\SDK\ADLXHelper\Windows\Cpp\ADLXHelper.cpp" />
+    <ClCompile Include="..\third_party\adlx\SDK\Platform\Windows\WinAPIs.cpp" />
+    <ClCompile Include="hardware\GPU\AMD\Interop\ADLX.cpp" />
+    <ClCompile Include="hardware\GPU\AMD\Interop\ADL.cpp" />
+    <ClCompile Include="hardware\GPU\AMD\AMDPool.cpp" />
+    <ClCompile Include="hardware\GPU\DxgiHandler.cpp" />
+    <ClCompile Include="hardware\GPU\AMD\AMDLiveGPUMetrics.cpp" />
+    <ClCompile Include="hardware\GPU\NVIDIA\NvidiaPool.cpp" />
+    <ClCompile Include="hardware\IHardwareDevicePool.cpp" />
+    <ClCompile Include="wmi\ComManager.cpp" />
+    <ClCompile Include="driver_client\DriverClient.cpp" />
+    <ClCompile Include="wmi\GraphicsProcessor.cpp" />
     <ClCompile Include="HardwareManager.cpp" />
-    <ClCompile Include="HardwareQueries.cpp" />
-    <ClCompile Include="LiveGPUHandler.cpp" />
-    <ClCompile Include="motherboard.cpp" />
-    <ClCompile Include="OutputHandler.cpp" />
-    <ClCompile Include="processor.cpp" />
-    <ClCompile Include="projutils.cpp" />
-    <ClCompile Include="storagedevice.cpp" />
+    <ClCompile Include="wmi\HardwareQueries.cpp" />
+    <ClCompile Include="hardware\HardwareDevice.cpp" />
+    <ClCompile Include="wmi\motherboard.cpp" />
+    <ClCompile Include="output_generator\OutputHandler.cpp" />
+    <ClCompile Include="wmi\processor.cpp" />
+    <ClCompile Include="wmi\projutils.cpp" />
+    <ClCompile Include="hardware\GPU\NVIDIA\NvidiaLiveGPUMetrics.cpp" />
+    <ClCompile Include="wmi\storagedevice.cpp" />
     <ClCompile Include="System_Info.cpp" />
     <ClCompile Include="ThreadManager.cpp" />
-    <ClCompile Include="WbemManager.cpp" />
+    <ClCompile Include="wmi\WbemManager.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ComManager.h" />
-    <ClInclude Include="DriverClient.h" />
-    <ClInclude Include="GraphicsProcessor.h" />
+    <ClInclude Include="hardware\GPU\AMD\Interop\ADLX.h" />
+    <ClInclude Include="hardware\GPU\AMD\Interop\ADL.h" />
+    <ClInclude Include="hardware\GPU\AMD\AMDPool.h" />
+    <ClInclude Include="hardware\GPU\DxgiHandler.h" />
+    <ClInclude Include="hardware\DeviceSensor.h" />
+    <ClInclude Include="hardware\GPU\AMD\AMDLiveGPUMetrics.h" />
+    <ClInclude Include="hardware\GPU\NVIDIA\NvidiaPool.h" />
+    <ClInclude Include="hardware\IHardwareDevicePool.h" />
+    <ClInclude Include="wmi\ComManager.h" />
+    <ClInclude Include="driver_client\DriverClient.h" />
+    <ClInclude Include="wmi\GraphicsProcessor.h" />
     <ClInclude Include="HardwareManager.h" />
-    <ClInclude Include="HardwareQueries.h" />
-    <ClInclude Include="LiveGPUHandler.h" />
-    <ClInclude Include="motherboard.h" />
-    <ClInclude Include="OutputHandler.h" />
-    <ClInclude Include="processor.h" />
-    <ClInclude Include="projutils.h" />
-    <ClInclude Include="storagedevice.h" />
+    <ClInclude Include="wmi\HardwareQueries.h" />
+    <ClInclude Include="hardware\HardwareDevice.h" />
+    <ClInclude Include="wmi\motherboard.h" />
+    <ClInclude Include="hardware\GPU\NVIDIA\NvidiaLiveGPUMetrics.h" />
+    <ClInclude Include="output_generator\OutputHandler.h" />
+    <ClInclude Include="wmi\processor.h" />
+    <ClInclude Include="wmi\projutils.h" />
+    <ClInclude Include="wmi\storagedevice.h" />
     <ClInclude Include="../shared_headers/cpu_shared_info.h" />
     <ClInclude Include="ThreadManager.h" />
-    <ClInclude Include="WbemManager.h" />
-    <ClInclude Include="WmiHelper.h" />
+    <ClInclude Include="wmi\WbemManager.h" />
+    <ClInclude Include="wmi\WmiHelper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

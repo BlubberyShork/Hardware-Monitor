@@ -1,10 +1,10 @@
 #ifdef _WIN32
 #define _WIN32_DCOM
 
-#include "DriverClient.h"
-#include "ComManager.h"
-#include "WbemManager.h"
-#include "OutputHandler.h"
+#include "driver_client\DriverClient.h"
+#include "wmi\ComManager.h"
+#include "wmi\WbemManager.h"
+#include "output_generator\OutputHandler.h"
 
 #include <ctime>
 #include <chrono>
@@ -26,10 +26,10 @@ int main(int arcg, char* argv[])
     auto end = std::chrono::high_resolution_clock::now();
     auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-    OutputHandler out(hw_mngr.GetHardwareData(), hw_mngr.GetLiveGPUHandler(), dc);
-    out.output();
-    //OutputHandler out(hw_mngr.GetHardwareData(), hw_mngr.GetLiveGPUHandler());
-    //out.outputNoDriver();
+    //OutputHandler out(hw_mngr.GetHardwareData(), dc);
+    //out.output();
+    OutputHandler out(hw_mngr.GetHardwareData());
+    out.outputNoDriver();
     
     std::cout << "Threads took: " << dur.count() << " ms";
     

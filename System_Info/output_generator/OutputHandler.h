@@ -1,6 +1,6 @@
 #pragma once
-#include "HardwareManager.h"
-#include "DriverClient.h"
+#include ".\..\HardwareManager.h"
+#include ".\..\driver_client\DriverClient.h"
 
 #define OUTPUT_HEADER(header_msg) \
         std::cout << "--------------------------------------------------------------\n"; \
@@ -9,19 +9,19 @@
 class OutputHandler
 {
 public:
-	OutputHandler() = default;
 	OutputHandler(
 		const Hardware_List_Container& container, 
-		const LiveGPUHandler& live_gpu_handler,
-		DriverClient &driver) 
-		: hw_data(container), live_gpu_handler(live_gpu_handler), dc(driver) {}
+		const DriverClient &driver) 
+		: hw_data(container), dc(driver) {}
 
 	// Test constructor: no driver
 	OutputHandler(
-		const Hardware_List_Container& container,
-		const LiveGPUHandler& gpu_handler)
-		: hw_data(container), live_gpu_handler(gpu_handler) {
-	}
+		const Hardware_List_Container& container)
+		: hw_data(container) {}
+
+	OutputHandler(const OutputHandler&) = delete;
+	OutputHandler& operator=(const OutputHandler&) = delete;
+
 	~OutputHandler() = default;
 
 	void output();
@@ -29,7 +29,6 @@ public:
 
 private:
 	Hardware_List_Container hw_data;
-	LiveGPUHandler			live_gpu_handler;
 	DriverClient			dc;
 };
 
