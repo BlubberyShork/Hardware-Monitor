@@ -5,6 +5,7 @@ public:
 	virtual ~IHardwareDevicePool() = default;
 
     IHardwareDevicePool() = default;
+
     IHardwareDevicePool(IHardwareDevicePool&&) = default;
     IHardwareDevicePool& operator=(IHardwareDevicePool&&) = default;
 

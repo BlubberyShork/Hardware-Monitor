@@ -4,6 +4,10 @@
 #include <string>
 #include "DeviceSensor.h"
 
+#define OUTPUT_HEADER(header_msg) \
+        std::cout << "--------------------------------------------------------------\n"; \
+        std::cout << "     ** " << header_msg << "** \n\n";
+
 class A_HardwareDevice {
 public:
 	enum class Vendor {

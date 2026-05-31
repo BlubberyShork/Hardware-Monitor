@@ -106,7 +106,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)shared_headers;C:\Users\robby\projects\Hardware-Monitor\third_party\nvapi;$(SolutionDir)third_party\adlx\SDK\Include;$(SolutionDir)..\third_party\adlx\SDK\Include;$(SolutionDir)third_party\adlx\SDK\ADLXHelper\Windows\Cpp;$(SolutionDir)..\third_party\adlx\SDK\ADLXHelper\Windows\Cpp;$(SolutionDir)third_party\adl\include;$(SolutionDir)..\third_party\adl\include;$(SolutionDir)third_party\nvapi\amd64;$(SolutionDir)..\third_party\nvapi\amd64;$(SolutionDir)..\shared_headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)shared_headers;$(SolutionDir)third_party\adlx\SDK\Include;$(SolutionDir)..\third_party\adlx\SDK\Include;$(SolutionDir)third_party\adlx\SDK\ADLXHelper\Windows\Cpp;$(SolutionDir)..\third_party\adlx\SDK\ADLXHelper\Windows\Cpp;$(SolutionDir)third_party\adl\include;$(SolutionDir)..\third_party\adl\include;$(SolutionDir)third_party\nvapi\amd64;$(SolutionDir)..\third_party\nvapi\amd64;$(SolutionDir)..\shared_headers;$(SolutionDir)..\third_party\nvapi\;$(SolutionDir)third_party\nvapi\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -141,7 +141,7 @@
     <ClCompile Include="hardware\GPU\AMD\AMDPool.cpp" />
     <ClCompile Include="hardware\GPU\DxgiHandler.cpp" />
     <ClCompile Include="hardware\GPU\AMD\AMDLiveGPUMetrics.cpp" />
-    <ClCompile Include="hardware\GPU\NvidiaPool.cpp" />
+    <ClCompile Include="hardware\GPU\NVIDIA\NvidiaPool.cpp" />
     <ClCompile Include="hardware\IHardwareDevicePool.cpp" />
     <ClCompile Include="wmi\ComManager.cpp" />
     <ClCompile Include="driver_client\DriverClient.cpp" />
@@ -153,7 +153,7 @@
     <ClCompile Include="output_generator\OutputHandler.cpp" />
     <ClCompile Include="wmi\processor.cpp" />
     <ClCompile Include="wmi\projutils.cpp" />
-    <ClCompile Include="hardware\GPU\NvidiaLiveGPUMetrics.cpp" />
+    <ClCompile Include="hardware\GPU\NVIDIA\NvidiaLiveGPUMetrics.cpp" />
     <ClCompile Include="wmi\storagedevice.cpp" />
     <ClCompile Include="System_Info.cpp" />
     <ClCompile Include="ThreadManager.cpp" />
@@ -166,7 +166,7 @@
     <ClInclude Include="hardware\GPU\DxgiHandler.h" />
     <ClInclude Include="hardware\DeviceSensor.h" />
     <ClInclude Include="hardware\GPU\AMD\AMDLiveGPUMetrics.h" />
-    <ClInclude Include="hardware\GPU\NvidiaPool.h" />
+    <ClInclude Include="hardware\GPU\NVIDIA\NvidiaPool.h" />
     <ClInclude Include="hardware\IHardwareDevicePool.h" />
     <ClInclude Include="wmi\ComManager.h" />
     <ClInclude Include="driver_client\DriverClient.h" />
@@ -176,7 +176,7 @@
     <ClInclude Include="wmi\HardwareQueries.h" />
     <ClInclude Include="hardware\HardwareDevice.h" />
     <ClInclude Include="wmi\motherboard.h" />
-    <ClInclude Include="hardware\GPU\NvidiaLiveGPUMetrics.h" />
+    <ClInclude Include="hardware\GPU\NVIDIA\NvidiaLiveGPUMetrics.h" />
     <ClInclude Include="output_generator\OutputHandler.h" />
     <ClInclude Include="wmi\processor.h" />
     <ClInclude Include="wmi\projutils.h" />

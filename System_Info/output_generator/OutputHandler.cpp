@@ -13,9 +13,6 @@ void OutputHandler::output() {
 	}
 	std::wcout << "\n";
 
-	OUTPUT_HEADER("Active GPU Hardware Details")
-	// TODO - From JSON, from now it will just output at the top of the terminal for testing
-
 	OUTPUT_HEADER("Processors")
 	for (auto& cpu : hw_data.cpus) {
 		cpu.outProcInfo();

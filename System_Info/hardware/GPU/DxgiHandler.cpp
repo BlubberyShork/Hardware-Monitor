@@ -1,7 +1,7 @@
 #include "DxgiHandler.h"
 #include "AMD/AMDPool.h"
 #include <iostream>
-// #include "NVIDIA/NvidiaPool.h"  // future
+#include "NVIDIA/NvidiaPool.h"
 
 DxgiHandler::DxgiHandler() {
     enumerateAdapters();
@@ -14,7 +14,6 @@ DxgiHandler::DxgiHandler() {
 // vector with the detected vendors
 // ---------------------------------------------------------------------------
 void DxgiHandler::enumerateAdapters() {
-    std::cout << "DxgiHandler::enumerateAdapters called\n";
     constexpr UINT VENDOR_ID_NVIDIA = 0x10DE;
     constexpr UINT VENDOR_ID_AMD    = 0x1002;
     constexpr UINT VENDOR_ID_INTEL  = 0x8086;
@@ -57,7 +56,6 @@ void DxgiHandler::enumerateAdapters() {
 // getDevices() is already populated with fetchMetrics()-primed devices.
 // ---------------------------------------------------------------------------
 void DxgiHandler::createGPUDevices() {
-    std::cout << "DxgiHandler::createGPUDevices called\n";
 
     for (auto& ven : detected_vendors) {
         switch (ven) {
@@ -68,10 +66,9 @@ void DxgiHandler::createGPUDevices() {
             break;
         }
         case Vendor::NVIDIA: {
-            // TODO: NvidiaPool
-            //auto pool = std::make_unique<NvidiaPool>();
-            //pool->enumerateDevices();
-            //this->pools.push_back(std::move(pool));
+            auto pool = std::make_unique<NvidiaPool>();
+            pool->enumerateDevices();
+            this->pools.push_back(std::move(pool));
             break;
         }
         default:
