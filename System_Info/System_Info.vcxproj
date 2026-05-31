@@ -170,7 +170,6 @@
     <ClInclude Include="hardware\IHardwareDevicePool.h" />
     <ClInclude Include="wmi\ComManager.h" />
     <ClInclude Include="driver_client\DriverClient.h" />
-    <ClInclude Include="hardware\GPULiveData.h" />
     <ClInclude Include="wmi\GraphicsProcessor.h" />
     <ClInclude Include="HardwareManager.h" />
     <ClInclude Include="wmi\HardwareQueries.h" />
