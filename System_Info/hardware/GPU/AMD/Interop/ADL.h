@@ -15,6 +15,28 @@ public:
     ADL() = default;
     ~ADL();
 
+    // TODO - use Temperature_Enum  for more reliable reads
+    //  Also, make sure to use the older-gen functions for help where applicable in higher versions
+    //  Also, ensure memory functions are used (and others that we may want)
+    //  ADL works, just fine tune detection of support by testing if an early retrieval function works, and set supported to 1
+    enum TemperatureType {
+        CORE,
+        EDGE,
+        MEMORY,
+        VRVDDC,
+        VRMVDD,
+        LIQUID,
+        PLX,
+        HOTSPOT
+    };
+
+    enum PowerType {
+        TOTAL,
+        PPT,
+        SOCKET,
+        CHIP
+    };
+
     ADL(const ADL&) = delete;
     ADL& operator=(const ADL&) = delete;
 
@@ -57,7 +79,8 @@ public:
 
     // Overdrive caps / version
     typedef int (*ADL2_OVERDRIVE_CAPS)                   (ADL_CONTEXT_HANDLE, int, int*, int*, int*);
-
+    typedef int (*ADL_OVERDRIVE_CAPS)                    (int, int*, int*, int*);
+        
     // Overdrive 5
     typedef int (*ADL2_OD5_ODPARAMETERS_GET)             (ADL_CONTEXT_HANDLE, int, ADLODParameters*);
     typedef int (*ADL2_OD5_CURRENTACTIVITY_GET)          (ADL_CONTEXT_HANDLE, int, ADLPMActivity*);
@@ -106,6 +129,7 @@ public:
     ADL2_ADAPTER_FRAMEMETRICS_STOP        adl2_adapter_framemetrics_stop = nullptr;
 
     ADL2_OVERDRIVE_CAPS                   adl2_overdrive_caps = nullptr;
+    ADL_OVERDRIVE_CAPS                    adl_overdrive_caps = nullptr;
 
     ADL2_OD5_ODPARAMETERS_GET             adl2_od5_odparameters_get = nullptr;
     ADL2_OD5_CURRENTACTIVITY_GET          adl2_od5_currentactivity_get = nullptr;

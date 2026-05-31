@@ -53,7 +53,6 @@ void NvidiaLiveGPUMetrics::fetchMetrics() {
         for (NvU32 c = 0; c < pstate_info.numClocks; c++) {
             NV_GPU_PUBLIC_CLOCK_ID clk_id = pstate_info.pstates[0].clocks[c].domainId;
             if (clk_freq.domain[clk_id].bIsPresent) {
-                ClockEntry entry = {};
                 float mhz = clk_freq.domain[clk_id].frequency * 0.001f;
                 switch (clk_id) {
                 case NVAPI_GPU_PUBLIC_CLOCK_GRAPHICS:  addSensor<Sensors::SensorType::CLOCK>("GPU Graphics Clock", mhz); break;

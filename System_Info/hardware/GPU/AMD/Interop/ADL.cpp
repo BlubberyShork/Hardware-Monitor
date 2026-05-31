@@ -1,6 +1,7 @@
 #include "ADL.h"
 #include <stdexcept>
 #include <string>
+#include <iostream>
 
 // ---------------------------------------------------------------------------
 // Lifecycle
@@ -39,6 +40,7 @@ void ADL::init() {
 
     // Overdrive caps / version
     adl2_overdrive_caps = reinterpret_cast<ADL2_OVERDRIVE_CAPS>(resolve("ADL2_Overdrive_Caps"));
+    adl_overdrive_caps = reinterpret_cast<ADL_OVERDRIVE_CAPS>(resolve("ADL_Overdrive_Caps"));
 
     // Overdrive 5
     adl2_od5_odparameters_get = reinterpret_cast<ADL2_OD5_ODPARAMETERS_GET>   (resolve("ADL2_Overdrive5_ODParameters_Get"));
@@ -94,7 +96,8 @@ void ADL::shutdown() {
 FARPROC ADL::resolve(const char* name) {
     FARPROC func = GetProcAddress(adl_module, name);
     if (!func)
-        throw std::runtime_error(std::string("ADL symbol not found: ") + name);
+        std::cerr << "ADL symbol not found: " << name << "\n";
+        //throw std::runtime_error(std::string("ADL symbol not found: ") + name);
     return func;
 }
 

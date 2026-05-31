@@ -5,7 +5,7 @@
 #include <comdef.h>
 #include <dxgi.h>
 #include "projutils.h"
-#include ".\..\third_party\nvapi\nvapi.h"
+#include ".\..\..\third_party\nvapi\nvapi.h"
 
 struct GraphicsProcessor
 {

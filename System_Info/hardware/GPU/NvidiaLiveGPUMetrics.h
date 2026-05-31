@@ -2,8 +2,7 @@
 #include <map>
 #include <stdexcept>
 #include "..\HardwareDevice.h"
-#include ".\..\GPULiveData.h"
-#include ".\..\third_party\nvapi\nvapi.h"
+#include ".\..\..\third_party\nvapi\nvapi.h"
 //#include <winnt.h>
 
 class NvidiaLiveGPUMetrics : public A_HardwareDevice {

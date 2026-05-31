@@ -46,9 +46,18 @@ void AMDLiveGPUMetrics::fetchADLMetrics() {
 
     int od_supported = 0, od_enabled = 0, od_version = 0;
     if (a.adl2_overdrive_caps(a.context, idx, &od_supported, &od_enabled, &od_version) != ADL_OK) {
-        std::cerr << "[AMDLiveGPUMetrics] Failed to retrieve overdrive caps for adapter "
+        if (a.adl_overdrive_caps(idx, &od_supported, &od_enabled, &od_version) != ADL_OK) {
+            std::cerr << "[AMDLiveGPUMetrics] Failed to retrieve ADL overdrive caps for adapter "
+                << idx << "\n";
+            //return;
+        }
+        /*std::cerr << "[AMDLiveGPUMetrics] Failed to retrieve ADL2 overdrive caps for adapter "
             << idx << "\n";
-        return;
+        std::cerr << "context: " << a.context << "\n";
+        std::cerr << "Od supported val: " << od_supported << "\n";
+        std::cerr << "Od supported val: " << od_enabled << "\n";
+        std::cerr << "Od supported val: " << od_version << "\n";
+        return;*/
     }
 
     // ---- OD8 (share-memory PMLog path) ----
