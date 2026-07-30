@@ -55,6 +55,8 @@ opcua::StatusCode AccessControlCustom::activateSession(
         const std::string deviceName = deviceEntry.path().filename().string();
         const std::filesystem::path certPath = deviceEntry.path() / (deviceName + ".crt");
 
+        // TODO - Hard-coded for now since there is just one server for testing
+        //  -> Will likely need to change this later
         if(deviceName == "server")
             continue;
 

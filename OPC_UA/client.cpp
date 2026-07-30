@@ -3,16 +3,30 @@
 #include <iostream>
 #include <fstream>
 
-SystemInfoClient::SystemInfoClient() {
+SystemInfoClient::SystemInfoClient(
+    std::string_view client_name
+) 
+    : client_name_(client_name)
+{
     client_cfg_attrs_ = getClientConfigAttributes();
     opcua::ClientConfig client_cfg = opcua::ClientConfig(
-        &client_cfg_attrs_.certificate,
-        &client_cfg_attrs_.private_key,
+        client_cfg_attrs_.certificate,
+        client_cfg_attrs_.private_key,
         client_cfg_attrs_.trust_list,
         client_cfg_attrs_.revocation_list
     ); 
 
-    client_ = opcua::ClientConfig(std::move(client_cfg));
+    // TODO - temporary, for now. Later use SignAndEncrypt
+    client_cfg.setSecurityMode(opcua::MessageSecurityMode::None);
+    client_ = opcua::Client(std::move(client_cfg));
+}
+
+void SystemInfoClient::connect(std::string_view endpoint_url) {
+    client_.connect(endpoint_url);
+}
+
+void SystemInfoClient::disconnect() {
+    client_.disconnect();
 }
 
 //// Helper Functions ////
@@ -24,8 +38,9 @@ SystemInfoClient::ClientConfigAttributes SystemInfoClient::getClientConfigAttrib
     //  Check documentation: but im pretty sure we need to populate the trust_list from server directory
     const fs::path proj_root = fs::current_path().parent_path().parent_path();
     const fs::path pkiRoot   = proj_root / "pki";
-    const fs::path serverDir = pkiRoot / "devices";
-    const std::string thisDeviceName = "server";
+    const fs::path devicesDir = pkiRoot / "devices";
+    const std::string thisDeviceName = std::string(client_name_);
+    const std::string trustedServerName = std::string("server");
 
     try {
         attrs.certificate = readBytesFromFile(devicesDir / thisDeviceName / (thisDeviceName + ".crt"));
@@ -35,32 +50,31 @@ SystemInfoClient::ClientConfigAttributes SystemInfoClient::getClientConfigAttrib
         throw;
     }
 
+    // TODO -> Hardcoded for now since im only working with one server. Alter the server file to be \servers
+    //      and search for trusted servers if need be
     std::vector<opcua::ByteString> trust_list_storage{};
     std::error_code ec;
-    for (const auto& deviceEntry : fs::directory_iterator(devicesDir, ec)) {
+    for (const auto& serverEntry : fs::directory_iterator(fs::path(pkiRoot) / "server", ec)) {
         if (ec) break;
-        if (!deviceEntry.is_directory()) continue;
-        const std::string deviceName = deviceEntry.path().filename().string();
-        if (deviceName == thisDeviceName) continue;
+        if (!serverEntry.is_directory()) continue;
+        
+        const std::string serverName = serverEntry.path().filename().string();
+        
+        if (serverName != trustedServerName) continue;
 
-        const fs::path certPath = deviceEntry.path() / (deviceName + ".crt");
+        const fs::path certPath = serverEntry.path() / (serverName + ".crt");
         std::error_code fileEc;
         if (!fs::is_regular_file(certPath, fileEc) || fileEc) continue;
 
         try {
             trust_list_storage.push_back(readBytesFromFile(certPath));
         } catch (const std::runtime_error& e) {
-            std::cerr << "Skipping trust list entry '" << deviceName << "': " << e.what() << "\n";
+            std::cerr << "Skipping trust list entry '" << trustedServerName << "': " << e.what() << "\n";
             continue;  // don't abort startup over one bad device cert -- log and skip
         }
     }
 
-    attrs.trust_list = (UA_ByteString*)malloc(sizeof(UA_ByteString) * trust_list_storage.size());
-    for(size_t i = 0; i < trust_list_storage.size(); ++i) {
-        UA_ByteString_copy(trust_list_storage[i].handle(), &attrs.trust_list[i]);
-    }
-    attrs.trust_list_size = trust_list_storage.size(); 
-
+    attrs.trust_list = opcua::Span<opcua::ByteString>(trust_list_storage);
     return attrs;
 }
 
@@ -75,17 +89,12 @@ opcua::ByteString SystemInfoClient::readBytesFromFile(const std::filesystem::pat
     }
     file.seekg(0, std::ios::beg);
 
-    UA_ByteString result;
-    UA_StatusCode alloc_status = UA_ByteString_allocBuffer(&result, static_cast<size_t>(size));
-    if (alloc_status != UA_STATUSCODE_GOOD) {
-        throw std::runtime_error("Failed to allocate buffer for PKI file: " + path.string());
-    }
-
-    if (!file.read(reinterpret_cast<char*>(result.data), size)) {
+    char* p_result;
+    if (!file.read(p_result, size)) {
         throw std::runtime_error("Failed to read PKI file: " + path.string());
     }
 
-    return result;   
+    return opcua::ByteString(p_result);   
 }
 
 
