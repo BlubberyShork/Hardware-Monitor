@@ -1,16 +1,27 @@
 #ifdef _WIN32
 #define _WIN32_DCOM
+#endif
 
+#if defined(_WIN32) || defined(_WIN64)
 #include "driver_client\DriverClient.h"
 #include "wmi\ComManager.h"
 #include "wmi\WbemManager.h"
 #include "output_generator\OutputHandler.h"
+#endif
+
+#if defined(__linux__)
+
+#endif
 
 #include <ctime>
 #include <chrono>
+#include <iostream>
 
-int main(int arcg, char* argv[])
+int main(int argc, char* argv[])
 {
+#if defined(_WIN32) || defined(_WIN64)
+    //Windows pipeline
+
     std::cout << "before initializations\n";
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -19,7 +30,7 @@ int main(int arcg, char* argv[])
 
     HardwareManager hw_mngr(&wbem_mngr);
     hw_mngr.ExecuteQueryThreadPool();
-
+    
     DriverClient dc;
     dc.runDriver();
 
@@ -34,9 +45,17 @@ int main(int arcg, char* argv[])
     std::cout << "Threads took: " << dur.count() << " ms";
     
     return 0;
-}
-    
+#elif defined(__linux__)
+    // Linux pipeline
+
+
+    return 0;
+#else 
+#error "Unsupported Operating System"
+
 #endif
+}
+
 
 
 

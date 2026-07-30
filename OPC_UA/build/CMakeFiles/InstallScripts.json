@@ -1,0 +1,10 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/robby/source/repos/System_Info/OPC_UA/build/cmake_install.cmake",
+		"C:/Users/robby/source/repos/System_Info/OPC_UA/build/open62541pp/cmake_install.cmake",
+		"C:/Users/robby/source/repos/System_Info/OPC_UA/build/open62541pp/3rdparty/open62541/cmake_install.cmake",
+		"C:/Users/robby/source/repos/System_Info/OPC_UA/build/open62541pp/3rdparty/open62541/doc/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

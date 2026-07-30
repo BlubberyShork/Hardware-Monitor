@@ -1,0 +1,3 @@
+C:/Users/robby/source/repos/System_Info/System_Info/CMakeFiles/SystemInfo.dir
+C:/Users/robby/source/repos/System_Info/System_Info/CMakeFiles/ALL_BUILD.dir
+C:/Users/robby/source/repos/System_Info/System_Info/CMakeFiles/ZERO_CHECK.dir
