@@ -34,8 +34,6 @@ SystemInfoClient::ClientConfigAttributes SystemInfoClient::getClientConfigAttrib
     namespace fs = std::filesystem;
     ClientConfigAttributes attrs;
 
-    // TODO -> needs to grab our certificate
-    //  Check documentation: but im pretty sure we need to populate the trust_list from server directory
     const fs::path proj_root = fs::current_path().parent_path().parent_path();
     const fs::path pkiRoot   = proj_root / "pki";
     const fs::path devicesDir = pkiRoot / "devices";
@@ -54,6 +52,7 @@ SystemInfoClient::ClientConfigAttributes SystemInfoClient::getClientConfigAttrib
     //      and search for trusted servers if need be
     std::vector<opcua::ByteString> trust_list_storage{};
     std::error_code ec;
+    // TODO -> Change this from an iterator to a raw file grab. We only have one server for now, and we will expand to support multiple trusted servers later if needed
     for (const auto& serverEntry : fs::directory_iterator(fs::path(pkiRoot) / "server", ec)) {
         if (ec) break;
         if (!serverEntry.is_directory()) continue;
@@ -61,16 +60,15 @@ SystemInfoClient::ClientConfigAttributes SystemInfoClient::getClientConfigAttrib
         const std::string serverName = serverEntry.path().filename().string();
         
         if (serverName != trustedServerName) continue;
-
         const fs::path certPath = serverEntry.path() / (serverName + ".crt");
+        
         std::error_code fileEc;
         if (!fs::is_regular_file(certPath, fileEc) || fileEc) continue;
-
         try {
             trust_list_storage.push_back(readBytesFromFile(certPath));
         } catch (const std::runtime_error& e) {
             std::cerr << "Skipping trust list entry '" << trustedServerName << "': " << e.what() << "\n";
-            continue;  // don't abort startup over one bad device cert -- log and skip
+            continue;  // don't abort startup over one bad device cert
         }
     }
 
@@ -89,12 +87,12 @@ opcua::ByteString SystemInfoClient::readBytesFromFile(const std::filesystem::pat
     }
     file.seekg(0, std::ios::beg);
 
-    char* p_result;
-    if (!file.read(p_result, size)) {
+    std::vector<uint8_t> res_buffer(static_cast<size_t>(size));
+    if (!file.read(reinterpret_cast<char*>(res_buffer.data()), size)) {
         throw std::runtime_error("Failed to read PKI file: " + path.string());
     }
 
-    return opcua::ByteString(p_result);   
+    return opcua::ByteString(res_buffer);   
 }
 
 
