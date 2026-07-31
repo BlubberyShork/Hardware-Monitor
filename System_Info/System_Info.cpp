@@ -17,8 +17,10 @@
 #include <chrono>
 #include <iostream>
 
-int main(int argc, char* argv[])
+int main(int argc, char* argv[]) 
 {
+// TODO - Set up the client
+
 #if defined(_WIN32) || defined(_WIN64)
     //Windows pipeline
 

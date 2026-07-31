@@ -7,6 +7,7 @@
 #include <open62541/plugin/log_stdout.h>
 #include <open62541/plugin/securitypolicy_default.h>
 #include <open62541/plugin/pki_default.h>
+#include <open62541/util.h>
 
 constexpr uint16_t SERVER_PORT = 4840;
 
@@ -23,34 +24,33 @@ SystemInfoServer::SystemInfoServer() {
     UA_ServerConfig* h_cfg = server_config.handle();
 
     try {
-        UA_StatusCode session_status = UA_CertificateVerification_Trustlist(
+        // Setting server session PKI
+        opcua::throwIfBad(UA_CertificateVerification_Trustlist(
             &h_cfg->sessionPKI,
             cfg_attrs_.trust_list, cfg_attrs_.trust_list_size,
             cfg_attrs_.issuer_list, cfg_attrs_.issuer_list_size,
             cfg_attrs_.revocation_list, cfg_attrs_.revocation_list_size
-        );
-        if (session_status != UA_STATUSCODE_GOOD) {
-            throw std::runtime_error(std::string("sessionPKI trustlist failed: ") + UA_StatusCode_name(session_status));
-        }
+        ));
         std::cout << "Server trust list set\n";
-        
-        UA_StatusCode sec_status = UA_ServerConfig_addSecurityPolicyBasic256Sha256(
+
+        opcua::throwIfBad(UA_CertificateVerification_Trustlist(
+            &h_cfg->secureChannelPKI,
+            cfg_attrs_.trust_list, cfg_attrs_.trust_list_size,
+            cfg_attrs_.issuer_list, cfg_attrs_.issuer_list_size,
+            cfg_attrs_.revocation_list, cfg_attrs_.revocation_list_size
+        ));
+        std::cout << "Server trust list set\n";
+
+        opcua::throwIfBad(UA_ServerConfig_addSecurityPolicyBasic256Sha256(
             h_cfg, &cfg_attrs_.certificate, &cfg_attrs_.private_key
-        );
-        if (sec_status != UA_STATUSCODE_GOOD) {
-            throw std::runtime_error(
-                std::string("Failed to add SecurityPolicy#Basic256Sha256: ") +
-                UA_StatusCode_name(sec_status));
-        }
-        std::cout << "Server security policy set\n";
+        ));
 
         server_config.setAccessControl(std::make_unique<AccessControlCustom>());
         server_config.setApplicationName("OPC UA Test Server");
         server_config.setApplicationUri("urn:myorg:telemetry:server"); // TODO, hardcoded for now
-        // TODO - Set custom host name -> Use docker to containerize and alias the hostname
-
+        opcua::throwIfBad(UA_ServerConfig_addAllEndpoints(h_cfg));
         std::cout << "Server access control and application properties set\n";
-        
+
         server_ = opcua::Server(std::move(server_config));
     } catch (const opcua::BadStatus& e) {
         std::cerr << "Failed to construct ServerConfig. Status: " << e.what()
@@ -148,7 +148,6 @@ SystemInfoServer::ServerConfigAttributes SystemInfoServer::getServerConfigAttrib
     return attrs;
 }
 
-// TODO -Change to C-style ByteString
 UA_ByteString SystemInfoServer::readBytesFromFile(const std::filesystem::path& path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file) {
@@ -161,10 +160,9 @@ UA_ByteString SystemInfoServer::readBytesFromFile(const std::filesystem::path& p
     file.seekg(0, std::ios::beg);
 
     UA_ByteString result;
-    UA_StatusCode alloc_status = UA_ByteString_allocBuffer(&result, static_cast<size_t>(size));
-    if (alloc_status != UA_STATUSCODE_GOOD) {
-        throw std::runtime_error("Failed to allocate buffer for PKI file: " + path.string());
-    }
+    opcua::throwIfBad(
+            UA_ByteString_allocBuffer(&result, static_cast<size_t>(size)) 
+    );
 
     if (!file.read(reinterpret_cast<char*>(result.data), size)) {
         throw std::runtime_error("Failed to read PKI file: " + path.string());

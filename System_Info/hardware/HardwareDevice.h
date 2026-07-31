@@ -47,6 +47,7 @@ protected:
 	Vendor			vendor;
 	HardwareType	hw_type;
 	std::string		name;
+    // TODO - TelemetryStore here?
 
 	template<Sensors::SensorType T>
 	void addSensor(std::string name, float init_val = {}) {
