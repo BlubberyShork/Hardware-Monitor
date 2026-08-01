@@ -11,6 +11,7 @@
 
 constexpr uint16_t SERVER_PORT = 4840;
 
+// TODO - Modularize this so the build is clearer
 SystemInfoServer::SystemInfoServer() {
     cfg_attrs_ = getServerConfigAttributes();
     //dumpConfigAttrs(cfg_attrs_);
@@ -29,29 +30,51 @@ SystemInfoServer::SystemInfoServer() {
             &h_cfg->sessionPKI,
             cfg_attrs_.trust_list, cfg_attrs_.trust_list_size,
             cfg_attrs_.issuer_list, cfg_attrs_.issuer_list_size,
-            cfg_attrs_.revocation_list, cfg_attrs_.revocation_list_size
-        ));
-        std::cout << "Server trust list set\n";
+            cfg_attrs_.revocation_list, cfg_attrs_.revocation_list_size));
 
+        // Setting the secure channel PKI
         opcua::throwIfBad(UA_CertificateVerification_Trustlist(
             &h_cfg->secureChannelPKI,
             cfg_attrs_.trust_list, cfg_attrs_.trust_list_size,
             cfg_attrs_.issuer_list, cfg_attrs_.issuer_list_size,
-            cfg_attrs_.revocation_list, cfg_attrs_.revocation_list_size
-        ));
-        std::cout << "Server trust list set\n";
+            cfg_attrs_.revocation_list, cfg_attrs_.revocation_list_size));
 
+        // Removing the #None default policy
+        h_cfg->securityPolicies->clear(h_cfg->securityPolicies);
+        h_cfg->securityPoliciesSize = 0;
+        
+        // Setting encryption to policy#Basic256Sha256
         opcua::throwIfBad(UA_ServerConfig_addSecurityPolicyBasic256Sha256(
-            h_cfg, &cfg_attrs_.certificate, &cfg_attrs_.private_key
-        ));
+            h_cfg, &cfg_attrs_.certificate, &cfg_attrs_.private_key));
+
+        UA_ApplicationDescription_clear(&h_cfg->applicationDescription);
+        UA_ApplicationDescription desc = configureApplicationDescription();
+        h_cfg->applicationDescription = desc;
 
         server_config.setAccessControl(std::make_unique<AccessControlCustom>());
-        server_config.setApplicationName("OPC UA Test Server");
-        server_config.setApplicationUri("urn:myorg:telemetry:server"); // TODO, hardcoded for now
-        opcua::throwIfBad(UA_ServerConfig_addAllEndpoints(h_cfg));
-        std::cout << "Server access control and application properties set\n";
-
+     
+        opcua::throwIfBad(UA_ServerConfig_addEndpoint(
+            h_cfg, 
+            UA_String_fromChars("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256"), 
+            UA_MESSAGESECURITYMODE_SIGNANDENCRYPT));
+        
+        //std::cout << "Server access control and application properties set\n";
+        std::cout << "Security Policies (Server-side)\n";
+        for(size_t i = 0; i < h_cfg->securityPoliciesSize; i ++){
+            for(size_t j = 0; j < h_cfg->securityPolicies[i].policyUri.length; j++) {
+                std::cout << h_cfg->securityPolicies[i].policyUri.data[j];
+            }
+            std::cout << "\n";
+        }
         server_ = opcua::Server(std::move(server_config));
+       
+        std::cout << "Security Policies (Server-side)\n";
+        for(size_t i = 0; i < server_.config().handle()->securityPoliciesSize; i ++){
+            for(size_t j = 0; j < server_.config().handle()->securityPolicies[i].policyUri.length; j++) {
+                std::cout << server_.config().handle()->securityPolicies[i].policyUri.data[j];
+            }
+            std::cout << "\n";
+        }
     } catch (const opcua::BadStatus& e) {
         std::cerr << "Failed to construct ServerConfig. Status: " << e.what()
                   << " (0x" << std::hex << e.code() << std::dec << ")\n"
@@ -148,6 +171,28 @@ SystemInfoServer::ServerConfigAttributes SystemInfoServer::getServerConfigAttrib
     return attrs;
 }
 
+UA_ApplicationDescription SystemInfoServer::configureApplicationDescription(){
+    UA_ApplicationDescription desc = {0};
+    
+    std::string_view app_name("server");
+    std::vector<char> vec_app_name(app_name.begin(), app_name.end());
+    if(app_name.back() != '\0')
+        vec_app_name.push_back('\0');
+
+    UA_LocalizedText app_txt = UA_LOCALIZEDTEXT(NULL, vec_app_name.data());
+    desc.applicationName = app_txt;
+    
+    std::string application_uri = "urn:myorg:telemetry:" + std::string(app_name);
+    std::vector<char> vec_app_uri(application_uri.begin(), application_uri.end());
+    if(vec_app_uri.back() != '\0')
+        vec_app_uri.push_back('\0');
+    desc.applicationUri = UA_String_fromChars(vec_app_uri.data()); 
+
+    desc.applicationType = UA_APPLICATIONTYPE_SERVER;
+
+    return desc;
+}
+
 UA_ByteString SystemInfoServer::readBytesFromFile(const std::filesystem::path& path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file) {
@@ -160,9 +205,7 @@ UA_ByteString SystemInfoServer::readBytesFromFile(const std::filesystem::path& p
     file.seekg(0, std::ios::beg);
 
     UA_ByteString result;
-    opcua::throwIfBad(
-            UA_ByteString_allocBuffer(&result, static_cast<size_t>(size)) 
-    );
+    opcua::throwIfBad(UA_ByteString_allocBuffer(&result, static_cast<size_t>(size)));
 
     if (!file.read(reinterpret_cast<char*>(result.data), size)) {
         throw std::runtime_error("Failed to read PKI file: " + path.string());

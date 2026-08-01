@@ -24,7 +24,7 @@ def try_get_branch():
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 version = try_get_branch() or '1.4.15' or "unknown"
-release = '1.4.15'
+release = '1.4.15-dirty'
 
 project = 'open62541 (' + version + ')'
 copyright = '2025, The open62541 authors'

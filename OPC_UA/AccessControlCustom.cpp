@@ -32,9 +32,11 @@ opcua::StatusCode AccessControlCustom::activateSession(
     opcua::Session& session,
     const opcua::EndpointDescription& endpointDescription,
     const opcua::ByteString& secureChannelRemoteCertificate,
-    [[maybe_unused]] const opcua::ExtensionObject& userIdentityToken
+    const opcua::ExtensionObject& userIdentityToken
 ) {
     std::string_view cert_as_string = std::basic_string_view<char>(secureChannelRemoteCertificate);
+
+    // TODO -> First, check user identity token
 
     static const std::filesystem::path root_dir = std::filesystem::current_path().parent_path().parent_path();
     static const std::filesystem::path devicesDir = root_dir / "pki/devices";

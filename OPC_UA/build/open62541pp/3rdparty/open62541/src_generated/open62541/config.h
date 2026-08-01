@@ -11,9 +11,9 @@
 #define UA_OPEN62541_VER_MAJOR 1
 #define UA_OPEN62541_VER_MINOR 4
 #define UA_OPEN62541_VER_PATCH 15
-#define UA_OPEN62541_VER_LABEL "" /* Release candidate label, etc. */
-#define UA_OPEN62541_VER_COMMIT "v1.4.15"
-#define UA_OPEN62541_VERSION "v1.4.15"
+#define UA_OPEN62541_VER_LABEL "-dirty" /* Release candidate label, etc. */
+#define UA_OPEN62541_VER_COMMIT "v1.4.15-dirty"
+#define UA_OPEN62541_VERSION "v1.4.15-dirty"
 
 /**
  * Architecture

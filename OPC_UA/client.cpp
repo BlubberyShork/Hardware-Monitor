@@ -2,6 +2,8 @@
 
 #include <open62541/plugin/securitypolicy_default.h>
 #include <open62541/plugin/pki_default.h>
+#include <open62541/types_generated.h>
+
 #include <iostream>
 #include <fstream>
 
@@ -13,24 +15,62 @@ SystemInfoClient::SystemInfoClient(
     : client_name_(client_name)
 {
     cfg_attrs_ = getClientConfigAttributes();
-    opcua::ClientConfig client_cfg = opcua::ClientConfig();
+    dumpConfigAttrs(cfg_attrs_);
+
+    opcua::ClientConfig client_cfg{};
     UA_ClientConfig* h_cfg = client_cfg.handle();
 
-    // TODO - Change all if checks to opcua::throwIfBad(UA_StatusCode)
-    opcua::ByteString throw_away{};
+    // TODO - Configure logger to assist in debugging
     opcua::throwIfBad(UA_CertificateVerification_Trustlist(
         &h_cfg->certificateVerification,
         cfg_attrs_.trust_list, cfg_attrs_.trust_list_size,
-        throw_away.handle(), 0,
-        cfg_attrs_.revocation_list, cfg_attrs_.revocation_list_size
-    ));
+        cfg_attrs_.issuer_list, cfg_attrs_.issuer_list_size,
+        NULL, 0));
     
+    // Remove default security policy #None
+    h_cfg->securityPolicies->clear(h_cfg->securityPolicies);
+    h_cfg->securityPoliciesSize = 0;
+    
+    // Set encryption policy -> Basic256Sha256, per OPC UA foundation
     opcua::throwIfBad(UA_ClientConfig_addSecurityPolicyBasic256Sha256(
-        h_cfg, &cfg_attrs_.certificate, &cfg_attrs_.private_key
-    ));
+        h_cfg, &cfg_attrs_.certificate, &cfg_attrs_.private_key));
 
     client_cfg.setSecurityMode(opcua::MessageSecurityMode::SignAndEncrypt);
+    
+    std::cout << "Security Policies (Client-side)\n";
+    for(size_t i = 0; i < h_cfg->securityPoliciesSize; i ++){
+        for(size_t j = 0; j < h_cfg->securityPolicies[i].policyUri.length; j++) {
+            std::cout << h_cfg->securityPolicies[i].policyUri.data[j];
+        }
+        std::cout << "\n";
+    }
+
+    UA_ClientConfig_setAuthenticationCert(
+        h_cfg,
+        cfg_attrs_.certificate,
+        cfg_attrs_.private_key); 
+
+    UA_ApplicationDescription_clear(&h_cfg->clientDescription);
+    UA_ApplicationDescription desc = configureApplicationDescription(client_name_);
+    h_cfg->clientDescription = desc;
+
     client_ = opcua::Client(std::move(client_cfg));
+
+    std::cout << "Security Policies (Client-side)\n";
+    for(size_t i = 0; i < client_.config().handle()->securityPoliciesSize; i ++){
+        for(size_t j = 0; j < client_.config().handle()->securityPolicies[i].policyUri.length; j++) {
+            std::cout << client_.config().handle()->securityPolicies[i].policyUri.data[j];
+        }
+        std::cout << "\n";
+    }
+}
+
+SystemInfoClient::~SystemInfoClient() {
+    if(cfg_attrs_.trust_list)
+        free(cfg_attrs_.trust_list);
+    
+    if(cfg_attrs_.revocation_list)
+        free(cfg_attrs_.revocation_list);
 }
 
 void SystemInfoClient::connect(std::string_view endpoint_url) {
@@ -46,12 +86,14 @@ SystemInfoClient::ClientConfigAttributes SystemInfoClient::getClientConfigAttrib
     namespace fs = std::filesystem;
     ClientConfigAttributes attrs;
 
-    const fs::path proj_root = fs::current_path().parent_path().parent_path();
-    const fs::path pki_root   = proj_root / "pki";
+    const fs::path proj_root   = fs::current_path().parent_path().parent_path();
+    const fs::path pki_root    = proj_root / "pki";
+    const fs::path ca_dir      = pki_root / "ca";
     const fs::path devices_dir = pki_root / "devices";
     const std::string client_name = std::string(client_name_);
     const std::string trusted_server_name = std::string("server");
 
+    // Populating clients certificate and private key
     try {
         attrs.certificate = readBytesFromFile(devices_dir / client_name / (client_name + ".crt"));
         attrs.private_key = readBytesFromFile(devices_dir / client_name / (client_name + ".key"));
@@ -60,12 +102,13 @@ SystemInfoClient::ClientConfigAttributes SystemInfoClient::getClientConfigAttrib
         throw;
     }
 
+    // Populating clients trust list
     std::vector<opcua::ByteString> trust_list_storage{};
-    fs::path cert_path = devices_dir / client_name / (client_name + ".crt"); 
+    fs::path serv_cert_path = devices_dir / client_name / (client_name + ".crt"); 
     try {
-        trust_list_storage.push_back(readBytesFromFile(cert_path));
+        trust_list_storage.push_back(readBytesFromFile(serv_cert_path));
     } catch (const std::runtime_error& e) {
-        std::cerr << "Skipping trust list entry '" << client_name << "': " << e.what() << "\n";
+        std::cerr << "Skipping trust list entry 'server.crt': " << e.what() << "\n";
     }
 
     attrs.trust_list = (UA_ByteString*)malloc(sizeof(UA_ByteString) * trust_list_storage.size());
@@ -73,6 +116,21 @@ SystemInfoClient::ClientConfigAttributes SystemInfoClient::getClientConfigAttrib
         UA_ByteString_copy(trust_list_storage[i].handle(), &attrs.trust_list[i]);
     }
     attrs.trust_list_size = trust_list_storage.size(); 
+
+    // Populating clients issuer list
+    std::vector<opcua::ByteString> issuer_list_storage{};
+    fs::path ca_cert_path = ca_dir / ("ca.crt"); 
+    try {
+        trust_list_storage.push_back(readBytesFromFile(ca_cert_path));
+    } catch (const std::runtime_error& e) {
+        std::cerr << "Skipping trust list entry '" << "ca.crt" << "': " << e.what() << "\n";
+    }
+
+    attrs.issuer_list = (UA_ByteString*)malloc(sizeof(UA_ByteString) * issuer_list_storage.size());
+    for(size_t i = 0; i < issuer_list_storage.size(); ++i) {
+        UA_ByteString_copy(issuer_list_storage[i].handle(), &attrs.issuer_list[i]);
+    }
+    attrs.issuer_list_size = issuer_list_storage.size(); 
 
     return attrs;
 }
@@ -89,9 +147,7 @@ UA_ByteString SystemInfoClient::readBytesFromFile(const std::filesystem::path& p
     file.seekg(0, std::ios::beg);
 
     UA_ByteString result;
-    opcua::throwIfBad(
-            UA_ByteString_allocBuffer(&result, static_cast<size_t>(size))
-    );
+    opcua::throwIfBad(UA_ByteString_allocBuffer(&result, static_cast<size_t>(size)));
 
     if (!file.read(reinterpret_cast<char*>(result.data), size)) {
         throw std::runtime_error("Failed to read PKI file: " + path.string());
@@ -136,4 +192,55 @@ SystemInfoClient::UA_ClientConfig_addSecurityPolicyBasic256Sha256(
     return UA_STATUSCODE_GOOD;
 }
 
+UA_ApplicationDescription SystemInfoClient::configureApplicationDescription(std::string_view cli_name) {
+    UA_ApplicationDescription desc = {0};
+    
+    std::vector<char> vec_cli_name(cli_name.begin(), cli_name.end());
+    if(vec_cli_name.back() != '\0')
+        vec_cli_name.push_back('\0');
 
+    UA_LocalizedText app_txt = UA_LOCALIZEDTEXT(NULL, vec_cli_name.data());
+    desc.applicationName = app_txt;
+    
+    std::string application_uri = "urn:myorg:telemetry:" + std::string(cli_name);
+    std::vector<char> vec_app_uri(application_uri.begin(), application_uri.end());
+    if(vec_app_uri.back() != '\0')
+        vec_app_uri.push_back('\0');
+    desc.applicationUri = UA_String_fromChars(vec_app_uri.data()); 
+
+    desc.applicationType = UA_APPLICATIONTYPE_CLIENT;
+
+    return desc;
+}
+
+void SystemInfoClient::dumpByteString(const char* label, const UA_ByteString& bs) {
+    std::cout << "  " << label << ": length=" << bs.length
+               << " data=" << static_cast<const void*>(bs.data);
+    if (bs.data && bs.length > 0) {
+        size_t preview_len = std::min<size_t>(bs.length, 40);
+        std::cout << " preview=[";
+        for (size_t i = 0; i < preview_len; ++i) {
+            unsigned char c = bs.data[i];
+            if (std::isprint(c)) std::cout << c;
+            else std::cout << "\\x" << std::hex << (int)c << std::dec;
+        }
+        std::cout << (bs.length > preview_len ? "..." : "") << "]";
+    }
+    std::cout << "\n";
+}
+
+void SystemInfoClient::dumpConfigAttrs(const ClientConfigAttributes& attrs) {
+    std::cout << "=== ServerConfigAttributes dump ===\n";
+    dumpByteString("certificate", attrs.certificate);
+    dumpByteString("private_key", attrs.private_key);
+
+    std::cout << "  trust_list_size=" << attrs.trust_list_size
+               << " trust_list_ptr=" << static_cast<void*>(attrs.trust_list) << "\n";
+    for (size_t i = 0; i < attrs.trust_list_size; ++i) {
+        dumpByteString(("trust_list[" + std::to_string(i) + "]").c_str(), attrs.trust_list[i]);
+    }
+
+    std::cout << "  revocation_list_size=" << attrs.revocation_list_size
+               << " revocation_list_ptr=" << static_cast<void*>(attrs.revocation_list) << "\n";
+    std::cout << "=== end dump ===\n\n";
+}

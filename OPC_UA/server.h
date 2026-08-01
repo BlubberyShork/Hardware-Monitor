@@ -2,6 +2,7 @@
 
 #include "AccessControlCustom.h"
 #include <open62541pp/server.hpp>
+#include <open62541/types_generated.h>
 
 #define OPC_APPLICATION_URI
 
@@ -30,6 +31,7 @@ private:
         
         UA_ByteString*  revocation_list;        // Blacklisted certificates
         size_t          revocation_list_size;
+
     } ServerConfigAttributes;
 
     opcua::Server          server_;
@@ -38,7 +40,8 @@ private:
     //// Helper Functions ////
     ServerConfigAttributes getServerConfigAttributes(); 
     UA_ByteString          readBytesFromFile(const std::filesystem::path& path);
-
+    UA_ApplicationDescription configureApplicationDescription();
+    
     // Debug print functions //
     void dumpByteString(const char* label, const UA_ByteString& bs);
     void dumpConfigAttrs(const SystemInfoServer::ServerConfigAttributes& attrs);
