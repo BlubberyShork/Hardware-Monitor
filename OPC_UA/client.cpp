@@ -8,6 +8,8 @@
 #include <iostream>
 #include <fstream>
 
+void dumpClient(const UA_Client* client);
+
 SystemInfoClient::SystemInfoClient(
     std::string_view client_name
 ) 
@@ -19,7 +21,7 @@ SystemInfoClient::SystemInfoClient(
     opcua::ClientConfig client_cfg{};
     UA_ClientConfig* h_cfg = client_cfg.handle();
 
-    //client_cfg.setLogger(opcua_log::write);
+    client_cfg.setLogger(opcua_log::write);
 
     opcua::throwIfBad(UA_CertificateVerification_Trustlist(
         &h_cfg->certificateVerification,
@@ -50,6 +52,9 @@ SystemInfoClient::SystemInfoClient(
     ep.securityPolicyUri = UA_String_fromChars(
         "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256");
     ep.serverCertificate = cfg_attrs_.trust_list[0];
+    ep.securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT ; 
+    if(ep.securityLevel != UA_USERTOKENTYPE_CERTIFICATE)
+        ep.securityLevel = UA_USERTOKENTYPE_CERTIFICATE;
 
     UA_ClientConfig_setAuthenticationCert(
         h_cfg,
@@ -61,6 +66,13 @@ SystemInfoClient::SystemInfoClient(
     h_cfg->clientDescription = desc;
 
     client_ = opcua::Client(std::move(client_cfg));
+    dumpClient(client_.handle()); 
+
+    std::cout << "cfg->securityMode = "
+          << client_.config().handle()->securityMode << '\n';
+
+    std::cout << "endpoint.securityMode = "
+          << client_.config().handle()->endpoint.securityMode << '\n';
 }
 
 SystemInfoClient::~SystemInfoClient() {
@@ -69,6 +81,7 @@ SystemInfoClient::~SystemInfoClient() {
 }
 
 void SystemInfoClient::connect(std::string_view endpoint_url) {
+    std::cout << "client certificate length: " << client_.config().handle()->securityPolicies[0].localCertificate.length;
     client_.connect(endpoint_url);
 }
 
@@ -228,4 +241,92 @@ void SystemInfoClient::dumpConfigAttrs(const ClientConfigAttributes& attrs) {
     for (size_t i = 0; i < attrs.trust_list_size; ++i) {
         dumpByteString(("trust_list[" + std::to_string(i) + "]").c_str(), attrs.trust_list[i]);
     }
+}
+
+static void printByteString(const UA_ByteString& bs)
+{
+    if (bs.length == 0 || bs.data == nullptr)
+    {
+        std::cout << "<empty>";
+        return;
+    }
+
+    std::ios old(nullptr);
+    old.copyfmt(std::cout);
+
+    for (size_t i = 0; i < bs.length; ++i)
+    {
+        std::cout << std::hex
+                  << std::setw(2)
+                  << std::setfill('0')
+                  << static_cast<unsigned>(bs.data[i]);
+    }
+
+    std::cout.copyfmt(old);
+}
+
+static void printString(const UA_String& s)
+{
+    if (!s.data || s.length == 0)
+    {
+        std::cout << "<empty>";
+        return;
+    }
+
+    std::cout.write(reinterpret_cast<const char*>(s.data), s.length);
+}
+
+void SystemInfoClient::dumpClient(const UA_Client* client)
+{
+    if (!client)
+    {
+        std::cout << "Client is null\n";
+        return;
+    }
+
+    const UA_ClientConfig* cfg = UA_Client_getConfig(
+        const_cast<UA_Client*>(client));
+
+    if (!cfg)
+    {
+        std::cout << "Config is null\n";
+        return;
+    }
+
+    std::cout << "=============================\n";
+    std::cout << "UA_ClientConfig\n";
+    std::cout << "=============================\n";
+
+    std::cout << "Timeout: " << cfg->timeout << " ms\n";
+    std::cout << "SecureChannel lifetime: "
+              << cfg->secureChannelLifeTime << '\n';
+
+    std::cout << "Requested Session Timeout: "
+              << cfg->requestedSessionTimeout << '\n';
+
+    std::cout << "Connectivity Check Interval: "
+              << cfg->connectivityCheckInterval << '\n';
+
+    std::cout << "\n=== Security ===\n";
+
+    std::cout << "Security Mode: "
+              << static_cast<int>(cfg->securityMode) << '\n';
+
+    std::cout << "Security Policy URI: ";
+    printString(cfg->securityPolicyUri);
+    std::cout << '\n';
+
+    for(size_t i = 0; i < cfg->securityPoliciesSize; i++) 
+        dumpByteString("certificate", cfg->securityPolicies[i].localCertificate);
+
+    std::cout << "\n=== Event Loop ===\n";
+    std::cout << "EventLoop: " << cfg->eventLoop << '\n';
+
+    std::cout << "\n=== Logging ===\n";
+    std::cout << "Logger: " << cfg->logging << '\n';
+
+    std::cout << "\n=== Endpoints ===\n";
+    std::cout << "(Configured endpoint URL is not stored in UA_ClientConfig after connect.)\n";
+
+    std::cout << "=============================\n";
 }

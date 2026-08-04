@@ -14,6 +14,7 @@ public:
     void connect(std::string_view endpoint_url);
     void disconnect();
 
+    opcua::Client& native() { return client_; }
 private:
     // Container holding server configuration attributes for ServerConfig initialization
     struct ClientConfigAttributes {
@@ -43,6 +44,7 @@ private:
     // Debug print functions //
     void dumpByteString(const char* label, const UA_ByteString& bs); 
     void dumpConfigAttrs(const ClientConfigAttributes& attrs); 
+    void dumpClient(const UA_Client* client);
 
     ////////////////
     // Member Fields

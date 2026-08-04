@@ -8,6 +8,8 @@
 #include <string_view>
 #include <thread>
 
+#include <open62541pp/node.hpp>
+
 namespace {
 std::atomic<bool> g_running{true};
 SystemInfoServer* g_serverPtr = nullptr; // for the signal handler
@@ -45,12 +47,15 @@ void runClient() {
 
     try {
         SystemInfoClient client("test_client");
-        std::cout << "Client built in its entirety, now connecting to " << endpoint_url << "\n";
         client.connect(endpoint_url);
-        // opcua::Node node{client, opcua::VariableId::Server_ServerStatus_CurrentTime};
-        // const auto dt = node.readValue().to<opcua::DateTime>();
-        //client.disconnect();
-        std::cout << "Client calling destructor\n";
+        std::cout << "Client fully connected\n";
+        opcua::Node node{client.native(), opcua::VariableId::Server_ServerStatus_CurrentTime};
+        
+        const auto dt = node.readValue().to<opcua::DateTime>();
+        size_t size = UA_calcSizeBinary(node.id().handle(), &UA_TYPES[UA_TYPES_NODEID]);
+        std::cout << size << "sent\n";
+
+        client.disconnect();
     } catch (const opcua::BadStatus& e) {
         std::cerr << "Fatal: open62541 status error: " << e.what()
                   << " (0x" << std::hex << e.code() << std::dec << ")\n";
