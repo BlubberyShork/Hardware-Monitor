@@ -35,19 +35,22 @@ void runServer(SystemInfoServer& server) {
 }
 
 void runClient() {
-    const char* envEndpoint = std::getenv("SERVER_ENDPOINT");
-    if (!envEndpoint || std::string_view(envEndpoint).empty()) {
-        std::cerr << "SERVER_ENDPOINT env var not set\n";
+    std::string endpoint_base = "opc.tcp://";
+    std::string port(":4840");
+    std::string endpoint_url = endpoint_base + std::getenv("SERVER_IP") + port;
+    if (std::string_view(endpoint_url).empty()) {
+        std::cerr << "SERVER_IP env var not set\n";
         return;
     }
-    const std::string endpoint(envEndpoint);
 
     try {
         SystemInfoClient client("test_client");
-        client.connect(endpoint);
+        std::cout << "Client built in its entirety, now connecting to " << endpoint_url << "\n";
+        client.connect(endpoint_url);
         // opcua::Node node{client, opcua::VariableId::Server_ServerStatus_CurrentTime};
         // const auto dt = node.readValue().to<opcua::DateTime>();
-        client.disconnect();
+        //client.disconnect();
+        std::cout << "Client calling destructor\n";
     } catch (const opcua::BadStatus& e) {
         std::cerr << "Fatal: open62541 status error: " << e.what()
                   << " (0x" << std::hex << e.code() << std::dec << ")\n";

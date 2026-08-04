@@ -3,11 +3,10 @@
 #include <open62541/plugin/securitypolicy_default.h>
 #include <open62541/plugin/pki_default.h>
 #include <open62541/types_generated.h>
+#include "opcua_logging.hpp"
 
 #include <iostream>
 #include <fstream>
-
-#define ENDPOINT_URL_BASE "opc.tcp://DESKTOP-NC10ANV:4840"
 
 SystemInfoClient::SystemInfoClient(
     std::string_view client_name
@@ -20,7 +19,8 @@ SystemInfoClient::SystemInfoClient(
     opcua::ClientConfig client_cfg{};
     UA_ClientConfig* h_cfg = client_cfg.handle();
 
-    // TODO - Configure logger to assist in debugging
+    //client_cfg.setLogger(opcua_log::write);
+
     opcua::throwIfBad(UA_CertificateVerification_Trustlist(
         &h_cfg->certificateVerification,
         cfg_attrs_.trust_list, cfg_attrs_.trust_list_size,
@@ -35,15 +35,21 @@ SystemInfoClient::SystemInfoClient(
     opcua::throwIfBad(UA_ClientConfig_addSecurityPolicyBasic256Sha256(
         h_cfg, &cfg_attrs_.certificate, &cfg_attrs_.private_key));
 
+    UA_String_clear(&h_cfg->securityPolicyUri);
+
+    // TODO - Configure Endpoint Description
+    UA_EndpointDescription& ep = h_cfg->endpoint;
     client_cfg.setSecurityMode(opcua::MessageSecurityMode::SignAndEncrypt);
-    
-    std::cout << "Security Policies (Client-side)\n";
-    for(size_t i = 0; i < h_cfg->securityPoliciesSize; i ++){
-        for(size_t j = 0; j < h_cfg->securityPolicies[i].policyUri.length; j++) {
-            std::cout << h_cfg->securityPolicies[i].policyUri.data[j];
-        }
-        std::cout << "\n";
-    }
+    std::string pol_uri("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256");
+    h_cfg->securityPolicyUri = UA_String_fromChars(pol_uri.c_str());
+
+    std::string endpoint_url_prefix("opc.tcp://");
+    std::string port(":4840");
+    std::string endpoint_url = endpoint_url_prefix + std::getenv("SERVER_IP") + port;
+    ep.endpointUrl = UA_String_fromChars(endpoint_url.c_str());
+    ep.securityPolicyUri = UA_String_fromChars(
+        "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256");
+    ep.serverCertificate = cfg_attrs_.trust_list[0];
 
     UA_ClientConfig_setAuthenticationCert(
         h_cfg,
@@ -55,22 +61,11 @@ SystemInfoClient::SystemInfoClient(
     h_cfg->clientDescription = desc;
 
     client_ = opcua::Client(std::move(client_cfg));
-
-    std::cout << "Security Policies (Client-side)\n";
-    for(size_t i = 0; i < client_.config().handle()->securityPoliciesSize; i ++){
-        for(size_t j = 0; j < client_.config().handle()->securityPolicies[i].policyUri.length; j++) {
-            std::cout << client_.config().handle()->securityPolicies[i].policyUri.data[j];
-        }
-        std::cout << "\n";
-    }
 }
 
 SystemInfoClient::~SystemInfoClient() {
     if(cfg_attrs_.trust_list)
         free(cfg_attrs_.trust_list);
-    
-    if(cfg_attrs_.revocation_list)
-        free(cfg_attrs_.revocation_list);
 }
 
 void SystemInfoClient::connect(std::string_view endpoint_url) {
@@ -104,7 +99,7 @@ SystemInfoClient::ClientConfigAttributes SystemInfoClient::getClientConfigAttrib
 
     // Populating clients trust list
     std::vector<opcua::ByteString> trust_list_storage{};
-    fs::path serv_cert_path = devices_dir / client_name / (client_name + ".crt"); 
+    fs::path serv_cert_path = devices_dir / trusted_server_name / (trusted_server_name + ".crt");
     try {
         trust_list_storage.push_back(readBytesFromFile(serv_cert_path));
     } catch (const std::runtime_error& e) {
@@ -121,7 +116,7 @@ SystemInfoClient::ClientConfigAttributes SystemInfoClient::getClientConfigAttrib
     std::vector<opcua::ByteString> issuer_list_storage{};
     fs::path ca_cert_path = ca_dir / ("ca.crt"); 
     try {
-        trust_list_storage.push_back(readBytesFromFile(ca_cert_path));
+        issuer_list_storage.push_back(readBytesFromFile(ca_cert_path));
     } catch (const std::runtime_error& e) {
         std::cerr << "Skipping trust list entry '" << "ca.crt" << "': " << e.what() << "\n";
     }
@@ -195,20 +190,14 @@ SystemInfoClient::UA_ClientConfig_addSecurityPolicyBasic256Sha256(
 UA_ApplicationDescription SystemInfoClient::configureApplicationDescription(std::string_view cli_name) {
     UA_ApplicationDescription desc = {0};
     
-    std::vector<char> vec_cli_name(cli_name.begin(), cli_name.end());
-    if(vec_cli_name.back() != '\0')
-        vec_cli_name.push_back('\0');
+    std::string name(cli_name); 
+    desc.applicationName.locale = UA_STRING_NULL;
+    desc.applicationName.text = UA_String_fromChars(name.c_str());
 
-    UA_LocalizedText app_txt = UA_LOCALIZEDTEXT(NULL, vec_cli_name.data());
-    desc.applicationName = app_txt;
-    
-    std::string application_uri = "urn:myorg:telemetry:" + std::string(cli_name);
-    std::vector<char> vec_app_uri(application_uri.begin(), application_uri.end());
-    if(vec_app_uri.back() != '\0')
-        vec_app_uri.push_back('\0');
-    desc.applicationUri = UA_String_fromChars(vec_app_uri.data()); 
+    std::string application_uri = "urn:myorg:telemetry:" + name;
+    desc.applicationUri = UA_String_fromChars(application_uri.c_str());
 
-    desc.applicationType = UA_APPLICATIONTYPE_CLIENT;
+    desc.applicationType = UA_APPLICATIONTYPE_CLIENT; 
 
     return desc;
 }
@@ -230,7 +219,7 @@ void SystemInfoClient::dumpByteString(const char* label, const UA_ByteString& bs
 }
 
 void SystemInfoClient::dumpConfigAttrs(const ClientConfigAttributes& attrs) {
-    std::cout << "=== ServerConfigAttributes dump ===\n";
+    std::cout << "=== ClientConfigAttributes dump ===\n";
     dumpByteString("certificate", attrs.certificate);
     dumpByteString("private_key", attrs.private_key);
 
@@ -239,8 +228,4 @@ void SystemInfoClient::dumpConfigAttrs(const ClientConfigAttributes& attrs) {
     for (size_t i = 0; i < attrs.trust_list_size; ++i) {
         dumpByteString(("trust_list[" + std::to_string(i) + "]").c_str(), attrs.trust_list[i]);
     }
-
-    std::cout << "  revocation_list_size=" << attrs.revocation_list_size
-               << " revocation_list_ptr=" << static_cast<void*>(attrs.revocation_list) << "\n";
-    std::cout << "=== end dump ===\n\n";
 }

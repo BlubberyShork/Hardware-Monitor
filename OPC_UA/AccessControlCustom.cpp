@@ -25,6 +25,7 @@ AccessControlCustom::AccessControlCustom() {
 }
 
 opcua::Span<opcua::UserTokenPolicy> AccessControlCustom::getUserTokenPolicies() {
+    std::cout << "getting UserTokenPolicies\n";
     return opcua::Span<opcua::UserTokenPolicy>(user_token_policies_);
 }
 
@@ -36,6 +37,7 @@ opcua::StatusCode AccessControlCustom::activateSession(
 ) {
     std::string_view cert_as_string = std::basic_string_view<char>(secureChannelRemoteCertificate);
 
+    std::cout << "activating session\n";
     // TODO -> First, check user identity token
 
     static const std::filesystem::path root_dir = std::filesystem::current_path().parent_path().parent_path();
@@ -85,6 +87,7 @@ opcua::StatusCode AccessControlCustom::activateSession(
                 .can_execute_methods = true,
                 .can_write_history = false
             };
+            std::cout << "AccessControlCustom: Trusted certificate\n";
             return UA_STATUSCODE_GOOD;
         }
     }
@@ -122,6 +125,7 @@ opcua::Bitmask<opcua::AccessLevel> AccessControlCustom::getUserAccessLevel(
 bool AccessControlCustom::getUserExecutable(
     [[maybe_unused]] opcua::Session& session, [[maybe_unused]] const opcua::NodeId& methodId
 ) {
+    std::cout << "AccessControlCustom: Entering getUserExecutable()\n";
     return false; // TODO
 }
 
@@ -130,6 +134,7 @@ bool AccessControlCustom::getUserExecutableOnObject(
     [[maybe_unused]] const opcua::NodeId& methodId,
     [[maybe_unused]] const opcua::NodeId& objectId
 ) {
+    std::cout << "AccessControlCustom: Entering getUserExecutableOnObject\n";
     return false; // TODO !Priority
 }
 

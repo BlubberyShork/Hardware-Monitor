@@ -19,7 +19,7 @@ public:
 
 private:
     // Container holding server configuration attributes for ServerConfig initialization
-    typedef struct _ServerConfigAttributes {
+    struct ServerConfigAttributes {
         UA_ByteString   certificate;            // Server cert
         UA_ByteString   private_key;            // Server prv key
         
@@ -31,11 +31,7 @@ private:
         
         UA_ByteString*  revocation_list;        // Blacklisted certificates
         size_t          revocation_list_size;
-
-    } ServerConfigAttributes;
-
-    opcua::Server          server_;
-    ServerConfigAttributes cfg_attrs_;
+    };
 
     //// Helper Functions ////
     ServerConfigAttributes getServerConfigAttributes(); 
@@ -45,4 +41,9 @@ private:
     // Debug print functions //
     void dumpByteString(const char* label, const UA_ByteString& bs);
     void dumpConfigAttrs(const SystemInfoServer::ServerConfigAttributes& attrs);
+
+    //////////////////
+    // Private members
+    opcua::Server          server_;
+    ServerConfigAttributes cfg_attrs_;
 };
