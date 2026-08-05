@@ -4,6 +4,7 @@
 #include <open62541/plugin/pki_default.h>
 #include <open62541/types_generated.h>
 #include "opcua_logging.hpp"
+#include <open62541/plugin/log_stdout.h>
 
 #include <iostream>
 #include <fstream>
@@ -28,7 +29,8 @@ SystemInfoClient::SystemInfoClient(
         cfg_attrs_.trust_list, cfg_attrs_.trust_list_size,
         cfg_attrs_.issuer_list, cfg_attrs_.issuer_list_size,
         NULL, 0));
-    
+    h_cfg->certificateVerification.logging = UA_Log_Stdout_new(UA_LOGLEVEL_TRACE);
+
     // Remove default security policy #None
     h_cfg->securityPolicies->clear(h_cfg->securityPolicies);
     h_cfg->securityPoliciesSize = 0;

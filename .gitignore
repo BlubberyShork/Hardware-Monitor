@@ -127,6 +127,21 @@ _ReSharper*/
 refactor.txt
 
 pki/
-OPC_UA/build
+OPC_UA/build/logs
+
+# CMAKE / Cmake related
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+.cache/
+build*/
+out/
 
 #Third-Party

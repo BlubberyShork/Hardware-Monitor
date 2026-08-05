@@ -72,5 +72,6 @@ int main() {
 
     tc.join();
     ts.join(); // unblocks once SIGINT/SIGTERM fires server.stop()
+    std::cout << "Done\n";
     return 0;
 }

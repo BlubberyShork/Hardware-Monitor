@@ -10,34 +10,33 @@
 #include <open62541/plugin/pki_default.h>
 #include <open62541/util.h>
 
-// TODO - Modularize this so the build is clearer
 SystemInfoServer::SystemInfoServer() {
     cfg_attrs_ = getServerConfigAttributes();
     dumpConfigAttrs(cfg_attrs_);
 
-    UA_ByteString* revocation_list = NULL;
-    size_t revocation_size = 0;
-    cfg_attrs_.revocation_list = revocation_list;
-    cfg_attrs_.revocation_list_size = revocation_size;
+    cfg_attrs_.revocation_list = NULL;
+    cfg_attrs_.revocation_list_size = 0;
 
     opcua::ServerConfig server_config{};
     UA_ServerConfig* h_cfg = server_config.handle();
 
     server_config.setLogger(opcua_log::write);
-    
+
     // Setting server session PKI
     opcua::throwIfBad(UA_CertificateVerification_Trustlist(
         &h_cfg->sessionPKI,
         cfg_attrs_.trust_list, cfg_attrs_.trust_list_size,
         cfg_attrs_.issuer_list, cfg_attrs_.issuer_list_size,
         cfg_attrs_.revocation_list, cfg_attrs_.revocation_list_size));
-
+    h_cfg->sessionPKI.logging = UA_Log_Stdout_new(UA_LOGLEVEL_TRACE);
+    
     // Setting the secure channel PKI
     opcua::throwIfBad(UA_CertificateVerification_Trustlist(
         &h_cfg->secureChannelPKI,
         cfg_attrs_.trust_list, cfg_attrs_.trust_list_size,
         cfg_attrs_.issuer_list, cfg_attrs_.issuer_list_size,
         cfg_attrs_.revocation_list, cfg_attrs_.revocation_list_size));
+    h_cfg->sessionPKI.logging = UA_Log_Stdout_new(UA_LOGLEVEL_TRACE);
 
     // Removing the #None default policy
     h_cfg->securityPolicies->clear(h_cfg->securityPolicies);
