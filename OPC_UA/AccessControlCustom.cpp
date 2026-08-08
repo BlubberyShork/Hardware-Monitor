@@ -4,24 +4,20 @@
 #include <iostream>
 #include <fstream>
 
-constexpr std::string_view ACCESS_CONTROL_POLICY_ID = "open62541_cert_policy";              
 constexpr std::string_view ACCESS_CONTROL_SECURITY_POLICY_URI = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256";
+constexpr std::string_view ACCESS_CONTROL_POLICY_ID = "open62541-certificate-policy";
 
 AccessControlCustom::AccessControlCustom() {
-    std::cout << "in access controls constructor...\n";
-    const std::string_view ISSUED_TOKEN_TYPE{};
-    const std::string_view ISSUER_ENDPOINT_URL{};
-
+    
     opcua::UserTokenPolicy certification_policy = opcua::UserTokenPolicy(
         ACCESS_CONTROL_POLICY_ID,              
         opcua::UserTokenType::Certificate, 
-        ISSUED_TOKEN_TYPE,                          
-        ISSUER_ENDPOINT_URL,                          
+        std::string_view{},                          
+        std::string_view{},                          
         ACCESS_CONTROL_SECURITY_POLICY_URI
     );
 
     user_token_policies_.push_back(certification_policy);
-    std::cout << "finished constructing access control\n";
 }
 
 opcua::Span<opcua::UserTokenPolicy> AccessControlCustom::getUserTokenPolicies() {

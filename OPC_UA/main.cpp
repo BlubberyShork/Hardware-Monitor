@@ -49,11 +49,12 @@ void runClient() {
         SystemInfoClient client("test_client");
         client.connect(endpoint_url);
         std::cout << "Client fully connected\n";
-        opcua::Node node{client.native(), opcua::VariableId::Server_ServerStatus_CurrentTime};
+        // opcua::Node node{client.native(), opcua::VariableId::Server_ServerStatus_CurrentTime};
         
-        const auto dt = node.readValue().to<opcua::DateTime>();
-        size_t size = UA_calcSizeBinary(node.id().handle(), &UA_TYPES[UA_TYPES_NODEID]);
-        std::cout << size << "sent\n";
+        //const auto dt = node.readValue().to<opcua::DateTime>();
+        //size_t size = UA_calcSizeBinary(node.id().handle(), &UA_TYPES[UA_TYPES_NODEID]);
+        std::cout << "TEST ARE WE HERE\n";
+        //std::cout << size << "sent\n";
 
         client.disconnect();
     } catch (const opcua::BadStatus& e) {

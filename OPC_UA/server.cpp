@@ -1,6 +1,7 @@
 #include "server.h"
 #include "opcua_logging.hpp"
 
+#include "open62541pp/wrapper.hpp"
 #include <vector>
 #include <filesystem>
 #include <iostream>
@@ -10,6 +11,8 @@
 #include <open62541/plugin/pki_default.h>
 #include <open62541/util.h>
 
+constexpr std::string_view TOKEN_POLICY_ID = "open62541-certificate-policy";
+
 SystemInfoServer::SystemInfoServer() {
     cfg_attrs_ = getServerConfigAttributes();
     dumpConfigAttrs(cfg_attrs_);
@@ -17,10 +20,26 @@ SystemInfoServer::SystemInfoServer() {
     cfg_attrs_.revocation_list = NULL;
     cfg_attrs_.revocation_list_size = 0;
 
-    opcua::ServerConfig server_config{};
-    UA_ServerConfig* h_cfg = server_config.handle();
+    UA_ServerConfig* h_cfg = server_.config().handle();
+    
+    static UA_Logger serv_logger = UA_Log_Stdout_withLevel(UA_LOGLEVEL_TRACE);
+    serv_logger.clear = nullptr;
+    h_cfg->logging = &serv_logger;
+    
+    h_cfg->eventLoop = UA_EventLoop_new_POSIX(&serv_logger);
+    h_cfg->externalEventLoop = false;
 
-    server_config.setLogger(opcua_log::write);
+    // Add the TCP connection manager
+    std::string s1("tcp connection manager");
+    UA_ConnectionManager *tcpCM =
+        UA_ConnectionManager_new_POSIX_TCP(UA_STRING_ALLOC(s1.c_str()));
+    h_cfg->eventLoop->registerEventSource(h_cfg->eventLoop, (UA_EventSource *)tcpCM);
+
+    /* Add the UDP connection manager */
+    std::string s2("udp connection manager");
+    UA_ConnectionManager *udpCM =
+        UA_ConnectionManager_new_POSIX_UDP(UA_STRING_ALLOC(s2.c_str()));
+    h_cfg->eventLoop->registerEventSource(h_cfg->eventLoop, (UA_EventSource *)udpCM);
 
     // Setting server session PKI
     opcua::throwIfBad(UA_CertificateVerification_Trustlist(
@@ -28,15 +47,15 @@ SystemInfoServer::SystemInfoServer() {
         cfg_attrs_.trust_list, cfg_attrs_.trust_list_size,
         cfg_attrs_.issuer_list, cfg_attrs_.issuer_list_size,
         cfg_attrs_.revocation_list, cfg_attrs_.revocation_list_size));
-    h_cfg->sessionPKI.logging = UA_Log_Stdout_new(UA_LOGLEVEL_TRACE);
-    
+    h_cfg->sessionPKI.logging = &serv_logger;
+
     // Setting the secure channel PKI
     opcua::throwIfBad(UA_CertificateVerification_Trustlist(
         &h_cfg->secureChannelPKI,
         cfg_attrs_.trust_list, cfg_attrs_.trust_list_size,
         cfg_attrs_.issuer_list, cfg_attrs_.issuer_list_size,
         cfg_attrs_.revocation_list, cfg_attrs_.revocation_list_size));
-    h_cfg->sessionPKI.logging = UA_Log_Stdout_new(UA_LOGLEVEL_TRACE);
+    h_cfg->sessionPKI.logging = &serv_logger;
 
     // Removing the #None default policy
     h_cfg->securityPolicies->clear(h_cfg->securityPolicies);
@@ -52,23 +71,33 @@ SystemInfoServer::SystemInfoServer() {
     UA_ApplicationDescription desc = configureApplicationDescription();
     h_cfg->applicationDescription = desc;
 
-    server_config.setAccessControl(std::make_unique<AccessControlCustom>());
+    server_.config().setAccessControl(std::make_unique<AccessControlCustom>());
  
     opcua::throwIfBad(UA_ServerConfig_addEndpoint(
         h_cfg, 
-        UA_String_fromChars("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256"), 
+        UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256"), 
         UA_MESSAGESECURITYMODE_SIGNANDENCRYPT));
     
+    // Endpoint configuration
+    UA_EndpointDescription& ep = h_cfg->endpoints[0];
     std::string endpoint_url_prefix("opc.tcp://");
     std::string port(":4840");
     std::string endpoint_url = endpoint_url_prefix + std::getenv("SERVER_IP") + port;
-    h_cfg->endpoints[0].endpointUrl = UA_String_fromChars(endpoint_url.c_str());
+    h_cfg->endpointsSize = 1;
+    h_cfg->endpoints[0].endpointUrl = UA_STRING_ALLOC(endpoint_url.c_str());
     
-    std::cout << "Security policy: " 
-              << std::string((char*)h_cfg->endpoints[0].securityPolicyUri.data, h_cfg->endpoints[0].securityPolicyUri.length) 
-              << "\n";    
+    // Endpoint->userIdentityToken configuration
+    h_cfg->endpoints[0].userIdentityTokensSize = 1;
+    h_cfg->endpoints[0].userIdentityTokens = (UA_UserTokenPolicy*)UA_Array_new(
+            h_cfg->endpoints[0].userIdentityTokensSize, 
+            &UA_TYPES[UA_TYPES_USERTOKENPOLICY]
+    );
+    if(!h_cfg->endpoints[0].userIdentityTokens)
+        std::cerr << "Server endpoint user identity tokens cannot be allocated\n";
 
-    server_ = opcua::Server(std::move(server_config));
+    h_cfg->endpoints[0].userIdentityTokens[0].tokenType = UA_USERTOKENTYPE_CERTIFICATE;
+    h_cfg->endpoints[0].userIdentityTokens[0].policyId = UA_STRING_ALLOC(std::string(TOKEN_POLICY_ID).c_str());
+    h_cfg->endpoints[0].transportProfileUri = UA_String_fromChars("http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary");
 }
 
 SystemInfoServer::~SystemInfoServer() {
@@ -160,10 +189,10 @@ UA_ApplicationDescription SystemInfoServer::configureApplicationDescription(){
    
     std::string name("server"); 
     desc.applicationName.locale = UA_STRING_NULL;
-    desc.applicationName.text = UA_String_fromChars(name.c_str());
+    desc.applicationName.text = UA_STRING_ALLOC(name.c_str());
 
     std::string application_uri = "urn:myorg:telemetry:" + name;
-    desc.applicationUri = UA_String_fromChars(application_uri.c_str());
+    desc.applicationUri = UA_STRING_ALLOC(application_uri.c_str());
 
     desc.applicationType = UA_APPLICATIONTYPE_SERVER;
 

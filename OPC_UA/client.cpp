@@ -5,9 +5,12 @@
 #include <open62541/types_generated.h>
 #include "opcua_logging.hpp"
 #include <open62541/plugin/log_stdout.h>
+#include <open62541/server_config_default.h>
 
 #include <iostream>
 #include <fstream>
+
+constexpr std::string_view ACCESS_CONTROL_POLICY_ID = "open62541-certificate-policy";
 
 void dumpClient(const UA_Client* client);
 
@@ -19,18 +22,43 @@ SystemInfoClient::SystemInfoClient(
     cfg_attrs_ = getClientConfigAttributes();
     dumpConfigAttrs(cfg_attrs_);
 
-    opcua::ClientConfig client_cfg{};
-    UA_ClientConfig* h_cfg = client_cfg.handle();
+    UA_ClientConfig* h_cfg = client_.config().handle();
+    
+    static UA_Logger cli_logger = UA_Log_Stdout_withLevel(UA_LOGLEVEL_TRACE);
+    cli_logger.clear = nullptr;
+    h_cfg->logging = &cli_logger;
+    
+    if(h_cfg->timeout == 0)
+        h_cfg->timeout = 8 * 1000; /* 8s */
+    if(h_cfg->secureChannelLifeTime == 0)
+        h_cfg->secureChannelLifeTime = 10 * 60 * 1000; /* 10 minutes */
 
-    client_cfg.setLogger(opcua_log::write);
+    h_cfg->eventLoop = UA_EventLoop_new_POSIX(&cli_logger);
+    h_cfg->externalEventLoop = false;
+
+    /* Add the TCP connection manager */
+    
+    std::string s1("tcp connection manager");
+    UA_ConnectionManager *tcpCM =
+        UA_ConnectionManager_new_POSIX_TCP(UA_String_fromChars(s1.c_str()));
+    h_cfg->eventLoop->registerEventSource(h_cfg->eventLoop, (UA_EventSource *)tcpCM);
+
+    /* Add the UDP connection manager */
+    std::string s2("udp connection manager");
+    UA_ConnectionManager *udpCM =
+        UA_ConnectionManager_new_POSIX_UDP(UA_String_fromChars(s2.c_str()));
+    h_cfg->eventLoop->registerEventSource(h_cfg->eventLoop, (UA_EventSource *)udpCM);
+   
+    if(h_cfg->localConnectionConfig.recvBufferSize == 0)
+        h_cfg->localConnectionConfig = UA_ConnectionConfig_default;
 
     opcua::throwIfBad(UA_CertificateVerification_Trustlist(
         &h_cfg->certificateVerification,
         cfg_attrs_.trust_list, cfg_attrs_.trust_list_size,
         cfg_attrs_.issuer_list, cfg_attrs_.issuer_list_size,
         NULL, 0));
-    h_cfg->certificateVerification.logging = UA_Log_Stdout_new(UA_LOGLEVEL_TRACE);
-
+    h_cfg->certificateVerification.logging = &cli_logger;
+    
     // Remove default security policy #None
     h_cfg->securityPolicies->clear(h_cfg->securityPolicies);
     h_cfg->securityPoliciesSize = 0;
@@ -41,15 +69,15 @@ SystemInfoClient::SystemInfoClient(
 
     UA_String_clear(&h_cfg->securityPolicyUri);
 
-    // TODO - Configure Endpoint Description
+    // Configure Endpoints
     UA_EndpointDescription& ep = h_cfg->endpoint;
-    client_cfg.setSecurityMode(opcua::MessageSecurityMode::SignAndEncrypt);
+    client_.config().setSecurityMode(opcua::MessageSecurityMode::SignAndEncrypt);
     std::string pol_uri("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256");
     h_cfg->securityPolicyUri = UA_String_fromChars(pol_uri.c_str());
 
     std::string endpoint_url_prefix("opc.tcp://");
     std::string port(":4840");
-    std::string endpoint_url = endpoint_url_prefix + std::getenv("SERVER_IP") + port;
+    std::string endpoint_url = endpoint_url_prefix + std::getenv("SERVER_IP") + port; // TODO - Use _dupenv_s
     ep.endpointUrl = UA_String_fromChars(endpoint_url.c_str());
     ep.securityPolicyUri = UA_String_fromChars(
         "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256");
@@ -58,16 +86,30 @@ SystemInfoClient::SystemInfoClient(
     if(ep.securityLevel != UA_USERTOKENTYPE_CERTIFICATE)
         ep.securityLevel = UA_USERTOKENTYPE_CERTIFICATE;
 
+    // Endpoint tokens
+    ep.userIdentityTokensSize = 1;
+    ep.userIdentityTokens = (UA_UserTokenPolicy*)UA_Array_new(
+        ep.userIdentityTokensSize, 
+        &UA_TYPES[UA_TYPES_USERTOKENPOLICY]
+    );
+    ep.userIdentityTokens[0].tokenType = UA_USERTOKENTYPE_CERTIFICATE;
+    ep.userIdentityTokens[0].policyId = UA_String_fromChars(std::string(ACCESS_CONTROL_POLICY_ID).c_str());
+    ep.userIdentityTokens[0].securityPolicyUri = UA_String_fromChars(
+        "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256"
+    );
+    ep.transportProfileUri = UA_String_fromChars("http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary");
+
     UA_ClientConfig_setAuthenticationCert(
         h_cfg,
         cfg_attrs_.certificate,
         cfg_attrs_.private_key); 
+    h_cfg->userTokenPolicy.policyId = UA_String_fromChars(std::string(ACCESS_CONTROL_POLICY_ID).c_str());
+    h_cfg->userTokenPolicy.tokenType = UA_USERTOKENTYPE_CERTIFICATE;
 
     UA_ApplicationDescription_clear(&h_cfg->clientDescription);
     UA_ApplicationDescription desc = configureApplicationDescription(client_name_);
     h_cfg->clientDescription = desc;
 
-    client_ = opcua::Client(std::move(client_cfg));
     dumpClient(client_.handle()); 
 
     std::cout << "cfg->securityMode = "
@@ -83,7 +125,6 @@ SystemInfoClient::~SystemInfoClient() {
 }
 
 void SystemInfoClient::connect(std::string_view endpoint_url) {
-    std::cout << "client certificate length: " << client_.config().handle()->securityPolicies[0].localCertificate.length;
     client_.connect(endpoint_url);
 }
 

@@ -7,6 +7,11 @@ import argparse
 
 from pathlib import Path
 
+MBEDTLS_INCLUDE = "C:\\mbedtls\\include"
+MBEDTLS_LIBRARY = "C:\\mbedtls\\build\\library\\Debug\\mbedtls.lib"
+MBEDX509_LIBRARY = "C:\\mbedtls\\build\\library\\Debug\\mbedx509.lib" 
+MBEDCRYPTO_LIBRARY = "C:\\mbedtls\\build\\library\\Debug\\mbedcrypto.lib"
+
 VCPKG_PATH = Path("C:\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake")
 
 target_dir = Path.cwd().joinpath("OPC_UA")
@@ -15,9 +20,13 @@ root_dir = Path.cwd()
 
 CONFIGURATION_CMD = [
     "cmake", "-B", build_dir, "-S", ".", "-G", "Ninja",
-    f"-DCMAKE_TOOLCHAIN_FILE={VCPKG_PATH}",
+#    f"-DCMAKE_TOOLCHAIN_FILE={VCPKG_PATH}",
     "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
     "-DUA_ENABLE_ENCRYPTION=MBEDTLS",
+    f"-DMBEDTLS_INCLUDE_DIRS={MBEDTLS_INCLUDE}",
+    f"-DMBEDTLS_LIBRARY={MBEDTLS_LIBRARY}",
+    f"-DMBEDX509_LIBRARY={MBEDX509_LIBRARY}",
+    f"-DMBEDCRYPTO_LIBRARY={MBEDCRYPTO_LIBRARY}",
     "-DUA_LOGLEVEL=100"
 ]
 BUILD_CMD = ["cmake", "--build", build_dir]
@@ -44,7 +53,7 @@ def build():
     os.makedirs(build_dir, exist_ok=True)
 
     env = get_vcvars_env(vcvarsall)
-
+   
     subprocess.run(CONFIGURATION_CMD, env=env, check=True)
     subprocess.run(BUILD_CMD, env=env, check=True)
 

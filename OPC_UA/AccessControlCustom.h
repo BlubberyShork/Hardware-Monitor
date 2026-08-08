@@ -71,7 +71,6 @@ public:
 private:
     typedef struct _ClientAttributes {
         std::string device_name;
-//        std::string application_uri;    // TODO -> This is currently always empty, becuase I am struggling to come up with a good approach to retrieve it
         opcua::Bitmask<opcua::AccessLevel> access_lvl;
         bool can_browse;
         bool can_execute_methods;
