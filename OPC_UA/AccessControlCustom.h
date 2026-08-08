@@ -82,4 +82,10 @@ private:
 
     ///// Helper Functions /////
     std::string parsePki(const std::filesystem::path& file);     // DER Encoding expected
+    opcua::StatusCode rejectSession(opcua::Session& session, opcua::StatusCode code);
+    std::optional<std::string> findTrustedDevice(
+        const std::filesystem::path& devicesDir,
+        const opcua::ByteString& usr_tkn_cert,
+        const opcua::ByteString& secureChannelRemoteCertificate
+    );
 };

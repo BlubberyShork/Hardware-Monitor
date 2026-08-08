@@ -1,4 +1,5 @@
 #include "client.h"
+#include "shared_security_config.h"
 
 #include <open62541/plugin/securitypolicy_default.h>
 #include <open62541/plugin/pki_default.h>
@@ -10,15 +11,9 @@
 #include <iostream>
 #include <fstream>
 
-constexpr std::string_view ACCESS_CONTROL_POLICY_ID = "open62541-certificate-policy";
-
 void dumpClient(const UA_Client* client);
 
-SystemInfoClient::SystemInfoClient(
-    std::string_view client_name
-) 
-    : client_name_(client_name)
-{
+SystemInfoClient::SystemInfoClient(std::string_view client_name) : client_name_(client_name) {
     cfg_attrs_ = getClientConfigAttributes();
     dumpConfigAttrs(cfg_attrs_);
 
@@ -28,95 +23,93 @@ SystemInfoClient::SystemInfoClient(
     cli_logger.clear = nullptr;
     h_cfg->logging = &cli_logger;
     
-    if(h_cfg->timeout == 0)
-        h_cfg->timeout = 8 * 1000; /* 8s */
-    if(h_cfg->secureChannelLifeTime == 0)
-        h_cfg->secureChannelLifeTime = 10 * 60 * 1000; /* 10 minutes */
-
-    h_cfg->eventLoop = UA_EventLoop_new_POSIX(&cli_logger);
-    h_cfg->externalEventLoop = false;
-
-    /* Add the TCP connection manager */
-    
-    std::string s1("tcp connection manager");
-    UA_ConnectionManager *tcpCM =
-        UA_ConnectionManager_new_POSIX_TCP(UA_String_fromChars(s1.c_str()));
-    h_cfg->eventLoop->registerEventSource(h_cfg->eventLoop, (UA_EventSource *)tcpCM);
-
-    /* Add the UDP connection manager */
-    std::string s2("udp connection manager");
-    UA_ConnectionManager *udpCM =
-        UA_ConnectionManager_new_POSIX_UDP(UA_String_fromChars(s2.c_str()));
-    h_cfg->eventLoop->registerEventSource(h_cfg->eventLoop, (UA_EventSource *)udpCM);
-   
-    if(h_cfg->localConnectionConfig.recvBufferSize == 0)
-        h_cfg->localConnectionConfig = UA_ConnectionConfig_default;
-
     opcua::throwIfBad(UA_CertificateVerification_Trustlist(
         &h_cfg->certificateVerification,
         cfg_attrs_.trust_list, cfg_attrs_.trust_list_size,
         cfg_attrs_.issuer_list, cfg_attrs_.issuer_list_size,
-        NULL, 0));
+        NULL, 0)
+    );
     h_cfg->certificateVerification.logging = &cli_logger;
     
-    // Remove default security policy #None
+    // Remove default-configured auth/cfg security policy #None
     h_cfg->securityPolicies->clear(h_cfg->securityPolicies);
     h_cfg->securityPoliciesSize = 0;
-    
+
     // Set encryption policy -> Basic256Sha256, per OPC UA foundation
     opcua::throwIfBad(UA_ClientConfig_addSecurityPolicyBasic256Sha256(
-        h_cfg, &cfg_attrs_.certificate, &cfg_attrs_.private_key));
+        h_cfg, &cfg_attrs_.certificate, &cfg_attrs_.private_key)
+    );
 
     UA_String_clear(&h_cfg->securityPolicyUri);
 
+    // Config token policy
+    UA_UserTokenPolicy cfg_tkn_pol = UA_UserTokenPolicy {
+        .policyId = UA_STRING_ALLOC(std::string(X509_TOKEN_POLICY_ID).c_str()), 
+        .tokenType = UA_USERTOKENTYPE_CERTIFICATE,
+        .issuedTokenType = {},
+        .issuerEndpointUrl = {},
+        .securityPolicyUri = UA_STRING_ALLOC(std::string(SECURITY_POLICY_URI).c_str())
+    };
+    h_cfg->userTokenPolicy = cfg_tkn_pol;
+
+    /* Create config's UserIdentityToken -> Checked against endpoint identity tokens 
+     *    at runtime for validation during session activation */
+    UA_X509IdentityToken* identity_tkn = UA_X509IdentityToken_new();
+    /* Don't set identityToken->policyId. This is taken from the appropriate
+     * endpoint at runtime. */
+    UA_StatusCode retval = UA_ByteString_copy(&cfg_attrs_.certificate, &identity_tkn->certificateData);
+    UA_ExtensionObject_clear(&h_cfg->userIdentityToken); // Zero-initialize
+    h_cfg->userIdentityToken.encoding = UA_EXTENSIONOBJECT_DECODED;
+    h_cfg->userIdentityToken.content.decoded.type = &UA_TYPES[UA_TYPES_X509IDENTITYTOKEN];
+    h_cfg->userIdentityToken.content.decoded.data = identity_tkn;
+
+    // Configure auth security policies
+    h_cfg->authSecurityPolicyUri = UA_STRING_ALLOC(std::string(SECURITY_POLICY_URI).c_str());
+    h_cfg->authSecurityPoliciesSize = 1;
+    
+    // This field is not allocated by the default open62541 construction function called in the C++ wrapper's constructor, 
+    //   so we do it for the first time here
+    UA_SecurityPolicy *a_sp = static_cast<UA_SecurityPolicy *>(UA_calloc(
+        h_cfg->authSecurityPoliciesSize, 
+        sizeof(UA_SecurityPolicy)
+    ));
+    h_cfg->authSecurityPolicies = a_sp;
+    opcua::throwIfBad(UA_SecurityPolicy_Basic256Sha256(
+        h_cfg->authSecurityPolicies, // pointer base [0], overwriting the #None default
+        cfg_attrs_.certificate,
+        cfg_attrs_.private_key,
+        h_cfg->logging
+    ));
+    
     // Configure Endpoints
     UA_EndpointDescription& ep = h_cfg->endpoint;
     client_.config().setSecurityMode(opcua::MessageSecurityMode::SignAndEncrypt);
-    std::string pol_uri("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256");
-    h_cfg->securityPolicyUri = UA_String_fromChars(pol_uri.c_str());
+    h_cfg->securityPolicyUri = UA_STRING_ALLOC(std::string(SECURITY_POLICY_URI).c_str());
 
-    std::string endpoint_url_prefix("opc.tcp://");
-    std::string port(":4840");
-    std::string endpoint_url = endpoint_url_prefix + std::getenv("SERVER_IP") + port; // TODO - Use _dupenv_s
-    ep.endpointUrl = UA_String_fromChars(endpoint_url.c_str());
-    ep.securityPolicyUri = UA_String_fromChars(
-        "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256");
+    std::string endpoint_url = "opc.tcp://" + std::string(std::getenv("SERVER_IP")) + ":4840";
+    ep.endpointUrl = UA_STRING_ALLOC(endpoint_url.c_str());
+    ep.securityPolicyUri = UA_STRING_ALLOC(std::string(SECURITY_POLICY_URI).c_str());
     ep.serverCertificate = cfg_attrs_.trust_list[0];
     ep.securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT ; 
-    if(ep.securityLevel != UA_USERTOKENTYPE_CERTIFICATE)
-        ep.securityLevel = UA_USERTOKENTYPE_CERTIFICATE;
 
-    // Endpoint tokens
+    // Endpoint token configuration
     ep.userIdentityTokensSize = 1;
-    ep.userIdentityTokens = (UA_UserTokenPolicy*)UA_Array_new(
+    ep.userIdentityTokens = static_cast<UA_UserTokenPolicy*>(UA_Array_new(
         ep.userIdentityTokensSize, 
         &UA_TYPES[UA_TYPES_USERTOKENPOLICY]
-    );
+    ));
     ep.userIdentityTokens[0].tokenType = UA_USERTOKENTYPE_CERTIFICATE;
-    ep.userIdentityTokens[0].policyId = UA_String_fromChars(std::string(ACCESS_CONTROL_POLICY_ID).c_str());
-    ep.userIdentityTokens[0].securityPolicyUri = UA_String_fromChars(
-        "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256"
-    );
-    ep.transportProfileUri = UA_String_fromChars("http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary");
-
-    UA_ClientConfig_setAuthenticationCert(
-        h_cfg,
-        cfg_attrs_.certificate,
-        cfg_attrs_.private_key); 
-    h_cfg->userTokenPolicy.policyId = UA_String_fromChars(std::string(ACCESS_CONTROL_POLICY_ID).c_str());
-    h_cfg->userTokenPolicy.tokenType = UA_USERTOKENTYPE_CERTIFICATE;
+    ep.userIdentityTokens[0].policyId = UA_STRING_ALLOC(std::string(X509_TOKEN_POLICY_ID).c_str());
+    ep.userIdentityTokens[0].securityPolicyUri = UA_STRING_ALLOC(std::string(SECURITY_POLICY_URI).c_str());
+    ep.userIdentityTokens[0].issuerEndpointUrl = {};
+    ep.userIdentityTokens[0].issuedTokenType = {};
+    ep.transportProfileUri = UA_STRING_ALLOC(std::string(TRANSPORT_PROFILE_URI).c_str());
 
     UA_ApplicationDescription_clear(&h_cfg->clientDescription);
     UA_ApplicationDescription desc = configureApplicationDescription(client_name_);
     h_cfg->clientDescription = desc;
 
     dumpClient(client_.handle()); 
-
-    std::cout << "cfg->securityMode = "
-          << client_.config().handle()->securityMode << '\n';
-
-    std::cout << "endpoint.securityMode = "
-          << client_.config().handle()->endpoint.securityMode << '\n';
 }
 
 SystemInfoClient::~SystemInfoClient() {
@@ -248,10 +241,10 @@ UA_ApplicationDescription SystemInfoClient::configureApplicationDescription(std:
     
     std::string name(cli_name); 
     desc.applicationName.locale = UA_STRING_NULL;
-    desc.applicationName.text = UA_String_fromChars(name.c_str());
+    desc.applicationName.text = UA_STRING_ALLOC(name.c_str());
 
     std::string application_uri = "urn:myorg:telemetry:" + name;
-    desc.applicationUri = UA_String_fromChars(application_uri.c_str());
+    desc.applicationUri = UA_STRING_ALLOC(application_uri.c_str());
 
     desc.applicationType = UA_APPLICATIONTYPE_CLIENT; 
 
@@ -286,10 +279,8 @@ void SystemInfoClient::dumpConfigAttrs(const ClientConfigAttributes& attrs) {
     }
 }
 
-static void printByteString(const UA_ByteString& bs)
-{
-    if (bs.length == 0 || bs.data == nullptr)
-    {
+static void printByteString(const UA_ByteString& bs) {
+    if (bs.length == 0 || bs.data == nullptr) {
         std::cout << "<empty>";
         return;
     }
@@ -297,8 +288,7 @@ static void printByteString(const UA_ByteString& bs)
     std::ios old(nullptr);
     old.copyfmt(std::cout);
 
-    for (size_t i = 0; i < bs.length; ++i)
-    {
+    for (size_t i = 0; i < bs.length; ++i) {
         std::cout << std::hex
                   << std::setw(2)
                   << std::setfill('0')
@@ -308,10 +298,8 @@ static void printByteString(const UA_ByteString& bs)
     std::cout.copyfmt(old);
 }
 
-static void printString(const UA_String& s)
-{
-    if (!s.data || s.length == 0)
-    {
+static void printString(const UA_String& s) {
+    if (!s.data || s.length == 0) {
         std::cout << "<empty>";
         return;
     }
@@ -319,10 +307,8 @@ static void printString(const UA_String& s)
     std::cout.write(reinterpret_cast<const char*>(s.data), s.length);
 }
 
-void SystemInfoClient::dumpClient(const UA_Client* client)
-{
-    if (!client)
-    {
+void SystemInfoClient::dumpClient(const UA_Client* client) {
+    if (!client) {
         std::cout << "Client is null\n";
         return;
     }
@@ -330,8 +316,7 @@ void SystemInfoClient::dumpClient(const UA_Client* client)
     const UA_ClientConfig* cfg = UA_Client_getConfig(
         const_cast<UA_Client*>(client));
 
-    if (!cfg)
-    {
+    if (!cfg) {
         std::cout << "Config is null\n";
         return;
     }
@@ -367,9 +352,6 @@ void SystemInfoClient::dumpClient(const UA_Client* client)
 
     std::cout << "\n=== Logging ===\n";
     std::cout << "Logger: " << cfg->logging << '\n';
-
-    std::cout << "\n=== Endpoints ===\n";
-    std::cout << "(Configured endpoint URL is not stored in UA_ClientConfig after connect.)\n";
 
     std::cout << "=============================\n";
 }

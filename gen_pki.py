@@ -2,9 +2,7 @@
 """
 gen_pki.py — local CA + device certificate generator for OPC UA (open62541).
  
-All crypto is delegated to the system `openssl` binary via subprocess — this
-script just wires up the file layout and the OPC UA-specific bits (the
-ApplicationUri SAN entry, DER output, PKCS8 keys).
+All crypto is delegated to the system `openssl` binary via subprocess
  
 Layout produced:
  

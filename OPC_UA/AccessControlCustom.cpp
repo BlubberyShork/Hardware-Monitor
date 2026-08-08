@@ -1,20 +1,17 @@
 #include "AccessControlCustom.h"
+#include "shared_security_config.h"
 
 #include <string_view>
 #include <iostream>
 #include <fstream>
 
-constexpr std::string_view ACCESS_CONTROL_SECURITY_POLICY_URI = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256";
-constexpr std::string_view ACCESS_CONTROL_POLICY_ID = "open62541-certificate-policy";
-
 AccessControlCustom::AccessControlCustom() {
-    
     opcua::UserTokenPolicy certification_policy = opcua::UserTokenPolicy(
-        ACCESS_CONTROL_POLICY_ID,              
+        X509_TOKEN_POLICY_ID,              
         opcua::UserTokenType::Certificate, 
         std::string_view{},                          
         std::string_view{},                          
-        ACCESS_CONTROL_SECURITY_POLICY_URI
+        SECURITY_POLICY_URI
     );
 
     user_token_policies_.push_back(certification_policy);
@@ -31,72 +28,39 @@ opcua::StatusCode AccessControlCustom::activateSession(
     const opcua::ByteString& secureChannelRemoteCertificate,
     const opcua::ExtensionObject& userIdentityToken
 ) {
-    std::string_view cert_as_string = std::basic_string_view<char>(secureChannelRemoteCertificate);
-
-    std::cout << "activating session\n";
-    // TODO -> First, check user identity token
+    std::cout << "in access control custom: activate session\n";
 
     static const std::filesystem::path root_dir = std::filesystem::current_path().parent_path().parent_path();
-    static const std::filesystem::path devicesDir = root_dir / "pki/devices";
+    static const std::filesystem::path devices_dir = root_dir / "pki/devices";
 
-    std::error_code ec;
-    if (!std::filesystem::is_directory(devicesDir, ec) || ec) {
-        return UA_STATUSCODE_BADCERTIFICATEUNTRUSTED;
+    const auto* decoded_data = userIdentityToken.decodedData<opcua::X509IdentityToken>();
+    if (decoded_data == nullptr) {
+        std::cerr << "Access Control: Non-decoded or invalid decoded data\n";
+        return rejectSession(session, UA_STATUSCODE_BADIDENTITYTOKENINVALID);
     }
 
-    for (const auto& deviceEntry : std::filesystem::directory_iterator(devicesDir, ec)) {
-        if (ec) {
-            break;
-        }
-        if (!deviceEntry.is_directory()) {
-            continue; // pki/devices/ should only ever contain per-device subdirectories
-        }
+    if (decoded_data->policyId() != opcua::String(X509_TOKEN_POLICY_ID)) {
+        std::cerr << "Access Control: Client UserIdentityToken policyId mismatch\n";
+        return rejectSession(session, UA_STATUSCODE_BADIDENTITYTOKENREJECTED);
+    }
 
-        const std::string deviceName = deviceEntry.path().filename().string();
-        const std::filesystem::path certPath = deviceEntry.path() / (deviceName + ".crt");
+    const opcua::ByteString usr_tkn_cert = decoded_data->certificateData();
+    auto matchedDevice = findTrustedDevice(devices_dir, usr_tkn_cert, secureChannelRemoteCertificate);
 
-        // TODO - Hard-coded for now since there is just one server for testing
-        //  -> Will likely need to change this later
-        if(deviceName == "server")
-            continue;
-
-        std::error_code fileEc;
-        if (!std::filesystem::is_regular_file(certPath, fileEc) || fileEc) {
-            printf("Warning: Irregular file detected, continuing...\n");
-            continue; // malformed/incomplete/unexpected device folder -> skip, don't abort the whole scan
-        }
-
-        const std::string storedCert = parsePki(certPath);
-        if (storedCert.empty()) {
-            printf("Warning: Empty certificate detected, continuing...\n");
-            continue; // unreadable/empty -> skip rather than risk a false match on ""
-        }
-
-        if (std::string_view(storedCert) == cert_as_string) {
-            // TODO -> Revisit, may need more granular handling per-client. For now, this should be fine
-            //      Just dont do anything stupid
-            //      Frontend will likely read only, devices will write only
-            session_attributes_[session.id()] = ClientAttributes{
-                .device_name = deviceName,
-                .access_lvl = opcua::AccessLevel::CurrentRead | opcua::AccessLevel::CurrentWrite,
-                .can_browse = true,
-                .can_execute_methods = true,
-                .can_write_history = false
-            };
-            std::cout << "AccessControlCustom: Trusted certificate\n";
-            return UA_STATUSCODE_GOOD;
-        }
+    if (!matchedDevice) {
+        std::cerr << "activateSession: Bad certificate, Untrusted!\n";
+        return rejectSession(session, UA_STATUSCODE_BADCERTIFICATEUNTRUSTED);
     }
 
     session_attributes_[session.id()] = ClientAttributes{
-        .device_name = "Unsupported Device",
-        .access_lvl = opcua::AccessLevel::None,
-        .can_browse = false,
-        .can_execute_methods = false,
+        .device_name = *matchedDevice,
+        .access_lvl = opcua::AccessLevel::CurrentRead | opcua::AccessLevel::CurrentWrite,
+        .can_browse = true,
+        .can_execute_methods = true,
         .can_write_history = false
     };
-    printf("activateSession: Bad certificate, Untrusted!\n");
-    return UA_STATUSCODE_BADCERTIFICATEUNTRUSTED;
+    std::cout << "AccessControlCustom: Trusted certificate\n";
+    return UA_STATUSCODE_GOOD;
 }
 
 void AccessControlCustom::closeSession([[maybe_unused]] opcua::Session& session) {
@@ -208,4 +172,54 @@ std::string AccessControlCustom::parsePki(const std::filesystem::path& file) {
     return contents.str();
 }
 
+opcua::StatusCode AccessControlCustom::rejectSession(
+    opcua::Session& session,
+    opcua::StatusCode code
+) {
+    session_attributes_[session.id()] = ClientAttributes{
+        .device_name = "Unsupported Device",
+        .access_lvl = opcua::AccessLevel::None,
+        .can_browse = false,
+        .can_execute_methods = false,
+        .can_write_history = false
+    };
+    return code;
+}
 
+std::optional<std::string> AccessControlCustom::findTrustedDevice(
+    const std::filesystem::path& devicesDir,
+    const opcua::ByteString& usr_tkn_cert,
+    const opcua::ByteString& secureChannelRemoteCertificate
+) {
+    std::error_code ec;
+    if (!std::filesystem::is_directory(devicesDir, ec) || ec) {
+        return std::nullopt;
+    }
+
+    for (const auto& deviceEntry : std::filesystem::directory_iterator(devicesDir, ec)) {
+        if (ec) break;
+        if (!deviceEntry.is_directory()) continue;
+
+        const std::string deviceName = deviceEntry.path().filename().string();
+        if (deviceName == "server") continue; // Not the server
+
+        const std::filesystem::path certPath = deviceEntry.path() / (deviceName + ".crt");
+        std::error_code fileEc;
+        if (!std::filesystem::is_regular_file(certPath, fileEc) || fileEc) {
+            std::cerr << "Access Control: Warning - Irregular file detected, continuing...\n";
+            continue;
+        }
+
+        std::string parsed = parsePki(certPath);
+        if (parsed.empty()) {
+            std::cerr << "Access Control: Warning - Empty certificate detected, continuing...\n";
+            continue;
+        }
+
+        if (usr_tkn_cert == opcua::ByteString(std::string_view(parsed)) 
+                && opcua::ByteString(std::string_view(parsed)) == secureChannelRemoteCertificate) {
+            return deviceName; 
+        }
+    }
+    return std::nullopt;
+}

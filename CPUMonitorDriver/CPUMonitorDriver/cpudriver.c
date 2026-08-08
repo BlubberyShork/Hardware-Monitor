@@ -448,6 +448,3 @@ BOOLEAN ReadZenPlusAmdData(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_
     return TRUE;
 }
 
-
-
-
