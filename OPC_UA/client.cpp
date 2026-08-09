@@ -13,7 +13,8 @@
 
 void dumpClient(const UA_Client* client);
 
-SystemInfoClient::SystemInfoClient(std::string_view client_name) : client_name_(client_name) {
+SystemInfoClient::SystemInfoClient(std::string_view client_name) 
+                                    : client_name_(client_name) {
     cfg_attrs_ = getClientConfigAttributes();
     dumpConfigAttrs(cfg_attrs_);
 
@@ -115,6 +116,9 @@ SystemInfoClient::SystemInfoClient(std::string_view client_name) : client_name_(
 SystemInfoClient::~SystemInfoClient() {
     if(cfg_attrs_.trust_list)
         free(cfg_attrs_.trust_list);
+
+    if(cfg_attrs_.issuer_list)
+        free(cfg_attrs_.issuer_list);
 }
 
 void SystemInfoClient::connect(std::string_view endpoint_url) {
