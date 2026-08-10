@@ -81,30 +81,31 @@ SystemInfoClient::SystemInfoClient(std::string_view client_name)
         cfg_attrs_.private_key,
         h_cfg->logging
     ));
-    
-    // Configure Endpoints
-    UA_EndpointDescription& ep = h_cfg->endpoint;
-    client_.config().setSecurityMode(opcua::MessageSecurityMode::SignAndEncrypt);
     h_cfg->securityPolicyUri = UA_STRING_ALLOC(std::string(SECURITY_POLICY_URI).c_str());
 
+    // Configure Endpoints
+    UA_EndpointDescription& ep = h_cfg->endpoint;
     std::string endpoint_url = "opc.tcp://" + std::string(std::getenv("SERVER_IP")) + ":4840";
     ep.endpointUrl = UA_STRING_ALLOC(endpoint_url.c_str());
     ep.securityPolicyUri = UA_STRING_ALLOC(std::string(SECURITY_POLICY_URI).c_str());
     ep.serverCertificate = cfg_attrs_.trust_list[0];
-    ep.securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT ; 
+    ep.transportProfileUri = UA_STRING_ALLOC(std::string(TRANSPORT_PROFILE_URI).c_str());
+    ep.securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT; 
 
     // Endpoint token configuration
+    std::cout << "previous userIdentityTokensSize: " << ep.userIdentityTokensSize << "\n";
     ep.userIdentityTokensSize = 1;
     ep.userIdentityTokens = static_cast<UA_UserTokenPolicy*>(UA_Array_new(
         ep.userIdentityTokensSize, 
         &UA_TYPES[UA_TYPES_USERTOKENPOLICY]
     ));
+    if(!ep.userIdentityTokens)
+        throw std::bad_alloc();
     ep.userIdentityTokens[0].tokenType = UA_USERTOKENTYPE_CERTIFICATE;
     ep.userIdentityTokens[0].policyId = UA_STRING_ALLOC(std::string(X509_TOKEN_POLICY_ID).c_str());
     ep.userIdentityTokens[0].securityPolicyUri = UA_STRING_ALLOC(std::string(SECURITY_POLICY_URI).c_str());
     ep.userIdentityTokens[0].issuerEndpointUrl = {};
     ep.userIdentityTokens[0].issuedTokenType = {};
-    ep.transportProfileUri = UA_STRING_ALLOC(std::string(TRANSPORT_PROFILE_URI).c_str());
 
     UA_ApplicationDescription_clear(&h_cfg->clientDescription);
     UA_ApplicationDescription desc = configureApplicationDescription(client_name_);

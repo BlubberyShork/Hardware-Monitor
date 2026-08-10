@@ -65,10 +65,14 @@ SystemInfoServer::SystemInfoServer() {
         UA_MESSAGESECURITYMODE_SIGNANDENCRYPT)
     );
     h_cfg->endpointsSize = 1;
+
     UA_EndpointDescription& ep = h_cfg->endpoints[0];
     std::string endpoint_url = "opc.tcp://" + std::string(std::getenv("SERVER_IP")) + ":4840";
     ep.endpointUrl = UA_STRING_ALLOC(endpoint_url.c_str());
-    
+    ep.securityPolicyUri = UA_STRING_ALLOC(std::string(SECURITY_POLICY_URI).c_str());
+    ep.serverCertificate = cfg_attrs_.certificate;
+    ep.securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT ; 
+
     // Endpoint->userIdentityToken configuration
     ep.userIdentityTokensSize = 1;
     ep.userIdentityTokens = static_cast<UA_UserTokenPolicy*>(UA_Array_new(
@@ -77,11 +81,13 @@ SystemInfoServer::SystemInfoServer() {
     ));
     if(!ep.userIdentityTokens)
         throw std::bad_alloc();
-
     ep.userIdentityTokens[0].tokenType = UA_USERTOKENTYPE_CERTIFICATE;
     ep.userIdentityTokens[0].policyId = UA_STRING_ALLOC(std::string(X509_TOKEN_POLICY_ID).c_str());
+    ep.userIdentityTokens[0].issuedTokenType = {};
+    ep.userIdentityTokens[0].issuerEndpointUrl = {};
+    ep.userIdentityTokens[0].securityPolicyUri = UA_STRING_ALLOC(std::string(SECURITY_POLICY_URI).c_str());
     ep.transportProfileUri = UA_STRING_ALLOC(std::string(TRANSPORT_PROFILE_URI).c_str());
-   
+ 
     // Set access control
     server_.config().setAccessControl(std::make_unique<AccessControlCustom>());
 }
