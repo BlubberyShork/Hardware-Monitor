@@ -20,7 +20,6 @@ public:
     ADLX& operator=(const ADLX&) = delete;
 
     // Initializes ADLXHelper, acquires IADLXSystem and
-    // IADLXPerformanceMonitoringServices.  Throws std::runtime_error on failure.
     void init();
 
     // Releases perf_monitoring, calls adlx_helper.Terminate().

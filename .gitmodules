@@ -7,3 +7,6 @@
 [submodule "third_party/adl"]
 	path = third_party/adl
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/display-library
+[submodule "third_party/open62541pp"]
+	path = third_party/open62541pp
+	url = https://github.com/open62541pp/open62541pp.git

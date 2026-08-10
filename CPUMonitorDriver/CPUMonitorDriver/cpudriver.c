@@ -299,6 +299,10 @@ ULONG ReadSmn(ULONG address, ULONG* result) {
     PCI_SLOT_NUMBER slot = {0};
     slot.u.bits.DeviceNumber   = 0;
     slot.u.bits.FunctionNumber = 0;
+    
+    // TODO -> Theres a few magic numbers in this file
+    // #define DATA_REGISTER 0x60
+    // #define STATUS_COMMAND_REGISTER 0x64
 
     // Write SMN address to index register
     ExAcquireFastMutex(&smn_mutex);
@@ -418,10 +422,12 @@ BOOLEAN ReadZenPlusAmdData(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_
     if (status == 0) return FALSE;
 
     // Pulled from LibreHardwareMonitor : https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/blob/master/LibreHardwareMonitorLib/Hardware/Cpu/Amd17Cpu.cs#L23 
+    //  Newer zen-era parts have a 49C adjustment through the TJ_SEL or RANGE_SEL masks
     BOOLEAN tempOffsetFlag = ((temperature & AMD_FAMILY_17H_M01H_THM_TCON_TEMP_RANGE_SEL_MASK) != 0)
                           || ((temperature & AMD_FAMILY_17H_TEMP_TJ_SEL_MASK) == AMD_FAMILY_17H_TEMP_TJ_SEL_MASK);
 
     temperature = (temperature >> 21) * 125; // Raw 11-bit value from [31:21]
+    // Scaled by 125 since temperatures are encoded as 1/8th of deg C
 
     LONG real_temp_milli = (LONG)(temperature);
     if (tempOffsetFlag) {
@@ -441,7 +447,4 @@ BOOLEAN ReadZenPlusAmdData(CPU_DATA_BUFFER* outbuffer, ULONG cpu_idx, ULONG cpu_
 
     return TRUE;
 }
-
-
-
 

@@ -19,6 +19,7 @@ public:
     //  Also, make sure to use the older-gen functions for help where applicable in higher versions
     //  Also, ensure memory functions are used (and others that we may want)
     //  ADL works, just fine tune detection of support by testing if an early retrieval function works, and set supported to 1
+    // should probably be enum classes as well
     enum TemperatureType {
         CORE,
         EDGE,
@@ -41,7 +42,6 @@ public:
     ADL& operator=(const ADL&) = delete;
 
     // Loads atiadlxx.dll, resolves all symbols, calls ADL2_Main_Control_Create.
-    // Throws std::runtime_error on any failure.
     void init();
 
     // ADL2_Main_Control_Destroy + FreeLibrary.  Safe to call multiple times.

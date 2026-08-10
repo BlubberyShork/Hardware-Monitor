@@ -1,7 +1,7 @@
 #pragma once
 #include "..\..\HardwareDevice.h"
-#include "Interop/ADL.h"
-#include "Interop/ADLX.h"
+#include "Interop\ADL.h"
+#include "Interop\ADLX.h"
 #include <..\..\..\third_party/adlx/SDK/Include/ISystem.h>
 #include <..\..\..\third_party/adlx/SDK/Include/IPerformanceMonitoring.h>
 #include <memory>
