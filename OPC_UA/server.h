@@ -34,10 +34,11 @@ private:
     };
 
     //// Helper Functions ////
-    ServerConfigAttributes getServerConfigAttributes(); 
-    UA_ByteString          readBytesFromFile(const std::filesystem::path& path);
-    UA_ApplicationDescription configureApplicationDescription();
-    
+    ServerConfigAttributes      getServerConfigAttributes(); 
+    UA_ByteString               readBytesFromFile(const std::filesystem::path& path);
+    UA_ApplicationDescription   configureApplicationDescription();
+    void                        addCustomDataTypes(opcua::ServerConfig& cfg);
+
     // Debug print functions //
     void dumpByteString(const char* label, const UA_ByteString& bs);
     void dumpConfigAttrs(const SystemInfoServer::ServerConfigAttributes& attrs);

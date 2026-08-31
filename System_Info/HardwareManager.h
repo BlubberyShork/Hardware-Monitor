@@ -29,7 +29,7 @@ public:
 
     // Accessors
     const Hardware_List_Container& GetHardwareData() const { return hw_data; }
-    const std::vector<A_HardwareDevice>& GetHardwareDevices() const { return hardware_devices; }
+    //const std::vector<A_HardwareDevice>& GetHardwareDevices() const { return hardware_devices; }
     Hardware_List_Container* GetHardwareDataPtr() {  return &hw_data; }
 
     void infoPhysicalDrive(
@@ -45,7 +45,7 @@ private:
     ThreadManager                       thrd_mngr;
     std::mutex                          mtx;
     Hardware_List_Container             hw_data;
-    std::vector<A_HardwareDevice>       hardware_devices;
+    //std::vector<A_HardwareDevice>       hardware_devices; // TODO - Delete this
     DxgiHandler                         gpu_exec;
 
     std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual>                       disks;

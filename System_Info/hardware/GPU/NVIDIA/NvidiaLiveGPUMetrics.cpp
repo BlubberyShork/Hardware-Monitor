@@ -8,8 +8,7 @@ NvidiaLiveGPUMetrics::NvidiaLiveGPUMetrics(NvPhysicalGpuHandle& handle)
       A_HardwareDevice(Vendor::NVIDIA, HardwareType::GPU, "NVIDIA GPU") {
 }
 
-NvidiaLiveGPUMetrics::~NvidiaLiveGPUMetrics() {
-}
+NvidiaLiveGPUMetrics::~NvidiaLiveGPUMetrics() {}
 
 void NvidiaLiveGPUMetrics::fetchMetrics() {
     if (!_handle) return;
@@ -68,14 +67,14 @@ void NvidiaLiveGPUMetrics::fetchMetrics() {
         addSensor<Sensors::SensorType::USAGE>("GPU Video Engine Utilization",
             static_cast<float>(util[NV_GPU_CLIENT_UTIL_DOMAIN_VIDEO].percentage));
 
-    // Fan speed — TODO: update library for modern fan APIs
+    // Fan speed TODO: update library for modern fan APIs
     NvU32 fan_spd = 0;
     if (NvAPI_GPU_GetTachReading(_handle, &fan_spd) == NVAPI_OK)
         addSensor<Sensors::SensorType::FAN_SPEED>("GPU Fan Speed", static_cast<float>(fan_spd));
     else
         addSensor<Sensors::SensorType::FAN_SPEED>("GPU Fan Speed", 0.0f);
 
-    // TODO - Temp, delete later
+    // TODO - TelemetryStore population
     outputMetrics();
 }
 

@@ -1,8 +1,10 @@
 #pragma once
+
 #include <memory>
 #include <vector>
 #include <string>
 #include "DeviceSensor.h"
+#include "../../OPC_UA/utils.h"
 
 #define OUTPUT_HEADER(header_msg) \
         std::cout << "--------------------------------------------------------------\n"; \
@@ -44,10 +46,10 @@ public:
 	HardwareType        getType()   const { return hw_type; }
 
 protected:
-	Vendor			vendor;
-	HardwareType	hw_type;
-	std::string		name;
-    // TODO - TelemetryStore here?
+	Vendor vendor;
+	HardwareType hw_type;
+	std::string name;
+    opc_ua_utils::TelemetryStore t_store;
 
 	template<Sensors::SensorType T>
 	void addSensor(std::string name, float init_val = {}) {

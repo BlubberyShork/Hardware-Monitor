@@ -87,7 +87,10 @@ SystemInfoServer::SystemInfoServer() {
     ep.userIdentityTokens[0].issuerEndpointUrl = {};
     ep.userIdentityTokens[0].securityPolicyUri = UA_STRING_ALLOC(std::string(SECURITY_POLICY_URI).c_str());
     ep.transportProfileUri = UA_STRING_ALLOC(std::string(TRANSPORT_PROFILE_URI).c_str());
- 
+
+    // Configure custom data types for the clients
+    addCustomDataTypes(server_.config());
+
     // Set access control
     server_.config().setAccessControl(std::make_unique<AccessControlCustom>());
 }
@@ -189,6 +192,14 @@ UA_ApplicationDescription SystemInfoServer::configureApplicationDescription(){
     desc.applicationType = UA_APPLICATIONTYPE_SERVER;
 
     return desc;
+}
+
+void SystemInfoServer::addCustomDataTypes(opcua::ServerConfig& cfg) {
+    std::vector<opcua::DataType> types_vec;
+
+    // TODO - Build custom data types
+
+    // TODO - add the built custom data types for the opcua::Span upon completion of the vec;
 }
 
 UA_ByteString SystemInfoServer::readBytesFromFile(const std::filesystem::path& path) {

@@ -1,32 +1,35 @@
-#ifdef _WIN32
-#define _WIN32_DCOM
-#endif
-
 #if defined(_WIN32) || defined(_WIN64)
-#include "driver_client\DriverClient.h"
-#include "wmi\ComManager.h"
-#include "wmi\WbemManager.h"
-#include "output_generator\OutputHandler.h"
+    #define PLATFORM_WINDOWS 1
+    #ifndef _WIN32_DCOM
+        #define _WIN32_DCOM
+    #endif
+#elif defined(__linux__)
+    #define PLATFORM_LINUX 1
+#else
+    #error "Unsupported Operating System"
 #endif
 
-#if defined(__linux__)
-
+#if defined(PLATFORM_WINDOWS)
+    #include "driver_client/DriverClient.h"
+    #include "wmi/ComManager.h"
+    #include "wmi/WbemManager.h"
+    #include "output_generator/OutputHandler.h"
+#elif defined(PLATFORM_LINUX)
+    // #include "linux_backend/LinuxHardware.h"
 #endif
 
-#include <ctime>
 #include <chrono>
 #include <iostream>
+#include "../OPC_UA/client.h"
 
 int main(int argc, char* argv[]) 
 {
-// TODO - Set up the client
-
-#if defined(_WIN32) || defined(_WIN64)
-    //Windows pipeline
-
+#if defined(PLATFORM_WINDOWS) || defined(PLATFORM_LINUX)
+#endif // Windows or linux OS
     std::cout << "before initializations\n";
     auto start = std::chrono::high_resolution_clock::now();
 
+#if defined(PLATFORM_WINDOWS)
     ComManager  com_mngr;
     WbemManager wbem_mngr; 
 
@@ -36,26 +39,22 @@ int main(int argc, char* argv[])
     DriverClient dc;
     dc.runDriver();
 
-    auto end = std::chrono::high_resolution_clock::now();
-    auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-
     //OutputHandler out(hw_mngr.GetHardwareData(), dc);
     //out.output();
     OutputHandler out(hw_mngr.GetHardwareData());
     out.outputNoDriver();
     
-    std::cout << "Threads took: " << dur.count() << " ms";
-    
-    return 0;
-#elif defined(__linux__)
-    // Linux pipeline
-
-
-    return 0;
+#elif defined(PLATFORM_LINUX)
 #else 
 #error "Unsupported Operating System"
 
-#endif
+#endif // Platform check
+    
+    auto end = std::chrono::high_resolution_clock::now();
+    auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "Threads took: " << dur.count() << " ms";
+
+    return 0;
 }
 
 
