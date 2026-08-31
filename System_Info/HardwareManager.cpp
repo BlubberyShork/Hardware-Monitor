@@ -63,12 +63,12 @@ void HardwareManager::StopPolling() {
 [[deprecated("WMI is being phased out of the project, do not use this functionality")]]
 void HardwareManager::QueryWmiHardware() {
     std::vector<std::function<void()>> queries = {
-        [this] { HardwareQueries::QueryCPUs(wbem_mngr_->getW32Services(), mtx_, hw_data_.cpus); },
-        [this] { HardwareQueries::QueryMotherboards(wbem_mngr_->getW32Services(), mtx_, hw_data_.motherboards); },
-        [this] { HardwareQueries::QueryDisks(wbem_mngr_->getMsftServices(), mtx_, disks_); },
-        [this] { HardwareQueries::QueryPartitions(wbem_mngr_->getMsftServices(), mtx_, partitions_); },
-        [this] { HardwareQueries::QueryVolumes(wbem_mngr_->getMsftServices(), mtx_, volumes_); },
-        [this] { HardwareQueries::QueryPhysicalDisks(wbem_mngr_->getMsftServices(), mtx_, phys_disks_); }
+        [this] { HardwareQueries::QueryCPUs(wbem_mngr_->getW32Services(), wmi_mtx_, hw_data_.cpus); },
+        [this] { HardwareQueries::QueryMotherboards(wbem_mngr_->getW32Services(), wmi_mtx_, hw_data_.motherboards); },
+        [this] { HardwareQueries::QueryDisks(wbem_mngr_->getMsftServices(), wmi_mtx_, disks_); },
+        [this] { HardwareQueries::QueryPartitions(wbem_mngr_->getMsftServices(), wmi_mtx_, partitions_); },
+        [this] { HardwareQueries::QueryVolumes(wbem_mngr_->getMsftServices(), wmi_mtx_, volumes_); },
+        [this] { HardwareQueries::QueryPhysicalDisks(wbem_mngr_->getMsftServices(), wmi_mtx_, phys_disks_); }
     };
     ThreadManager query_manager;
     query_manager.ExecuteThreadPool(queries);

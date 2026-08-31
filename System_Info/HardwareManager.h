@@ -51,7 +51,7 @@ private:
     std::unique_ptr<ThreadManager> thrd_mngr_;
     std::vector<std::unique_ptr<IHardwarePipelineWorker>> workers_;
     std::vector<std::jthread> worker_threads_;
-    std::mutex mtx_;
+    std::mutex wmi_mtx_;
     Hardware_List_Container hw_data_;
     std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual> disks_;
     std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash> partitions_;
