@@ -74,8 +74,7 @@ void NvidiaLiveGPUMetrics::fetchMetrics() {
     else
         addSensor<Sensors::SensorType::FAN_SPEED>("GPU Fan Speed", 0.0f);
 
-    // TODO - TelemetryStore population
-    outputMetrics();
+    //outputMetrics();
 }
 
 void NvidiaLiveGPUMetrics::checkAndHandleError(const char* custom_msg, NvAPI_Status status) {

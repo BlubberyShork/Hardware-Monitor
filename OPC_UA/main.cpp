@@ -5,6 +5,7 @@
 #include <csignal>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <string_view>
 #include <thread>
 
@@ -46,7 +47,8 @@ void runClient() {
     }
 
     try {
-        SystemInfoClient client("test_client");
+        auto queue = std::make_shared<ClientQueue>();
+        SystemInfoClient client("test_client", queue);
         client.connect(endpoint_url);
         std::cout << "Client fully connected\n";
         opcua::Node node{client.native(), opcua::VariableId::Server_ServerStatus_CurrentTime};

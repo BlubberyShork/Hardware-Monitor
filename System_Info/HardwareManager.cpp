@@ -1,56 +1,101 @@
 #include "HardwareManager.h"
 
-void HardwareManager::ExecuteQueryThreadPool() {
-    std::vector<std::function<void()>> queries = {
-        [&] { HardwareQueries::QueryGPUs(wbem_mngr->getW32Services(), mtx, hw_data.gpus); },
-        [&] { HardwareQueries::QueryCPUs(wbem_mngr->getW32Services(), mtx, hw_data.cpus); },
-        [&] { HardwareQueries::QueryMotherboards(wbem_mngr->getW32Services(), mtx, hw_data.motherboards); },
-        [&] { HardwareQueries::QueryDisks(wbem_mngr->getMsftServices(), mtx, disks); },
-        [&] { HardwareQueries::QueryPartitions(wbem_mngr->getMsftServices(), mtx, partitions); },
-        [&] { HardwareQueries::QueryVolumes(wbem_mngr->getMsftServices(), mtx, volumes); },
-        [&] { HardwareQueries::QueryPhysicalDisks(wbem_mngr->getMsftServices(), mtx, phys_disks); },
-        [&] { gpu_exec.createGPUDevices(); }
-    };
+#include "../OPC_UA/ClientQueue.h"
+#include "ThreadManager.h"
+#include "hardware/pipeline_workers/CPUPipelineWorker.h"
+#include "hardware/pipeline_workers/GPUPipelineWorker.h"
+#include "wmi/WbemManager.h"
 
-    thrd_mngr.ExecuteThreadPool(queries);
+#include <functional>
 
-    infoPhysicalDrive(hw_data.storage_dvcs, disks, partitions, volumes, phys_disks);
+[[deprecated("WMI is being phased out of the project, do not use this functionality")]]
+HardwareManager::HardwareManager(WbemManager* wbem, std::shared_ptr<ClientQueue> queue)
+    : wbem_mngr_(wbem)
+    , queue_(std::move(queue))
+    , thrd_mngr_(std::make_unique<ThreadManager>()) {
+    workers_.push_back(std::make_unique<GPUPipelineWorker>(*queue_));
+    workers_.push_back(std::make_unique<CPUPipelineWorker>(*queue_));
 }
 
-void HardwareManager::infoPhysicalDrive(
-    std::vector<StorageDevice>& sd_list,
-    std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual>& d_hmap,
-    std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash>& p_hmap,
-    std::unordered_map<wchar_t, Volume>& v_hmap,
-    std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual>& pd_hmap
-) {
-    // Build sd_list from the collected data
-    for (const auto& disk_pair : d_hmap) {
-        StorageDevice sd;
-        bstr_t d_unq_id = disk_pair.first;
-        Disk disk = disk_pair.second;
-        ULONG d_disk_num = disk.disk_num;
-        sd.setDisk(disk);
+// TODO - Implement NetworkPipelineWorker, StorageDevicePipelineWorker, and MotherboardPipelineWorker
+HardwareManager::HardwareManager(std::shared_ptr<ClientQueue> queue)
+    : queue_(std::move(queue))
+    , thrd_mngr_(std::make_unique<ThreadManager>()) {
+    workers_.push_back(std::make_unique<GPUPipelineWorker>(*queue_));
+    workers_.push_back(std::make_unique<CPUPipelineWorker>(*queue_));
+}
 
-        // Add partitions
+HardwareManager::~HardwareManager() {
+    StopPolling();
+}
+
+void HardwareManager::InitializeAllWorkers() {
+    std::vector<std::function<void()>> setup_tasks;
+    setup_tasks.reserve(workers_.size() + 1);
+    //setup_tasks.push_back([this] { QueryWmiHardware(); });
+    for (auto& worker : workers_) {
+        setup_tasks.push_back([worker = worker.get()] { worker->initialize(); });
+    }
+    thrd_mngr_->ExecuteThreadPool(setup_tasks);
+    //infoPhysicalDrive();
+}
+
+void HardwareManager::StartPolling(std::chrono::milliseconds poll_interval) {
+    if (!worker_threads_.empty()) {
+        return;
+    }
+    worker_threads_.reserve(workers_.size());
+    for (auto& worker : workers_) {
+        worker_threads_.emplace_back(
+            [worker = worker.get(), poll_interval](std::stop_token stop_token) {
+                worker->run(stop_token, poll_interval);
+            });
+    }
+}
+
+void HardwareManager::StopPolling() {
+    for (auto& worker_thread : worker_threads_) {
+        worker_thread.request_stop();
+    }
+    worker_threads_.clear();
+}
+
+[[deprecated("WMI is being phased out of the project, do not use this functionality")]]
+void HardwareManager::QueryWmiHardware() {
+    std::vector<std::function<void()>> queries = {
+        [this] { HardwareQueries::QueryCPUs(wbem_mngr_->getW32Services(), mtx_, hw_data_.cpus); },
+        [this] { HardwareQueries::QueryMotherboards(wbem_mngr_->getW32Services(), mtx_, hw_data_.motherboards); },
+        [this] { HardwareQueries::QueryDisks(wbem_mngr_->getMsftServices(), mtx_, disks_); },
+        [this] { HardwareQueries::QueryPartitions(wbem_mngr_->getMsftServices(), mtx_, partitions_); },
+        [this] { HardwareQueries::QueryVolumes(wbem_mngr_->getMsftServices(), mtx_, volumes_); },
+        [this] { HardwareQueries::QueryPhysicalDisks(wbem_mngr_->getMsftServices(), mtx_, phys_disks_); }
+    };
+    ThreadManager query_manager;
+    query_manager.ExecuteThreadPool(queries);
+}
+
+[[deprecated("WMI is being phased out of the project, do not use this functionality")]]
+void HardwareManager::infoPhysicalDrive() {
+    for (const auto& disk_pair : disks_) {
+        StorageDevice storage_device;
+        const Disk& disk = disk_pair.second;
+        storage_device.setDisk(disk);
         for (size_t i = 0; i < disk.num_partitions; ++i) {
-            ULONG part_num = static_cast<ULONG>(i);
-            Partition::partition_id pid = { d_disk_num, part_num };
-            if (p_hmap.find(pid) != p_hmap.end()) {
-                sd.getPartitions().push_back(p_hmap[pid]);
-                Partition p = p_hmap[pid];
-                // Add volume if it exists
-                if (p.drv_ltr != 0 && v_hmap.find(p.drv_ltr) != v_hmap.end()) {
-                    sd.getVolumes().push_back(v_hmap[p.drv_ltr]);
-                }
+            const Partition::partition_id partition_id{disk.disk_num, static_cast<ULONG>(i)};
+            const auto partition = partitions_.find(partition_id);
+            if (partition == partitions_.end()) {
+                continue;
+            }
+            storage_device.getPartitions().push_back(partition->second);
+            const auto volume = volumes_.find(partition->second.drv_ltr);
+            if (partition->second.drv_ltr != 0 && volume != volumes_.end()) {
+                storage_device.getVolumes().push_back(volume->second);
             }
         }
-
-        // Add physical disk
-        if (pd_hmap.find(d_disk_num) != pd_hmap.end()) {
-            sd.setPhysicalDisk(pd_hmap[d_disk_num]);
+        const auto physical_disk = phys_disks_.find(disk.disk_num);
+        if (physical_disk != phys_disks_.end()) {
+            storage_device.setPhysicalDisk(physical_disk->second);
         }
-
-        sd_list.push_back(sd);
+        hw_data_.storage_dvcs.push_back(std::move(storage_device));
     }
 }

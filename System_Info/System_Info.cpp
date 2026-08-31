@@ -10,53 +10,45 @@
 #endif
 
 #if defined(PLATFORM_WINDOWS)
-    #include "driver_client/DriverClient.h"
+    #include "HardwareManager.h"
     #include "wmi/ComManager.h"
     #include "wmi/WbemManager.h"
-    #include "output_generator/OutputHandler.h"
-#elif defined(PLATFORM_LINUX)
-    // #include "linux_backend/LinuxHardware.h"
+    #include "../OPC_UA/client.h"
 #endif
 
-#include <chrono>
+#include "../OPC_UA/ClientQueue.h"
+
 #include <iostream>
-#include "../OPC_UA/client.h"
+#include <memory>
 
-int main(int argc, char* argv[]) 
-{
-#if defined(PLATFORM_WINDOWS) || defined(PLATFORM_LINUX)
-#endif // Windows or linux OS
-    std::cout << "before initializations\n";
-    auto start = std::chrono::high_resolution_clock::now();
-
+int main() {
 #if defined(PLATFORM_WINDOWS)
-    ComManager  com_mngr;
-    WbemManager wbem_mngr; 
-
-    HardwareManager hw_mngr(&wbem_mngr);
-    hw_mngr.ExecuteQueryThreadPool();
+    //ComManager com_mngr;
+    //WbemManager wbem_mngr;
     
-    DriverClient dc;
-    dc.runDriver();
+    auto queue = std::make_shared<ClientQueue>();
+    //HardwareManager hardware_manager(&wbem_mngr, queue);
+    HardwareManager hardware_manager(queue);
+    SystemInfoClient client("system_info", queue);
 
-    //OutputHandler out(hw_mngr.GetHardwareData(), dc);
-    //out.output();
-    OutputHandler out(hw_mngr.GetHardwareData());
-    out.outputNoDriver();
-    
+    std::cout << "Initializing all workers\n";
+    hardware_manager.InitializeAllWorkers();
+    std::cout << "polling\n";
+    hardware_manager.StartPolling();
+
+    while (true) {
+        for (const auto& snapshot : queue->drain()) {
+            std::cout << "[" << snapshot.vendor << "] " << snapshot.name
+                      << " (" << snapshot.hardware_type << ") - "
+                      << snapshot.sensors.size() << " sensors\n";
+            for (const auto& sensor : snapshot.sensors) {
+                std::cout << "  " << sensor.name << ": " << sensor.value
+                          << " " << sensor.unit << "\n";
+            }
+        }
+        std::cout << "\n";
+    }
 #elif defined(PLATFORM_LINUX)
-#else 
-#error "Unsupported Operating System"
-
-#endif // Platform check
-    
-    auto end = std::chrono::high_resolution_clock::now();
-    auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "Threads took: " << dur.count() << " ms";
-
     return 0;
+#endif
 }
-
-
-
-

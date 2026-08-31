@@ -5,10 +5,13 @@
 #include <open62541/types_generated.h>
 
 #include <filesystem>
+#include <memory>
+
+#include "ClientQueue.h"
 
 class SystemInfoClient {
 public:
-    explicit SystemInfoClient(std::string_view client_name);
+    SystemInfoClient(std::string_view client_name, std::shared_ptr<ClientQueue> queue);
     ~SystemInfoClient();
 
     void connect(std::string_view endpoint_url);
@@ -52,4 +55,5 @@ private:
     ClientConfigAttributes cfg_attrs_;
     std::string_view client_name_;
     std::string_view server_endpoint_url_;
+    std::shared_ptr<ClientQueue> queue_;
 };

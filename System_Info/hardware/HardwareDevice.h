@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 #include "DeviceSensor.h"
-#include "../../OPC_UA/utils.h"
+#include "../../OPC_UA/ClientQueue.h"
 
 #define OUTPUT_HEADER(header_msg) \
         std::cout << "--------------------------------------------------------------\n"; \
@@ -38,7 +38,8 @@ public:
 	A_HardwareDevice& operator=(A_HardwareDevice&&) = default;
 
 	virtual ~A_HardwareDevice() = default;
-    virtual void fetchMetrics() = 0;
+	virtual void fetchMetrics() = 0;
+	TelemetrySnapshot snapshot() const;
 
 	const std::vector<std::unique_ptr<Sensors::IDeviceSensor>>& getSensors() const { return dev_sensors; }
 	const std::string&  getName()   const { return name; }
@@ -49,10 +50,14 @@ protected:
 	Vendor vendor;
 	HardwareType hw_type;
 	std::string name;
-    opc_ua_utils::TelemetryStore t_store;
-
 	template<Sensors::SensorType T>
 	void addSensor(std::string name, float init_val = {}) {
+		for (const auto& sensor : dev_sensors) {
+			if (sensor->getName() == name && sensor->getType() == T) {
+				sensor->setValue(init_val);
+				return;
+			}
+		}
 		dev_sensors.push_back(std::make_unique<Sensors::DeviceSensor<T>>(std::move(name), init_val));
 	}
 
@@ -60,4 +65,3 @@ protected:
 private:
 	std::vector<std::unique_ptr<Sensors::IDeviceSensor>> dev_sensors;
 };
- 

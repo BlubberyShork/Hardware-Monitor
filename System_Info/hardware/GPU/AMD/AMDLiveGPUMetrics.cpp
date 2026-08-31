@@ -287,8 +287,7 @@ void AMDLiveGPUMetrics::fetchADLMetrics() {
             << " for adapter " << idx << "\n";
     }
 
-    // TODO - Temp, delete later
-    outputMetrics();
+    //outputMetrics();
 }
 
 // ---------------------------------------------------------------------------

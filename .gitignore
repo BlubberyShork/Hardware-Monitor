@@ -117,7 +117,7 @@ _ReSharper*/
 # Backup & crash
 *.bak
 *.swp
-*.swot h i r d _ p a r t y / n v a p i /  
+*.swot h i r d _ p a r t y / n v a p i /  
 # Driver signing keys
 *.pfx
 *.pvk
@@ -143,5 +143,8 @@ _deps/
 .cache/
 build*/
 out/
+
+prompt/
+config.toml
 
 #Third-Party

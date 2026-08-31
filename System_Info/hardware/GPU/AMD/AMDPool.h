@@ -21,7 +21,7 @@ public:
     // Populates devices_ via ADL or ADLX enumeration.
     void enumerateDevices() override;
 
-    const std::vector<std::unique_ptr<A_HardwareDevice>>& getDevices() const { return devices_; }
+    const std::vector<std::unique_ptr<A_HardwareDevice>>& getDevices() const override { return devices_; }
 
 private:
     // -----------------------------------------------------------------------

@@ -22,6 +22,8 @@ set(SHARED_SOURCES
     output_generator/OutputHandler.cpp
     hardware/HardwareDevice.cpp
     hardware/IHardwareDevicePool.cpp
+    ${CMAKE_SOURCE_DIR}/../OPC_UA/ClientQueue.cpp
+    ${CMAKE_SOURCE_DIR}/../OPC_UA/client.cpp
     # OPC_UA/AccessControlCustom.cpp
     # hardware/DeviceSensor.h has no .cpp -- header-only, nothing to list here
 )
@@ -44,6 +46,9 @@ set(WINDOWS_SOURCES
     wmi/projutils.cpp
     wmi/storagedevice.cpp
     hardware/GPU/DxgiHandler.cpp
+    hardware/CPU/CPULiveMetrics.cpp
+    hardware/pipeline_workers/CPUPipelineWorker.cpp
+    hardware/pipeline_workers/GPUPipelineWorker.cpp
     hardware/GPU/AMD/AMDPool.cpp
     hardware/GPU/AMD/AMDLiveGPUMetrics.cpp
     hardware/GPU/AMD/Interop/ADLX.cpp
@@ -158,4 +163,3 @@ if(MSVC)
         /permissive-
     )
 endif()
-

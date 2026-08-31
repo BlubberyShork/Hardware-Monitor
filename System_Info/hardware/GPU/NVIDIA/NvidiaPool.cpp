@@ -23,7 +23,7 @@ void NvidiaPool::enumerateDevices() {
     if(status != NVAPI_OK) std::cerr << "Failed to enumerate physical GPUs: " << status << "\n";
     for (NvU32 i = 0; i < gpu_cnt; i++) {
         auto dev = std::make_unique<NvidiaLiveGPUMetrics>(handles[i]);
-        nvidia_adapters.push_back(std::move(dev));
-        nvidia_adapters.back().get()->fetchMetrics();
+        devices_.push_back(std::move(dev));
+        devices_.back()->fetchMetrics();
     }
 }

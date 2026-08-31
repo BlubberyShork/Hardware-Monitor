@@ -21,7 +21,6 @@ add_executable(OpcUaServer
     main.cpp
     server.cpp
     AccessControlCustom.cpp
-    test_client.cpp
     client.cpp
     opcua_logging.cpp
 )

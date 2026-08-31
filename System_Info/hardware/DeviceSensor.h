@@ -46,6 +46,7 @@ namespace Sensors {
 
 		virtual const std::string& getName()  const = 0;
 		virtual float              getValue() const = 0;
+		virtual void               setValue(float value) = 0;
 		virtual const char*		   getUnit()  const = 0;
 		virtual SensorType         getType()  const = 0;
 	};
@@ -64,6 +65,7 @@ namespace Sensors {
 
 		const std::string& getName()  const override { return name; }
 		float              getValue() const override { return value; }
+		void               setValue(float new_value) override { value = new_value; }
 		const char*		   getUnit()  const override { return SensorTraits<T>::unit; }
 		SensorType         getType()  const override { return T; }
 

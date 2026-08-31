@@ -10,11 +10,15 @@
 
 #include <iostream>
 #include <fstream>
+#include <cstdlib>
+#include <stdexcept>
+#include <utility>
 
 void dumpClient(const UA_Client* client);
 
-SystemInfoClient::SystemInfoClient(std::string_view client_name) 
-                                    : client_name_(client_name) {
+SystemInfoClient::SystemInfoClient(std::string_view client_name, std::shared_ptr<ClientQueue> queue)
+    : client_name_(client_name)
+    , queue_(std::move(queue)) {
     cfg_attrs_ = getClientConfigAttributes();
     dumpConfigAttrs(cfg_attrs_);
 
@@ -85,7 +89,13 @@ SystemInfoClient::SystemInfoClient(std::string_view client_name)
 
     // Configure Endpoints
     UA_EndpointDescription& ep = h_cfg->endpoint;
-    std::string endpoint_url = "opc.tcp://" + std::string(std::getenv("SERVER_IP")) + ":4840";
+    char* server_ip = nullptr;
+    size_t server_ip_length = 0;
+    if (_dupenv_s(&server_ip, &server_ip_length, "SERVER_IP") != 0 || server_ip == nullptr) {
+        throw std::runtime_error("SERVER_IP is not set");
+    }
+    std::string endpoint_url = "opc.tcp://" + std::string(server_ip) + ":4840";
+    std::free(server_ip);
     ep.endpointUrl = UA_STRING_ALLOC(endpoint_url.c_str());
     ep.securityPolicyUri = UA_STRING_ALLOC(std::string(SECURITY_POLICY_URI).c_str());
     ep.serverCertificate = cfg_attrs_.trust_list[0];
