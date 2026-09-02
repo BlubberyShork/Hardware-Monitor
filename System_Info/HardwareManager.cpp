@@ -15,6 +15,9 @@ HardwareManager::HardwareManager(WbemManager* wbem, std::shared_ptr<ClientQueue>
     , thrd_mngr_(std::make_unique<ThreadManager>()) {
     workers_.push_back(std::make_unique<GPUPipelineWorker>(*queue_));
     workers_.push_back(std::make_unique<CPUPipelineWorker>(*queue_));
+    // workers_.push_back(std::make_unique<MotherboardPipelineWorker>(*queue_));
+    // workers_.push_back(std::make_unique<NetworkPipelineWorker>(*queue_));
+    // workers_.push_back(std::make_unique<StorageDevicePipelineWorker>(*queue_));
 }
 
 // TODO - Implement NetworkPipelineWorker, StorageDevicePipelineWorker, and MotherboardPipelineWorker
@@ -23,6 +26,9 @@ HardwareManager::HardwareManager(std::shared_ptr<ClientQueue> queue)
     , thrd_mngr_(std::make_unique<ThreadManager>()) {
     workers_.push_back(std::make_unique<GPUPipelineWorker>(*queue_));
     workers_.push_back(std::make_unique<CPUPipelineWorker>(*queue_));
+    // workers_.push_back(std::make_unique<MotherboardPipelineWorker>(*queue_));
+    // workers_.push_back(std::make_unique<NetworkPipelineWorker>(*queue_));
+    // workers_.push_back(std::make_unique<StorageDevicePipelineWorker>(*queue_));
 }
 
 HardwareManager::~HardwareManager() {
