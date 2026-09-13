@@ -4,6 +4,7 @@
 
 #include <string>
 
+// TODO -> Return the actual hardware name
 CPULiveMetrics::CPULiveMetrics(DriverClient& driver_client)
     : A_HardwareDevice(Vendor::INTEL, HardwareType::CPU, "CPU")
     , driver_client_(driver_client) {}

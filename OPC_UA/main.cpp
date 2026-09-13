@@ -37,6 +37,7 @@ void runServer(SystemInfoServer& server) {
     }
 }
 
+[[deprecated]]
 void runClient() {
     std::string endpoint_base = "opc.tcp://";
     std::string port(":4840");
@@ -70,9 +71,9 @@ int main() {
     std::signal(SIGTERM, handleSignal);
 
     std::thread ts(runServer, std::ref(server));
-    std::thread tc(runClient);
+    //std::thread tc(runClient);
 
-    tc.join();
+    //tc.join();
     ts.join(); // unblocks once SIGINT/SIGTERM fires server.stop()
     std::cout << "Done\n";
     return 0;

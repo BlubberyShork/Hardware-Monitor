@@ -8,6 +8,8 @@
 #include <memory>
 
 #include "ClientQueue.h"
+#include "utils.h"
+#include "shared_opc_ua_layout.h"
 
 class SystemInfoClient {
 public:
@@ -18,6 +20,14 @@ public:
     void disconnect();
 
     opcua::Client& native() { return client_; }
+    
+    // Telemetry Functions
+    std::vector<opc_ua_utils::TelemetryStore> buildTelemetryPayload(
+        const std::vector<TelemetrySnapshot>& drained);
+    
+    // Server communication functions
+    void addNodes();               
+    bool sendTelemetryPayload();   
 private:
     // Container holding server configuration attributes for ServerConfig initialization
     struct ClientConfigAttributes {
@@ -56,4 +66,9 @@ private:
     std::string_view client_name_;
     std::string_view server_endpoint_url_;
     std::shared_ptr<ClientQueue> queue_;
+
+    // Populated by addNodes(). nullopt until then
+    std::optional<opcua::NodeId> client_folder_;
+    std::optional<opcua::DataType> sensor_dto_type_;
+    std::unordered_map<std::string, opc_ua_utils::SnapshotNodeIds> device_nodes_;
 };

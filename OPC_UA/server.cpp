@@ -1,8 +1,8 @@
 #include "server.h"
-#include "opcua_logging.hpp"
 #include "shared_security_config.h"
+#include "utils.h"
+#include "shared_opc_ua_layout.h"
 
-#include "open62541pp/wrapper.hpp"
 #include <vector>
 #include <filesystem>
 #include <iostream>
@@ -88,11 +88,12 @@ SystemInfoServer::SystemInfoServer() {
     ep.userIdentityTokens[0].securityPolicyUri = UA_STRING_ALLOC(std::string(SECURITY_POLICY_URI).c_str());
     ep.transportProfileUri = UA_STRING_ALLOC(std::string(TRANSPORT_PROFILE_URI).c_str());
 
-    // Configure custom data types for the clients
-    addCustomDataTypes(server_.config());
+    // Create Node Structure
+    telemetry_clients_folder_ = createTelemetryClientsFolder();
+    opc_ua_utils::registerSensorDtoType(server_, opc_ua_layout::kTelemetryNamespaceIndex);
 
     // Set access control
-    server_.config().setAccessControl(std::make_unique<AccessControlCustom>());
+    server_.config().setAccessControl(std::make_unique<AccessControlCustom>(telemetry_clients_folder_));
 }
 
 SystemInfoServer::~SystemInfoServer() {
@@ -118,6 +119,27 @@ void SystemInfoServer::stop() {
 }
 
 //// Helper Functions ////
+opcua::NodeId SystemInfoServer::createTelemetryClientsFolder() {
+    namespace layout = opc_ua_layout;
+
+    opcua::Node<opcua::Server> objects_folder(server_, opcua::ObjectId::ObjectsFolder);
+
+    opcua::NodeId folder_id(layout::kTelemetryNamespaceIndex, layout::kTelemetryClientsFolderName);
+    
+    opcua::Node folder = objects_folder.addFolder(folder_id, layout::kTelemetryClientsFolderName);
+
+    std::cout << "TelemetryClients NodeId: "
+              << folder.id().toString() << '\n';
+
+    auto browse_name = folder.readBrowseName();
+
+    std::cout << "TelemetryClients BrowseName: "
+              << browse_name.namespaceIndex() << ":"
+              << browse_name.name() << '\n';
+
+    return folder.id();
+}
+
 SystemInfoServer::ServerConfigAttributes SystemInfoServer::getServerConfigAttributes() {
     namespace fs = std::filesystem;
     ServerConfigAttributes attrs;
@@ -192,14 +214,6 @@ UA_ApplicationDescription SystemInfoServer::configureApplicationDescription(){
     desc.applicationType = UA_APPLICATIONTYPE_SERVER;
 
     return desc;
-}
-
-void SystemInfoServer::addCustomDataTypes(opcua::ServerConfig& cfg) {
-    std::vector<opcua::DataType> types_vec;
-
-    // TODO - Build custom data types
-
-    // TODO - add the built custom data types for the opcua::Span upon completion of the vec;
 }
 
 UA_ByteString SystemInfoServer::readBytesFromFile(const std::filesystem::path& path) {

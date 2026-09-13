@@ -1,6 +1,6 @@
-# OPC_UA/CMakeLists.txt
+# control_center/CMakeLists.txt
 cmake_minimum_required(VERSION 3.20)
-project(OpcUaServer LANGUAGES CXX)
+project(ControlCenter LANGUAGES CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -17,21 +17,20 @@ add_subdirectory(
     ${CMAKE_BINARY_DIR}/open62541pp
 )
 
-add_executable(OpcUaServer
+add_executable(ControlCenter
     main.cpp
-    server.cpp
-    AccessControlCustom.cpp
-    client.cpp
-    CustomClient.cpp
-    opcua_logging.cpp
-    utils.cpp
-    ClientQueue.cpp
+    ControlCenterClient.cpp
+    DisplayGrid.cpp
+    ${CMAKE_SOURCE_DIR}/../OPC_UA/CustomClient.cpp
+    ${CMAKE_SOURCE_DIR}/../OPC_UA/utils.cpp
+    ${CMAKE_SOURCE_DIR}/../OPC_UA/ClientQueue.cpp
 )
 
-target_include_directories(OpcUaServer PRIVATE
+target_include_directories(ControlCenter PRIVATE
     ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/../OPC_UA
 )
 
-target_link_libraries(OpcUaServer PRIVATE
+target_link_libraries(ControlCenter PRIVATE
     open62541pp::open62541pp
 )

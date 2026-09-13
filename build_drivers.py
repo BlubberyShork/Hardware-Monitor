@@ -97,7 +97,7 @@ def windowsBuildDrivers():
 # TODO - Eventually, CPUMonitorDriver/ will be drivers/ with their appropriate cpu/, motherboard/, etc.
 # We will have a function to search and find driver .sys files to determine binpaths and driver names (third arg in both sc.exe cmds) 
 def windowsDeployDrivers():
-    bin_path = ""
+    bin_path = Path(build_dir).joinpath("WindowsCPUDriver.sys")
     SC_CREATE_CPUDRIVER_CMD = ["sc.exe", "create", "CPUMonitorDriver", f'binPath="{bin_path}"', "type=kernel"]
     SC_START_CPUDRIVER_CMD = ["sc.exe", "start", "CPUMonitorDriver"]
 

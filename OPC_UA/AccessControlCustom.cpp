@@ -1,11 +1,13 @@
 #include "AccessControlCustom.h"
 #include "shared_security_config.h"
+#include "shared_opc_ua_layout.h"
 
 #include <string_view>
 #include <iostream>
 #include <fstream>
 
-AccessControlCustom::AccessControlCustom() {
+AccessControlCustom::AccessControlCustom(opcua::NodeId telemetryClientsFolder) 
+    : telemetry_clients_folder_(std::move(telemetryClientsFolder)) {
     opcua::UserTokenPolicy certification_policy = opcua::UserTokenPolicy(
         X509_TOKEN_POLICY_ID,              
         opcua::UserTokenType::Certificate, 
@@ -86,7 +88,7 @@ bool AccessControlCustom::getUserExecutable(
     [[maybe_unused]] opcua::Session& session, [[maybe_unused]] const opcua::NodeId& methodId
 ) {
     std::cout << "AccessControlCustom: Entering getUserExecutable()\n";
-    return false; // TODO
+    return false; // TODO ; stub
 }
 
 bool AccessControlCustom::getUserExecutableOnObject(
@@ -95,19 +97,91 @@ bool AccessControlCustom::getUserExecutableOnObject(
     [[maybe_unused]] const opcua::NodeId& objectId
 ) {
     std::cout << "AccessControlCustom: Entering getUserExecutableOnObject\n";
-    return false; // TODO !Priority
+    return false; // TODO ; stub
 }
 
 bool AccessControlCustom::allowAddNode(
     [[maybe_unused]] opcua::Session& session, [[maybe_unused]] const opcua::AddNodesItem& item
 ) {
-    return false; // TODO
+    const auto it = session_attributes_.find(session.id());
+    if (it == session_attributes_.end()) {
+        std::cout << "AccessControl: Session attributes does not match session ID returned in allowAddNode\n";
+        return false;
+    }
+    ClientAttributes& attrs = it->second; 
+
+    if (!(attrs.access_lvl == (opcua::AccessLevel::CurrentRead | opcua::AccessLevel::CurrentWrite))) {
+        std::cout << "AccessControl: User access level insufficient for operation allowAddNode\n";
+        return false;
+    }
+
+    const opcua::NodeId parent = item.parentNodeId().nodeId();
+    const opcua::NodeId requested = item.requestedNewNodeId().nodeId();
+
+    // Case 1: creating the client's own top-level Object directly under
+    // TelemetryClients (.../TelemetryClients/<device_name>).
+    if (parent == telemetry_clients_folder_) {
+        if (!nodeIdBelongsToDevice(requested, attrs.device_name)) {
+            std::cout << "AccessControl: Case 1 -- NodeID does not belong to device\n";
+            return false;
+        }
+        attrs.device_folder_id = requested;
+        return true;
+    }
+
+    // Case 2: creating a snapshot Object or field Variable nested under the
+    // client's own already-created subtree
+    // (.../<device_name>/<snapshot> or .../<device_name>/<snapshot>/<field>).
+    if (parent == attrs.device_folder_id || nodeIdBelongsToDevice(parent, attrs.device_name)) {
+        return nodeIdBelongsToDevice(requested, attrs.device_name);
+    }
+
+    return false;
 }
 
 bool AccessControlCustom::allowAddReference(
-    [[maybe_unused]] opcua::Session& session, [[maybe_unused]] const opcua::AddReferencesItem& item
+    opcua::Session& session, const opcua::AddReferencesItem& item
 ) {
-    return false; // TODO
+    const auto it = session_attributes_.find(session.id());
+    if (it == session_attributes_.end()) {
+        return false;
+    }
+    const ClientAttributes& attrs = it->second;
+
+    if (!(attrs.access_lvl == (opcua::AccessLevel::CurrentRead | opcua::AccessLevel::CurrentWrite))) {
+        return false;
+    }
+
+    const opcua::NodeId source = item.sourceNodeId();
+    const opcua::NodeId target = item.targetNodeId().nodeId();
+
+    if (item.referenceTypeId() == opcua::NodeId(opcua::ReferenceTypeId::HasTypeDefinition)) {
+        const bool source_ok = source == attrs.device_folder_id
+            || nodeIdBelongsToDevice(source, attrs.device_name);
+        return source_ok && target.namespaceIndex() == 0;
+    }
+
+    const bool source_ok = source == attrs.device_folder_id
+        || nodeIdBelongsToDevice(source, attrs.device_name);
+    if (!source_ok) {
+        return false;
+    }
+
+    // Parent link: target is TelemetryClients itself, or within the
+    // device's own subtree.
+    if (target == telemetry_clients_folder_
+        || target == attrs.device_folder_id
+        || nodeIdBelongsToDevice(target, attrs.device_name)) {
+        return true;
+    }
+
+    // Any other reference to a standard ns=0 type
+    // (FolderType, BaseObjectType, BaseDataVariableType, etc.)
+    if (target.namespaceIndex() == 0) {
+        return true;
+    }
+
+    return false;
 }
 
 bool AccessControlCustom::allowDeleteNode(
@@ -125,7 +199,8 @@ bool AccessControlCustom::allowDeleteReference(
 bool AccessControlCustom::allowBrowseNode(
     [[maybe_unused]] opcua::Session& session, [[maybe_unused]] const opcua::NodeId& nodeId
 ) {
-    return false; // TODO !Priority 
+    const auto it = session_attributes_.find(session.id());
+    return it != session_attributes_.end() && it->second.can_browse; 
 }
 
 bool AccessControlCustom::allowTransferSubscription(
@@ -140,7 +215,7 @@ bool AccessControlCustom::allowHistoryUpdate(
     [[maybe_unused]] opcua::PerformUpdateType performInsertReplace,
     [[maybe_unused]] const opcua::DataValue& value
 ) {
-    return false; // TODO - Unlikely to implement
+    return false; // Unlikely to implement
 }
 
 bool AccessControlCustom::allowHistoryDelete(
@@ -150,7 +225,26 @@ bool AccessControlCustom::allowHistoryDelete(
     [[maybe_unused]] opcua::DateTime endTimestamp,
     [[maybe_unused]] bool isDeleteModified
 ) {
-    return false; // TODO - Unlikely to implement
+    return false; // Unlikely to implement
+}
+
+bool AccessControlCustom::nodeIdBelongsToDevice(const opcua::NodeId& id, const std::string& device_name) {
+    const auto* id_str_ptr = id.identifierIf<opcua::String>();
+    if (id_str_ptr == nullptr) {
+        std::cout << "AccessControl: id string ptr is nullptr in nodeIdBelongsToDevice\n";
+        return false;
+    }
+    
+    const std::string id_str(*id_str_ptr);
+    std::cout << "Incoming ID STRING: " << id_str << "\n";
+    std::cout << "On-file Device STRING: " << device_name << "\n";
+
+    if (id_str == device_name) {
+        return true;
+    }
+
+    const std::string prefix = device_name + ".";
+    return id_str.size() > prefix.size() && id_str.compare(0, prefix.size(), prefix) == 0;
 }
 
 ////// Private Helpers //////

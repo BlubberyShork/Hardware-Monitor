@@ -8,12 +8,12 @@
 
 struct SensorSnapshot {
     std::string name;
-    float value{};
+    float       value{};
     std::string unit;
 };
 
 struct TelemetrySnapshot {
-    std::string name;
+    std::string name;   // TODO -> Rename to model
     std::string vendor;
     std::string hardware_type;
     std::vector<SensorSnapshot> sensors;

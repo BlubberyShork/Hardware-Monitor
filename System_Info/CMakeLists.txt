@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(UA_ENABLE_AMALGAMATION OFF CACHE BOOL "" FORCE)
 set(UA_ENABLE_SUBSCRIPTIONS ON CACHE BOOL "" FORCE)
 set(UA_NAMESPACE_ZERO FULL CACHE STRING "" FORCE)
+set(UA_ENABLE_ENCRYPTION MBEDTLS CACHE STRING "" FORCE)
 
 add_subdirectory(
     ${CMAKE_SOURCE_DIR}/../third_party/open62541pp
@@ -23,7 +24,9 @@ set(SHARED_SOURCES
     hardware/HardwareDevice.cpp
     hardware/IHardwareDevicePool.cpp
     ${CMAKE_SOURCE_DIR}/../OPC_UA/ClientQueue.cpp
-    ${CMAKE_SOURCE_DIR}/../OPC_UA/client.cpp
+    ${CMAKE_SOURCE_DIR}/../OPC_UA/CustomClient.cpp
+    ${CMAKE_SOURCE_DIR}/../OPC_UA/utils.cpp
+    SystemInfoClient.cpp
     # OPC_UA/AccessControlCustom.cpp
     # hardware/DeviceSensor.h has no .cpp -- header-only, nothing to list here
 )

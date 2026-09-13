@@ -1,43 +1,173 @@
-#include "../System_Info/hardware/DeviceSensor.h"
+#pragma once
+ 
+#include "ClientQueue.h"
+
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include <open62541pp/types.hpp>
 #include <open62541pp/datatype.hpp>
-
-/** 
- * TODO - Documentation
- * */
+#include <open62541pp/node.hpp>
+#include <open62541pp/client.hpp>
+#include <open62541pp/server.hpp>
+ 
 namespace opc_ua_utils {
-    struct TelemetryStore {
-        opcua::String           name;
-        opcua::String           vendor;
-        opcua::String           hardware_type;
-        size_t                  dev_sensors_size{0};   // must precede the array member
-        opcua::ExtensionObject *dev_sensors{nullptr};  // array of ExtensionObject
-};
-
+ 
 struct SensorDto {
     opcua::String     name;
     float             value{};
     opcua::ByteString unit;
-    opcua::String     sensor_type{}; // Sensors::SensorType as int32
+    opcua::String     sensor_type{};
+};
+ 
+// In-memory container for one drained device snapshot, built from
+// TelemetrySnapshot/SensorSnapshot before writing to the server.
+struct TelemetryStore {
+    opcua::String           name;
+    opcua::String           vendor;
+    opcua::String           hardware_type;
+    size_t                  dev_sensors_size{0};
+    opcua::ExtensionObject *dev_sensors{nullptr};
+};
+ 
+opcua::DataType buildSensorDtoType(uint16_t ns);
+opcua::DataType registerSensorDtoType(opcua::Server& server, uint16_t ns);
+ 
+// Deep-copies snapshot's fields. snapshot is read-only and must survive
+// this call unmodified (it's a point-in-time hardware snapshot, not a
+// resource to consume).
+TelemetryStore buildTelemetryStore(
+    const TelemetrySnapshot& snapshot,
+    const opcua::DataType& sensorDtoType);
+ 
+void freeTelemetryStore(TelemetryStore& store, const opcua::DataType& sensorDtoType);
+ 
+// NodeIds for one device's TelemetrySnapshot subtree:
+//   <ClientFolder>/<deviceKey> (Object)
+//     name / vendor / hardware_type (String variables)
+//     sensors (array variable, DataType: SensorDto)
+struct SnapshotNodeIds {
+    opcua::NodeId object;
+    opcua::NodeId name;
+    opcua::NodeId vendor;
+    opcua::NodeId hardware_type;
+    opcua::NodeId sensors;
+};
+ 
+// Browses for this client's folder under telemetryClientsFolder; creates it
+// via AddNodes otherwise.
+opcua::NodeId ensureClientFolder(
+    opcua::Client& client,
+    const opcua::NodeId& telemetryClientsFolder,
+    std::string_view deviceName,
+    uint16_t ns);
+ 
+// Browses for deviceKey's subtree under clientFolder; creates it via AddNodes
+// otherwise. Caller should cache the result per deviceKey rather than call
+// this every write.
+SnapshotNodeIds ensureSnapshotNode(
+    opcua::Client& client,
+    const opcua::NodeId& clientFolder,
+    std::string_view deviceName,
+    std::string_view deviceKey,
+    uint16_t ns,
+    const opcua::DataType& sensorDtoType);
+ 
+// Writes store's fields into an already-created SnapshotNodeIds. Do not free
+// store until after this returns.
+void writeSnapshot(
+    opcua::Client& client,
+    const SnapshotNodeIds& ids,
+    const TelemetryStore& store);
+ 
+struct DecodedSensor {
+    std::string name;
+    float       value{};
+    std::string unit;
+    std::string sensor_type;
 };
 
-// DataType construction
-opcua::DataType buildSensorDtoType(uint16_t ns);
-opcua::DataType buildTelemetryStoreType(uint16_t ns);
+struct DecodedDevice {
+    std::string name;
+    std::string vendor;
+    std::string hardware_type;
+    std::vector<DecodedSensor> sensors;
+};
 
-// Read-only construction/update from existing sensor data
-TelemetryStore buildTelemetryStore(
-    const opcua::String& name,
-    const opcua::String& vendor,
-    const opcua::String& hardware_type,
-    const std::vector<std::unique_ptr<Sensors::IDeviceSensor>>& sensors,
-    const opcua::DataType& sensorDtoType);
+inline std::string readStringNode(opcua::Client& client, const opcua::NodeId& id) {
+    opcua::Node<opcua::Client> node(client, id);
+    opcua::Variant val = node.readValue();
+    const auto* s = static_cast<const UA_String*>(val.data());
+    if (s && s->data && s->length > 0) {
+        return std::string(reinterpret_cast<const char*>(s->data), s->length);
+    }
+    return {};
+}
 
-void updateSensors(
-    TelemetryStore& store,
-    const std::vector<std::unique_ptr<Sensors::IDeviceSensor>>& sensors,
-    const opcua::DataType& sensorDtoType);
+inline DecodedDevice readDeviceInfo(
+    opcua::Client& client,
+    const SnapshotNodeIds& ids) {
+    DecodedDevice dev;
+    dev.name          = readStringNode(client, ids.name);
+    dev.vendor        = readStringNode(client, ids.vendor);
+    dev.hardware_type = readStringNode(client, ids.hardware_type);
+    return dev;
+}
 
-void freeTelemetryStore(TelemetryStore& store, const opcua::DataType& sensorDtoType);
+inline std::vector<DecodedSensor> decodeSensorDtos(
+    const opcua::Variant& value,
+    const opcua::DataType& sensorDtoType) {
+    std::vector<DecodedSensor> result;
+
+    if (!value.data()) {
+        return result;
+    }
+
+    const auto* ext_array = static_cast<const UA_ExtensionObject*>(value.data());
+    const size_t count = value.arrayLength();
+
+    for (size_t i = 0; i < count; ++i) {
+        const UA_ExtensionObject& ext = ext_array[i];
+        if (ext.encoding != UA_EXTENSIONOBJECT_DECODED &&
+            ext.encoding != UA_EXTENSIONOBJECT_DECODED_NODELETE) {
+            continue;
+        }
+
+        const auto* raw = static_cast<const uint8_t*>(ext.content.decoded.data);
+        if (!raw) {
+            continue;
+        }
+
+        const UA_DataType& dt = *sensorDtoType.handle();
+
+        auto read_ua_string = [](const uint8_t* base, size_t offset) -> std::string {
+            const auto* s = reinterpret_cast<const UA_String*>(base + offset);
+            if (s->data && s->length > 0) {
+                return std::string(reinterpret_cast<const char*>(s->data), s->length);
+            }
+            return {};
+        };
+
+        DecodedSensor sensor;
+
+        size_t offset = dt.members[0].padding;
+        sensor.name = read_ua_string(raw, offset);
+
+        offset += sizeof(UA_String) + dt.members[1].padding;
+        sensor.value = *reinterpret_cast<const float*>(raw + offset);
+
+        offset += sizeof(UA_Float) + dt.members[2].padding;
+        sensor.unit = read_ua_string(raw, offset);
+
+        offset += sizeof(UA_ByteString) + dt.members[3].padding;
+        sensor.sensor_type = read_ua_string(raw, offset);
+
+        result.push_back(std::move(sensor));
+    }
+
+    return result;
+}
+
 } // namespace opc_ua_utils

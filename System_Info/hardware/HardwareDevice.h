@@ -50,7 +50,8 @@ protected:
 	Vendor vendor;
 	HardwareType hw_type;
 	std::string name;
-	template<Sensors::SensorType T>
+	
+    template<Sensors::SensorType T>
 	void addSensor(std::string name, float init_val = {}) {
 		for (const auto& sensor : dev_sensors) {
 			if (sensor->getName() == name && sensor->getType() == T) {
@@ -62,6 +63,7 @@ protected:
 	}
 
 	void outputMetrics() const;
+
 private:
 	std::vector<std::unique_ptr<Sensors::IDeviceSensor>> dev_sensors;
 };

@@ -13,13 +13,19 @@
     #include "HardwareManager.h"
     #include "wmi/ComManager.h"
     #include "wmi/WbemManager.h"
-    #include "../OPC_UA/client.h"
+    #include "SystemInfoClient.h"
+#endif
+
+#if defined(PLATFORM_LINUX)
 #endif
 
 #include "../OPC_UA/ClientQueue.h"
 
+#include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <memory>
+#include <string>
 
 int main() {
 #if defined(PLATFORM_WINDOWS)
@@ -27,28 +33,43 @@ int main() {
     //WbemManager wbem_mngr;
     
     auto queue = std::make_shared<ClientQueue>();
+
+    const std::filesystem::path project_root =
+        std::filesystem::current_path().parent_path().parent_path();
+
     //HardwareManager hardware_manager(&wbem_mngr, queue);
     HardwareManager hardware_manager(queue);
-    SystemInfoClient client("system_info", queue);
+
+    SystemInfoClient client("system_info", project_root, queue);
+
+    char* server_ip_raw{};
+    size_t server_ip_sz{};
+    _dupenv_s(&server_ip_raw, &server_ip_sz, "SERVER_IP");
+    if (!server_ip_raw) {
+        std::cerr << "SERVER_IP is not set\n";
+    }
+    std::string server_ip(server_ip_raw);
+    std::free(server_ip_raw);
+
+    client.connect("opc.tcp://" + server_ip + ":4840");
+    client.addNodes(); 
 
     std::cout << "Initializing all workers\n";
     hardware_manager.InitializeAllWorkers();
     std::cout << "polling\n";
     hardware_manager.StartPolling();
 
+    client.sendTelemetryPayload();
     while (true) {
-        for (const auto& snapshot : queue->drain()) {
-            std::cout << "[" << snapshot.vendor << "] " << snapshot.name
-                      << " (" << snapshot.hardware_type << ") - "
-                      << snapshot.sensors.size() << " sensors\n";
-            for (const auto& sensor : snapshot.sensors) {
-                std::cout << "  " << sensor.name << ": " << sensor.value
-                          << " " << sensor.unit << "\n";
-            }
+        if (!client.sendTelemetryPayload()) {
+            std::cerr << "sendTelemetryPayload failed -- addNodes() not completed?\n";
+            break;
         }
-        std::cout << "\n";
     }
+
 #elif defined(PLATFORM_LINUX)
     return 0;
+#else
+    throw std::runtime_error("Unsupported OS platform.");
 #endif
 }

@@ -34,10 +34,10 @@ private:
     };
 
     //// Helper Functions ////
+    opcua::NodeId               createTelemetryClientsFolder();
     ServerConfigAttributes      getServerConfigAttributes(); 
     UA_ByteString               readBytesFromFile(const std::filesystem::path& path);
     UA_ApplicationDescription   configureApplicationDescription();
-    void                        addCustomDataTypes(opcua::ServerConfig& cfg);
 
     // Debug print functions //
     void dumpByteString(const char* label, const UA_ByteString& bs);
@@ -47,4 +47,5 @@ private:
     // Private members
     opcua::Server          server_;
     ServerConfigAttributes cfg_attrs_;
+    opcua::NodeId          telemetry_clients_folder_;
 };

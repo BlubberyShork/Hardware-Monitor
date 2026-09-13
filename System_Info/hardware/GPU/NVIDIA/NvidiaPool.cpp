@@ -15,6 +15,7 @@ NvidiaPool::~NvidiaPool() {
     NvAPI_Unload();
 }
 
+// TODO - Build the name here (model)
 void NvidiaPool::enumerateDevices() {
     NvPhysicalGpuHandle handles[NVAPI_MAX_PHYSICAL_GPUS] = {};
     NvU32 gpu_cnt = 0;
