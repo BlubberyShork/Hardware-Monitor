@@ -22,6 +22,7 @@ add_executable(ControlCenter
     ControlCenterClient.cpp
     DisplayGrid.cpp
     ${CMAKE_SOURCE_DIR}/../OPC_UA/CustomClient.cpp
+    ${CMAKE_SOURCE_DIR}/../OPC_UA/FileLogger.cpp
     ${CMAKE_SOURCE_DIR}/../OPC_UA/utils.cpp
     ${CMAKE_SOURCE_DIR}/../OPC_UA/ClientQueue.cpp
 )

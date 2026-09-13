@@ -1,14 +1,17 @@
 #pragma once
 
+#include "FileLogger.h"
+
 #include <open62541/client_config_default.h>
 #include <open62541/plugin/pki_default.h>
 #include <open62541/plugin/securitypolicy_default.h>
-#include <open62541/plugin/log_stdout.h>
 #include <open62541/server_config_default.h>
 #include <open62541pp/client.hpp>
 #include <open62541/types_generated.h>
 
 #include <filesystem>
+#include <iosfwd>
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -26,8 +29,11 @@ public:
     const std::string& clientName() const { return client_name_; }
 
 protected:
-    CustomClient(std::string_view client_name, std::filesystem::path project_root);
+    CustomClient(std::string_view client_name, std::filesystem::path project_root,
+                 std::shared_ptr<FileLogger> logger);
     ~CustomClient();
+
+    const std::shared_ptr<FileLogger>& logger() const { return logger_; }
 
     struct ClientConfigAttributes {
         UA_ByteString   certificate;
@@ -49,9 +55,13 @@ protected:
 
     UA_ApplicationDescription configureApplicationDescription(std::string_view client_name);
 
-    void dumpByteString(const char* label, const UA_ByteString& bs);
+    void dumpByteString(std::ostream& out, const char* label, const UA_ByteString& bs);
     void dumpConfigAttrs(const ClientConfigAttributes& attrs);
     void dumpClient(const UA_Client* client);
+
+    // Declared before client_ so it outlives it: client_'s teardown (disconnect/delete)
+    // can still emit log messages through this logger while it runs.
+    std::shared_ptr<FileLogger> logger_;
 
     opcua::Client           client_;
     ClientConfigAttributes  cfg_attrs_;

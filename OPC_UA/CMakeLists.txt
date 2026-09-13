@@ -23,6 +23,7 @@ add_executable(OpcUaServer
     AccessControlCustom.cpp
     client.cpp
     CustomClient.cpp
+    FileLogger.cpp
     opcua_logging.cpp
     utils.cpp
     ClientQueue.cpp

@@ -1,16 +1,24 @@
 #include "ControlCenterClient.h"
 
-#include <iostream>
+#include <cstdio>
 
 namespace layout = opc_ua_layout;
 
 ControlCenterClient::ControlCenterClient(std::string_view client_name,
                                           std::filesystem::path project_root,
+                                          std::shared_ptr<FileLogger> logger,
                                           TelemetrySink sink)
-    : CustomClient(client_name, std::move(project_root)), sink_(std::move(sink)) {}
+    : CustomClient(client_name, std::move(project_root), std::move(logger)),
+      sink_(std::move(sink)) {
+    sensor_dto_type_ = opc_ua_utils::buildSensorDtoType(layout::kTelemetryNamespaceIndex);
+    client_.config().addCustomDataTypes({sensor_dto_type_});
+}
+
+ControlCenterClient::~ControlCenterClient() {
+    subscription_.reset();
+}
 
 void ControlCenterClient::start() {
-    sensor_dto_type_ = opc_ua_utils::buildSensorDtoType(layout::kTelemetryNamespaceIndex);
     subscription_.emplace(native());
     discoverAndSubscribe();
     last_poll_ = std::chrono::steady_clock::now();
@@ -73,8 +81,9 @@ void ControlCenterClient::discoverAndSubscribe() {
                     handleSensorUpdate(device_node_id, dv.value());
                 });
 
-            std::cout << "[" << clientName() << "] subscribed to "
-                      << client_folder_name << "/" << device_display_name << "\n";
+            if (logger()) {
+                logger()->write("subscribed to " + client_folder_name + "/" + device_display_name);
+            }
         }
     }
 }
@@ -87,6 +96,18 @@ void ControlCenterClient::handleSensorUpdate(const std::string& device_node_id,
     }
 
     const DeviceCache& cache = it->second;
+
+    if (logger()) {
+        std::string diag = "handleSensorUpdate: data=" +
+            std::string(value.data() ? "non-null" : "null") +
+            " arrayLen=" + std::to_string(value.arrayLength());
+        if (value.data() && value.arrayLength() > 0) {
+            const auto* ext = static_cast<const UA_ExtensionObject*>(value.data());
+            diag += " ext[0].encoding=" + std::to_string(static_cast<int>(ext[0].encoding));
+        }
+        logger()->write(diag);
+    }
+
     const auto sensors = opc_ua_utils::decodeSensorDtos(value, sensor_dto_type_);
 
     ClientRow row;
@@ -94,7 +115,9 @@ void ControlCenterClient::handleSensorUpdate(const std::string& device_node_id,
         cache.info.name + " (" + cache.info.hardware_type + ")", "");
 
     for (const auto& sensor : sensors) {
-        std::string val_str = std::to_string(sensor.value);
+        char buf[32];
+        std::snprintf(buf, sizeof(buf), "%.1f", sensor.value);
+        std::string val_str(buf);
         if (!sensor.unit.empty()) {
             val_str += " " + sensor.unit;
         }

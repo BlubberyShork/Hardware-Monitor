@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -20,7 +21,9 @@ public:
 
     ControlCenterClient(std::string_view client_name,
                          std::filesystem::path project_root,
+                         std::shared_ptr<FileLogger> logger,
                          TelemetrySink sink);
+    ~ControlCenterClient();
 
     void start();
     void tick(std::chrono::milliseconds io_timeout,

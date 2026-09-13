@@ -6,19 +6,21 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
 
-CustomClient::CustomClient(std::string_view client_name, std::filesystem::path project_root)
-    : client_name_(client_name), project_root_(std::move(project_root)) {
+CustomClient::CustomClient(std::string_view client_name, std::filesystem::path project_root,
+                            std::shared_ptr<FileLogger> logger)
+    : logger_(std::move(logger)), client_name_(client_name), project_root_(std::move(project_root)) {
     cfg_attrs_ = getClientConfigAttributes();
     dumpConfigAttrs(cfg_attrs_);
 
     UA_ClientConfig* h_cfg = client_.config().handle();
 
-    static UA_Logger cli_logger = UA_Log_Stdout_withLevel(UA_LOGLEVEL_TRACE);
-    cli_logger.clear = nullptr;
-    h_cfg->logging = &cli_logger;
+    if (logger_) {
+        client_.config().setLogger(logger_->asLogFunction());
+    }
 
     opcua::throwIfBad(UA_CertificateVerification_Trustlist(
         &h_cfg->certificateVerification,
@@ -26,7 +28,7 @@ CustomClient::CustomClient(std::string_view client_name, std::filesystem::path p
         cfg_attrs_.issuer_list, cfg_attrs_.issuer_list_size,
         NULL, 0)
     );
-    h_cfg->certificateVerification.logging = &cli_logger;
+    h_cfg->certificateVerification.logging = h_cfg->logging;
 
     h_cfg->securityPolicies->clear(h_cfg->securityPolicies);
     h_cfg->securityPoliciesSize = 0;
@@ -83,7 +85,10 @@ CustomClient::CustomClient(std::string_view client_name, std::filesystem::path p
     ep.transportProfileUri = UA_STRING_ALLOC(std::string(TRANSPORT_PROFILE_URI).c_str());
     ep.securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT;
 
-    std::cout << "previous userIdentityTokensSize: " << ep.userIdentityTokensSize << "\n";
+    if (logger_) {
+        logger_->write("previous userIdentityTokensSize: " +
+                        std::to_string(ep.userIdentityTokensSize));
+    }
     ep.userIdentityTokensSize = 1;
     ep.userIdentityTokens = static_cast<UA_UserTokenPolicy*>(UA_Array_new(
         ep.userIdentityTokensSize,
@@ -263,32 +268,37 @@ UA_ApplicationDescription CustomClient::configureApplicationDescription(std::str
     return desc;
 }
 
-void CustomClient::dumpByteString(const char* label, const UA_ByteString& bs) {
-    std::cout << "  " << label << ": length=" << bs.length
-               << " data=" << static_cast<const void*>(bs.data);
+void CustomClient::dumpByteString(std::ostream& out, const char* label, const UA_ByteString& bs) {
+    out << "  " << label << ": length=" << bs.length
+        << " data=" << static_cast<const void*>(bs.data);
     if (bs.data && bs.length > 0) {
         size_t preview_len = std::min<size_t>(bs.length, 40);
-        std::cout << " preview=[";
+        out << " preview=[";
         for (size_t i = 0; i < preview_len; ++i) {
             unsigned char c = bs.data[i];
-            if (std::isprint(c)) std::cout << c;
-            else std::cout << "\\x" << std::hex << (int)c << std::dec;
+            if (std::isprint(c)) out << c;
+            else out << "\\x" << std::hex << (int)c << std::dec;
         }
-        std::cout << (bs.length > preview_len ? "..." : "") << "]";
+        out << (bs.length > preview_len ? "..." : "") << "]";
     }
-    std::cout << "\n";
+    out << "\n";
 }
 
 void CustomClient::dumpConfigAttrs(const ClientConfigAttributes& attrs) {
-    std::cout << "=== ClientConfigAttributes dump ===\n";
-    dumpByteString("certificate", attrs.certificate);
-    dumpByteString("private_key", attrs.private_key);
-
-    std::cout << "  trust_list_size=" << attrs.trust_list_size
-               << " trust_list_ptr=" << static_cast<void*>(attrs.trust_list) << "\n";
-    for (size_t i = 0; i < attrs.trust_list_size; ++i) {
-        dumpByteString(("trust_list[" + std::to_string(i) + "]").c_str(), attrs.trust_list[i]);
+    if (!logger_) {
+        return;
     }
+    std::ostringstream oss;
+    oss << "=== ClientConfigAttributes dump ===\n";
+    dumpByteString(oss, "certificate", attrs.certificate);
+    dumpByteString(oss, "private_key", attrs.private_key);
+
+    oss << "  trust_list_size=" << attrs.trust_list_size
+        << " trust_list_ptr=" << static_cast<void*>(attrs.trust_list) << "\n";
+    for (size_t i = 0; i < attrs.trust_list_size; ++i) {
+        dumpByteString(oss, ("trust_list[" + std::to_string(i) + "]").c_str(), attrs.trust_list[i]);
+    }
+    logger_->write(oss.str());
 }
 
 static void printByteString(const UA_ByteString& bs) {
@@ -310,18 +320,25 @@ static void printByteString(const UA_ByteString& bs) {
     std::cout.copyfmt(old);
 }
 
-static void printString(const UA_String& s) {
+static void printString(std::ostream& out, const UA_String& s) {
     if (!s.data || s.length == 0) {
-        std::cout << "<empty>";
+        out << "<empty>";
         return;
     }
 
-    std::cout.write(reinterpret_cast<const char*>(s.data), s.length);
+    out.write(reinterpret_cast<const char*>(s.data), s.length);
 }
 
 void CustomClient::dumpClient(const UA_Client* client) {
+    if (!logger_) {
+        return;
+    }
+
+    std::ostringstream oss;
+
     if (!client) {
-        std::cout << "Client is null\n";
+        oss << "Client is null\n";
+        logger_->write(oss.str());
         return;
     }
 
@@ -329,41 +346,44 @@ void CustomClient::dumpClient(const UA_Client* client) {
         const_cast<UA_Client*>(client));
 
     if (!cfg) {
-        std::cout << "Config is null\n";
+        oss << "Config is null\n";
+        logger_->write(oss.str());
         return;
     }
 
-    std::cout << "=============================\n";
-    std::cout << "UA_ClientConfig\n";
-    std::cout << "=============================\n";
+    oss << "=============================\n";
+    oss << "UA_ClientConfig\n";
+    oss << "=============================\n";
 
-    std::cout << "Timeout: " << cfg->timeout << " ms\n";
-    std::cout << "SecureChannel lifetime: "
-              << cfg->secureChannelLifeTime << '\n';
+    oss << "Timeout: " << cfg->timeout << " ms\n";
+    oss << "SecureChannel lifetime: "
+        << cfg->secureChannelLifeTime << '\n';
 
-    std::cout << "Requested Session Timeout: "
-              << cfg->requestedSessionTimeout << '\n';
+    oss << "Requested Session Timeout: "
+        << cfg->requestedSessionTimeout << '\n';
 
-    std::cout << "Connectivity Check Interval: "
-              << cfg->connectivityCheckInterval << '\n';
+    oss << "Connectivity Check Interval: "
+        << cfg->connectivityCheckInterval << '\n';
 
-    std::cout << "\n=== Security ===\n";
+    oss << "\n=== Security ===\n";
 
-    std::cout << "Security Mode: "
-              << static_cast<int>(cfg->securityMode) << '\n';
+    oss << "Security Mode: "
+        << static_cast<int>(cfg->securityMode) << '\n';
 
-    std::cout << "Security Policy URI: ";
-    printString(cfg->securityPolicyUri);
-    std::cout << '\n';
+    oss << "Security Policy URI: ";
+    printString(oss, cfg->securityPolicyUri);
+    oss << '\n';
 
     for (size_t i = 0; i < cfg->securityPoliciesSize; i++)
-        dumpByteString("certificate", cfg->securityPolicies[i].localCertificate);
+        dumpByteString(oss, "certificate", cfg->securityPolicies[i].localCertificate);
 
-    std::cout << "\n=== Event Loop ===\n";
-    std::cout << "EventLoop: " << cfg->eventLoop << '\n';
+    oss << "\n=== Event Loop ===\n";
+    oss << "EventLoop: " << cfg->eventLoop << '\n';
 
-    std::cout << "\n=== Logging ===\n";
-    std::cout << "Logger: " << cfg->logging << '\n';
+    oss << "\n=== Logging ===\n";
+    oss << "Logger: " << cfg->logging << '\n';
 
-    std::cout << "=============================\n";
+    oss << "=============================\n";
+
+    logger_->write(oss.str());
 }

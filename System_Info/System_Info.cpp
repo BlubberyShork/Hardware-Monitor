@@ -20,6 +20,7 @@
 #endif
 
 #include "../OPC_UA/ClientQueue.h"
+#include "../OPC_UA/FileLogger.h"
 
 #include <cstdlib>
 #include <filesystem>
@@ -40,7 +41,9 @@ int main() {
     //HardwareManager hardware_manager(&wbem_mngr, queue);
     HardwareManager hardware_manager(queue);
 
-    SystemInfoClient client("system_info", project_root, queue);
+    auto logger = std::make_shared<FileLogger>(defaultLogPath(project_root, "system_info"));
+
+    SystemInfoClient client("system_info", project_root, logger, queue);
 
     char* server_ip_raw{};
     size_t server_ip_sz{};

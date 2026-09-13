@@ -4,8 +4,10 @@
 
 SystemInfoClient::SystemInfoClient(std::string_view client_name,
                                     std::filesystem::path project_root,
+                                    std::shared_ptr<FileLogger> logger,
                                     std::shared_ptr<ClientQueue> queue)
-    : CustomClient(client_name, std::move(project_root)), queue_(std::move(queue)) {}
+    : CustomClient(client_name, std::move(project_root), std::move(logger)),
+      queue_(std::move(queue)) {}
 
 std::vector<opc_ua_utils::TelemetryStore> SystemInfoClient::buildTelemetryPayload(
     const std::vector<TelemetrySnapshot>& drained) {

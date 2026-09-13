@@ -25,6 +25,7 @@ set(SHARED_SOURCES
     hardware/IHardwareDevicePool.cpp
     ${CMAKE_SOURCE_DIR}/../OPC_UA/ClientQueue.cpp
     ${CMAKE_SOURCE_DIR}/../OPC_UA/CustomClient.cpp
+    ${CMAKE_SOURCE_DIR}/../OPC_UA/FileLogger.cpp
     ${CMAKE_SOURCE_DIR}/../OPC_UA/utils.cpp
     SystemInfoClient.cpp
     # OPC_UA/AccessControlCustom.cpp

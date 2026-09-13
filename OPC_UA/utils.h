@@ -125,46 +125,60 @@ inline std::vector<DecodedSensor> decodeSensorDtos(
         return result;
     }
 
-    const auto* ext_array = static_cast<const UA_ExtensionObject*>(value.data());
+    const UA_DataType& dt = *sensorDtoType.handle();
     const size_t count = value.arrayLength();
 
+    auto read_ua_string = [](const uint8_t* base, size_t off) -> std::string {
+        const auto* s = reinterpret_cast<const UA_String*>(base + off);
+        if (s->data && s->length > 0) {
+            return std::string(reinterpret_cast<const char*>(s->data), s->length);
+        }
+        return {};
+    };
+
+    auto extractSensor = [&](const uint8_t* raw) -> DecodedSensor {
+        DecodedSensor sensor;
+        size_t off = dt.members[0].padding;
+        sensor.name = read_ua_string(raw, off);
+
+        off += sizeof(UA_String) + dt.members[1].padding;
+        sensor.value = *reinterpret_cast<const float*>(raw + off);
+
+        off += sizeof(UA_Float) + dt.members[2].padding;
+        sensor.unit = read_ua_string(raw, off);
+
+        off += sizeof(UA_ByteString) + dt.members[3].padding;
+        sensor.sensor_type = read_ua_string(raw, off);
+        return sensor;
+    };
+
+    if (value.isType(dt)) {
+        const auto* raw = static_cast<const uint8_t*>(value.data());
+        for (size_t i = 0; i < count; ++i) {
+            result.push_back(extractSensor(raw + i * dt.memSize));
+        }
+        return result;
+    }
+
+    const auto* ext_array = static_cast<const UA_ExtensionObject*>(value.data());
     for (size_t i = 0; i < count; ++i) {
         const UA_ExtensionObject& ext = ext_array[i];
-        if (ext.encoding != UA_EXTENSIONOBJECT_DECODED &&
-            ext.encoding != UA_EXTENSIONOBJECT_DECODED_NODELETE) {
-            continue;
-        }
 
-        const auto* raw = static_cast<const uint8_t*>(ext.content.decoded.data);
-        if (!raw) {
-            continue;
-        }
-
-        const UA_DataType& dt = *sensorDtoType.handle();
-
-        auto read_ua_string = [](const uint8_t* base, size_t offset) -> std::string {
-            const auto* s = reinterpret_cast<const UA_String*>(base + offset);
-            if (s->data && s->length > 0) {
-                return std::string(reinterpret_cast<const char*>(s->data), s->length);
+        if (ext.encoding == UA_EXTENSIONOBJECT_DECODED ||
+            ext.encoding == UA_EXTENSIONOBJECT_DECODED_NODELETE) {
+            const auto* raw = static_cast<const uint8_t*>(ext.content.decoded.data);
+            if (!raw) continue;
+            result.push_back(extractSensor(raw));
+        } else if (ext.encoding == UA_EXTENSIONOBJECT_ENCODED_BYTESTRING) {
+            void* decoded = UA_new(&dt);
+            if (!decoded) continue;
+            UA_StatusCode ret = UA_decodeBinary(
+                &ext.content.encoded.body, decoded, &dt, nullptr);
+            if (ret == UA_STATUSCODE_GOOD) {
+                result.push_back(extractSensor(static_cast<const uint8_t*>(decoded)));
             }
-            return {};
-        };
-
-        DecodedSensor sensor;
-
-        size_t offset = dt.members[0].padding;
-        sensor.name = read_ua_string(raw, offset);
-
-        offset += sizeof(UA_String) + dt.members[1].padding;
-        sensor.value = *reinterpret_cast<const float*>(raw + offset);
-
-        offset += sizeof(UA_Float) + dt.members[2].padding;
-        sensor.unit = read_ua_string(raw, offset);
-
-        offset += sizeof(UA_ByteString) + dt.members[3].padding;
-        sensor.sensor_type = read_ua_string(raw, offset);
-
-        result.push_back(std::move(sensor));
+            UA_delete(decoded, &dt);
+        }
     }
 
     return result;

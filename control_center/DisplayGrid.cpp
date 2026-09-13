@@ -77,7 +77,11 @@ std::string DisplayGrid::buildFrame() const {
             const auto& fields = rows_.at(names[col]).fields;
             std::string cell;
             if (r < fields.size()) {
-                cell = fields[r].first + ": " + fields[r].second;
+                if (fields[r].second.empty()) {
+                    cell = fields[r].first;
+                } else {
+                    cell = fields[r].first + ": " + fields[r].second;
+                }
             }
             out << cell;
             out << std::string(widths[col] > cell.size() ? widths[col] - cell.size() : 1, ' ');

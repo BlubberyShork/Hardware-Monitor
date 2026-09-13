@@ -15,6 +15,7 @@ class SystemInfoClient : public CustomClient {
 public:
     SystemInfoClient(std::string_view client_name,
                       std::filesystem::path project_root,
+                      std::shared_ptr<FileLogger> logger,
                       std::shared_ptr<ClientQueue> queue);
 
     std::vector<opc_ua_utils::TelemetryStore> buildTelemetryPayload(
