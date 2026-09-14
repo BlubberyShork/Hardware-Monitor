@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\System_Info.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\output_generator\OutputHandler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\hardware\HardwareDevice.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\hardware\IHardwareDevicePool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\HardwareManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\ThreadManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\driver_client\DriverClient.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\wmi\ComManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\wmi\WbemManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\wmi\GraphicsProcessor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\wmi\HardwareQueries.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\wmi\motherboard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\wmi\processor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\wmi\projutils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\wmi\storagedevice.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\hardware\GPU\DxgiHandler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\hardware\GPU\AMD\AMDPool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\hardware\GPU\AMD\AMDLiveGPUMetrics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\hardware\GPU\AMD\Interop\ADLX.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\hardware\GPU\AMD\Interop\ADL.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\hardware\GPU\NVIDIA\NvidiaPool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\System_Info\hardware\GPU\NVIDIA\NvidiaLiveGPUMetrics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\third_party\adlx\SDK\ADLXHelper\Windows\Cpp\ADLXHelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\robby\source\repos\System_Info\third_party\adlx\SDK\Platform\Windows\WinAPIs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\robby\source\repos\System_Info\System_Info\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{D3B735FA-82CE-344A-A088-5B3F4D4BAB2B}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

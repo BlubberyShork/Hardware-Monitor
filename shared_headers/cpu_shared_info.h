@@ -14,9 +14,10 @@ extern "C" {
 
 // kernel-compatible types
 typedef struct _CPU_DATA {
-    USHORT          temp;        
     ULONGLONG       cpu_load;
     ULONG           cpu_id;
+    USHORT          temp;        
+    USHORT          padding;
 } CPU_DATA, *PCPU_DATA;
 
 typedef struct _CPU_DATA_HEADER {

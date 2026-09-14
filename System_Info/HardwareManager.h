@@ -1,54 +1,60 @@
 #pragma once
-#include "GraphicsProcessor.h"
-#include "processor.h"
-#include "motherboard.h"
-#include "storagedevice.h"
-#include "ThreadManager.h"
-#include "WbemManager.h"
-#include "HardwareQueries.h"
-#include "LiveGPUHandler.h"
-#include <mutex>
 
-typedef struct _Hardware_List_Container {
-    std::vector<GraphicsProcessor>  gpus;
-    std::vector<Processor>          cpus;
-    std::vector<Motherboard>        motherboards;
-    std::vector<StorageDevice>      storage_dvcs;
-} Hardware_List_Container;
+#include <chrono>
+#include <memory>
+#include <mutex>
+#include <thread>
+#include <unordered_map>
+#include <vector>
+
+#include "hardware/pipeline_workers/IHardwarePipelineWorker.h"
+#include "wmi/GraphicsProcessor.h"
+#include "wmi/HardwareQueries.h"
+#include "wmi/WbemManager.h"
+#include "wmi/motherboard.h"
+#include "wmi/processor.h"
+#include "wmi/storagedevice.h"
+
+class ClientQueue;
+class WbemManager;
+class ThreadManager;
+
+struct Hardware_List_Container {
+    std::vector<GraphicsProcessor> gpus;
+    std::vector<Processor> cpus;
+    std::vector<Motherboard> motherboards;
+    std::vector<StorageDevice> storage_dvcs;
+};
 
 class HardwareManager {
 public:
+    [[deprecated]] HardwareManager(WbemManager* wbem, std::shared_ptr<ClientQueue> queue);
+    HardwareManager(std::shared_ptr<ClientQueue> queue);
+    ~HardwareManager();
 
-    HardwareManager(WbemManager *wbem) : wbem_mngr(wbem) {}
+    HardwareManager(const HardwareManager&) = delete;
+    HardwareManager& operator=(const HardwareManager&) = delete;
 
-    void ExecuteQueryThreadPool();
+    void InitializeAllWorkers();
+    void StartPolling(std::chrono::milliseconds poll_interval = std::chrono::milliseconds{1250});
+    void StopPolling();
 
-    // Accessors
-    const Hardware_List_Container& GetHardwareData() const { return hw_data; }
-    const LiveGPUHandler& GetLiveGPUHandler() const { return live_gpu_handler; }
-
-    Hardware_List_Container* GetHardwareDataPtr() {
-        return &hw_data;
-    }
-
-    void infoPhysicalDrive(
-        std::vector<StorageDevice>& sd_list,
-        std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual>& d_hmap,
-        std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash>& p_hmap,
-        std::unordered_map<wchar_t, Volume>& v_hmap,
-        std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual>& pd_hmap
-    );
+    const Hardware_List_Container& GetHardwareData() const { return hw_data_; }
+    Hardware_List_Container* GetHardwareDataPtr() { return &hw_data_; }
 
 private:
-    WbemManager             *wbem_mngr;
-    ThreadManager           thrd_mngr;
-    std::mutex              mtx;
-    Hardware_List_Container hw_data;
-    LiveGPUHandler          live_gpu_handler;
+    [[deprecated]] void QueryWmiHardware();
+    [[deprecated]] void infoPhysicalDrive();
 
-    std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual>                       disks;
-    std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash> partitions;
-    std::unordered_map<wchar_t, Volume>                                         volumes;
-    std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual>                  phys_disks;
+    WbemManager* wbem_mngr_;
+    std::shared_ptr<ClientQueue> queue_;
+    std::unique_ptr<ThreadManager> thrd_mngr_;
+    std::vector<std::unique_ptr<IHardwarePipelineWorker>> workers_;
+    std::vector<std::jthread> worker_threads_;
+    std::mutex wmi_mtx_;
+    Hardware_List_Container hw_data_;
+    std::unordered_map<bstr_t, Disk, bstrHash, bstrEqual> disks_;
+    std::unordered_map<Partition::partition_id, Partition, Partition::pid_hash> partitions_;
+    std::unordered_map<wchar_t, Volume> volumes_;
+    std::unordered_map<ULONG, PhysDisk, ULONGHash, ULONGEqual> phys_disks_;
 };
-
