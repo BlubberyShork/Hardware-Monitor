@@ -1,6 +1,7 @@
 #include "ControlCenterClient.h"
 #include "DisplayGrid.h"
 #include "../OPC_UA/FileLogger.h"
+#include "../shared/PerformanceLogger.h"
 
 #include <chrono>
 #include <csignal>
@@ -56,6 +57,9 @@ int main() {
     auto grid = std::make_shared<DisplayGrid>();
     auto logger = std::make_shared<FileLogger>(defaultLogPath(project_root, "control_center"));
 
+    auto perf_logger = std::make_shared<PerformanceLogger>(
+        defaultPerfLogPath(project_root, "control_center"));
+
     ControlCenterClient control_center(
         "control_center",
         project_root,
@@ -63,6 +67,7 @@ int main() {
         [grid](const std::string& client_name, ClientRow row) {
             grid->update(client_name, std::move(row));
         });
+    control_center.setPerfLogger(perf_logger);
 
     try {
         control_center.connect(endpoint);

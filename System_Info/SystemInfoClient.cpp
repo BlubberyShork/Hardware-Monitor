@@ -1,5 +1,7 @@
 #include "SystemInfoClient.h"
 
+#include "../shared/PerformanceLogger.h"
+
 #include <iostream>
 
 SystemInfoClient::SystemInfoClient(std::string_view client_name,
@@ -8,6 +10,10 @@ SystemInfoClient::SystemInfoClient(std::string_view client_name,
                                     std::shared_ptr<ClientQueue> queue)
     : CustomClient(client_name, std::move(project_root), std::move(logger)),
       queue_(std::move(queue)) {}
+
+void SystemInfoClient::setPerfLogger(std::shared_ptr<PerformanceLogger> perf_logger) {
+    perf_logger_ = std::move(perf_logger);
+}
 
 std::vector<opc_ua_utils::TelemetryStore> SystemInfoClient::buildTelemetryPayload(
     const std::vector<TelemetrySnapshot>& drained) {
@@ -66,7 +72,9 @@ bool SystemInfoClient::sendTelemetryPayload() {
                     opc_ua_layout::kTelemetryNamespaceIndex, *sensor_dto_type_)
             ).first;
         }
+        if (perf_logger_) perf_logger_->start("opc_ua_client_write");
         opc_ua_utils::writeSnapshot(client_, it->second, stores[i]);
+        if (perf_logger_) perf_logger_->stop();
     }
 
     for (auto& store : stores) {

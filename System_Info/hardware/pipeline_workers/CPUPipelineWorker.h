@@ -11,6 +11,7 @@ public:
     explicit CPUPipelineWorker(ClientQueue& queue);
     void initialize() override;
     void execute() override;
+    std::string_view worker_name() const override { return "cpu_loop"; }
 
 private:
     DriverClient driver_client_;

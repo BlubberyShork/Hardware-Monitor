@@ -61,24 +61,17 @@ std::vector<CPU_DATA> DriverClient::runDriver() {
             return ret_data;
         }
         else {
-            /*std::cout << "success: " << success << " err: " << GetLastError() << " bytes_ret: " << bytes_ret << "\n";
-            std::cout << "header required_size: " << ((CPU_DATA_HEADER*)buffer)->required_size << "\n";
-            std::cout << "header proc_count: " << ((CPU_DATA_HEADER*)buffer)->processor_count << "\n"*/;
             DWORD err = GetLastError();
 
             if (err == ERROR_MORE_DATA || err == ERROR_INSUFFICIENT_BUFFER) {
                 CPU_DATA_HEADER* hdr = (CPU_DATA_HEADER*)buffer;
-
                 buffer_size = hdr->required_size;
                 BYTE* new_buffer = (BYTE*)realloc(buffer, buffer_size);
-
                 if (!new_buffer) {
                     std::cout << "realloc failed\n";
-                    std::cout << "DeviceIoControl error: " << GetLastError() << " bytes_ret: " << bytes_ret << "\n";
                     free(buffer);
                     return {};
                 }
-
                 buffer = new_buffer;
             }
             else {

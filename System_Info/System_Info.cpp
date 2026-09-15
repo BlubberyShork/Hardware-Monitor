@@ -21,6 +21,7 @@
 
 #include "../OPC_UA/ClientQueue.h"
 #include "../OPC_UA/FileLogger.h"
+#include "../shared/PerformanceLogger.h"
 
 #include <cstdlib>
 #include <filesystem>
@@ -43,7 +44,12 @@ int main() {
 
     auto logger = std::make_shared<FileLogger>(defaultLogPath(project_root, "system_info"));
 
+    auto perf_logger = std::make_shared<PerformanceLogger>(
+        defaultPerfLogPath(project_root, "system_info"));
+
     SystemInfoClient client("system_info", project_root, logger, queue);
+    client.setPerfLogger(perf_logger);
+    hardware_manager.setPerfLogger(perf_logger);
 
     char* server_ip_raw{};
     size_t server_ip_sz{};

@@ -12,6 +12,7 @@ public:
     explicit GPUPipelineWorker(ClientQueue& queue);
     void initialize() override;
     void execute() override;
+    std::string_view worker_name() const override { return "gpu_loop"; }
 
 private:
     DxgiHandler dxgi_;
