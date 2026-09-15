@@ -1,5 +1,7 @@
 #include "ControlCenterClient.h"
 
+#include "../shared/PerformanceLogger.h"
+
 #include <cstdio>
 
 namespace layout = opc_ua_layout;
@@ -16,6 +18,10 @@ ControlCenterClient::ControlCenterClient(std::string_view client_name,
 
 ControlCenterClient::~ControlCenterClient() {
     subscription_.reset();
+}
+
+void ControlCenterClient::setPerfLogger(std::shared_ptr<PerformanceLogger> perf_logger) {
+    perf_logger_ = std::move(perf_logger);
 }
 
 void ControlCenterClient::start() {
@@ -129,6 +135,8 @@ void ControlCenterClient::handleSensorUpdate(const std::string& device_node_id,
 
 void ControlCenterClient::tick(std::chrono::milliseconds io_timeout,
                                 std::chrono::milliseconds poll_interval) {
+    if (perf_logger_) perf_logger_->start("control_center_tick");
+
     client_.runIterate(static_cast<uint16_t>(io_timeout.count()));
 
     const auto now = std::chrono::steady_clock::now();
@@ -136,4 +144,6 @@ void ControlCenterClient::tick(std::chrono::milliseconds io_timeout,
         discoverAndSubscribe();
         last_poll_ = now;
     }
+
+    if (perf_logger_) perf_logger_->stop();
 }

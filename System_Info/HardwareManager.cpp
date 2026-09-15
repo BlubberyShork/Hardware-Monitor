@@ -59,6 +59,12 @@ void HardwareManager::StartPolling(std::chrono::milliseconds poll_interval) {
     }
 }
 
+void HardwareManager::setPerfLogger(std::shared_ptr<PerformanceLogger> logger) {
+    for (auto& worker : workers_) {
+        worker->setPerfLogger(logger);
+    }
+}
+
 void HardwareManager::StopPolling() {
     for (auto& worker_thread : worker_threads_) {
         worker_thread.request_stop();

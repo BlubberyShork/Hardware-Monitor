@@ -11,12 +11,16 @@
 #include <unordered_map>
 #include <vector>
 
+class PerformanceLogger;
+
 class SystemInfoClient : public CustomClient {
 public:
     SystemInfoClient(std::string_view client_name,
                       std::filesystem::path project_root,
                       std::shared_ptr<FileLogger> logger,
                       std::shared_ptr<ClientQueue> queue);
+
+    void setPerfLogger(std::shared_ptr<PerformanceLogger> perf_logger);
 
     std::vector<opc_ua_utils::TelemetryStore> buildTelemetryPayload(
         const std::vector<TelemetrySnapshot>& drained);
@@ -26,6 +30,7 @@ public:
 
 private:
     std::shared_ptr<ClientQueue> queue_;
+    std::shared_ptr<PerformanceLogger> perf_logger_;
 
     std::optional<opcua::NodeId>   client_folder_;
     std::optional<opcua::DataType> sensor_dto_type_;

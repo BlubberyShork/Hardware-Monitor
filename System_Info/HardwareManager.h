@@ -16,6 +16,7 @@
 #include "wmi/storagedevice.h"
 
 class ClientQueue;
+class PerformanceLogger;
 class WbemManager;
 class ThreadManager;
 
@@ -38,6 +39,7 @@ public:
     void InitializeAllWorkers();
     void StartPolling(std::chrono::milliseconds poll_interval = std::chrono::milliseconds{1250});
     void StopPolling();
+    void setPerfLogger(std::shared_ptr<PerformanceLogger> logger);
 
     const Hardware_List_Container& GetHardwareData() const { return hw_data_; }
     Hardware_List_Container* GetHardwareDataPtr() { return &hw_data_; }

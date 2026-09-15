@@ -1,10 +1,12 @@
 #pragma once
 
 #include <chrono>
+#include <memory>
 #include <stop_token>
-#include <thread>
+#include <string_view>
 
 class ClientQueue;
+class PerformanceLogger;
 
 class IHardwarePipelineWorker {
 public:
@@ -16,14 +18,14 @@ public:
 
     virtual void initialize() = 0;
     virtual void execute() = 0;
+    virtual std::string_view worker_name() const = 0;
 
-    void run(std::stop_token stop_token, std::chrono::milliseconds poll_interval) {
-        while (!stop_token.stop_requested()) {
-            execute();
-            std::this_thread::sleep_for(poll_interval);
-        }
-    }
+    void setPerfLogger(std::shared_ptr<PerformanceLogger> logger);
+    void run(std::stop_token stop_token, std::chrono::milliseconds poll_interval);
 
 protected:
     ClientQueue& queue_;
+
+private:
+    std::shared_ptr<PerformanceLogger> perf_logger_;
 };

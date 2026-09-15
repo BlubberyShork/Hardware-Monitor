@@ -15,6 +15,8 @@
 #include <string>
 #include <vector>
 
+class PerformanceLogger;
+
 class ControlCenterClient : public CustomClient {
 public:
     using TelemetrySink = std::function<void(const std::string& client_folder_name, ClientRow row)>;
@@ -24,6 +26,8 @@ public:
                          std::shared_ptr<FileLogger> logger,
                          TelemetrySink sink);
     ~ControlCenterClient();
+
+    void setPerfLogger(std::shared_ptr<PerformanceLogger> perf_logger);
 
     void start();
     void tick(std::chrono::milliseconds io_timeout,
@@ -47,4 +51,5 @@ private:
     std::map<std::string, DeviceCache> device_cache_;
 
     std::chrono::steady_clock::time_point last_poll_{};
+    std::shared_ptr<PerformanceLogger> perf_logger_;
 };

@@ -51,6 +51,7 @@ set(WINDOWS_SOURCES
     wmi/storagedevice.cpp
     hardware/GPU/DxgiHandler.cpp
     hardware/CPU/CPULiveMetrics.cpp
+    hardware/pipeline_workers/IHardwarePipelineWorker.cpp
     hardware/pipeline_workers/CPUPipelineWorker.cpp
     hardware/pipeline_workers/GPUPipelineWorker.cpp
     hardware/GPU/AMD/AMDPool.cpp
