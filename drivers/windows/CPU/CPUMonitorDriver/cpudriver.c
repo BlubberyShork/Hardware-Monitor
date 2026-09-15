@@ -238,16 +238,14 @@ VOID EvtIoDeviceControl(
     GROUP_AFFINITY old_affinity;
     GROUP_AFFINITY new_affinity;
     RtlZeroMemory(&old_affinity, sizeof(GROUP_AFFINITY));
-    RtlZeroMemory(&new_affinity, sizeof(GROUP_AFFINITY));
-
-    KeSetSystemGroupAffinityThread(&new_affinity, &old_affinity);
+    BOOLEAN affinity_saved = FALSE;
 
     CPU_VENDOR vendor = DetectCpuVendor();
     AMD_MODEL_AND_FAMILY amd_info = { 0 };
     if (vendor == CPU_VENDOR_AMD) {
         amd_info = DetectAMDModelAndFamily();
     }
-    for (ULONG i = 0; i < total_procs; i++) { // Loops thru all logical processors
+    for (ULONG i = 0; i < total_procs; i++) {
         PROCESSOR_NUMBER proc_num = { 0 };
         if (!NT_SUCCESS(KeGetProcessorNumberFromIndex(i, &proc_num)))
             continue;
@@ -255,7 +253,8 @@ VOID EvtIoDeviceControl(
         RtlZeroMemory(&new_affinity, sizeof(GROUP_AFFINITY));
         new_affinity.Group = proc_num.Group;
         new_affinity.Mask = (KAFFINITY)(1ULL << proc_num.Number);
-        KeSetSystemGroupAffinityThread(&new_affinity, NULL);
+        KeSetSystemGroupAffinityThread(&new_affinity, affinity_saved ? NULL : &old_affinity);
+        affinity_saved = TRUE;
 
         switch (vendor) {
         case(CPU_VENDOR_INTEL):
@@ -275,7 +274,9 @@ VOID EvtIoDeviceControl(
             break;
         }
     }
-    KeRevertToUserGroupAffinityThread(&old_affinity);
+    if (affinity_saved) {
+        KeRevertToUserGroupAffinityThread(&old_affinity);
+    }
 
     bytes_to_cpy = required_size;
     WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, bytes_to_cpy);
