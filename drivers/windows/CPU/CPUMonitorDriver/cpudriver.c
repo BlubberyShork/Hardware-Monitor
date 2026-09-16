@@ -1,10 +1,10 @@
 #include "cpudriver.h"
 
-UNICODE_STRING DEVICE_NAME = 
-    RTL_CONSTANT_STRING(L"\\Device\\CPUMonitorDriver");
+UNICODE_STRING DEVICE_NAME =
+    RTL_CONSTANT_STRING(L"\\Device\\WindowsCPUDriver");
 
 UNICODE_STRING SYMLINK_NAME =
-    RTL_CONSTANT_STRING(L"\\??\\CPUMonitorDriver");
+    RTL_CONSTANT_STRING(L"\\??\\WindowsCPUDriver");
     
 WDFDEVICE dev = NULL;
 

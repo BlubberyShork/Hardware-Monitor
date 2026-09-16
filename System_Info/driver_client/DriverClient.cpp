@@ -12,6 +12,11 @@ DriverClient::DriverClient() {
         FILE_ATTRIBUTE_NORMAL,
         nullptr
     );
+    if (h_device == INVALID_HANDLE_VALUE) {
+        std::cout << "[DriverClient] CreateFile failed. Error: " << GetLastError() << "\n";
+    } else {
+        std::cout << "[DriverClient] Handle opened successfully\n";
+    }
 }
 
 DriverClient::~DriverClient() {
@@ -25,15 +30,17 @@ bool DriverClient::isValid() const {
 }
 
 std::vector<CPU_DATA> DriverClient::runDriver() {
-    if (!isValid())
+    if (!isValid()) {
+        std::cout << "[DriverClient] runDriver: handle is invalid, skipping\n";
         return {};
+    }
 
     DWORD bytes_ret = 0;
     DWORD buffer_size = sizeof(CPU_DATA_HEADER);
 
     BYTE* buffer = (BYTE*)malloc(buffer_size);
     if (!buffer) {
-        std::cout << "Initial malloc failed\n";
+        std::cout << "[DriverClient] Initial malloc failed\n";
         return {};
     }
 
@@ -52,10 +59,23 @@ std::vector<CPU_DATA> DriverClient::runDriver() {
             const size_t header_size = offsetof(CPU_DATA_BUFFER, data);
             const size_t required_size = header_size +
                 static_cast<size_t>(result->header.processor_count) * sizeof(CPU_DATA);
+
+            std::cout << "[DriverClient] DeviceIoControl succeeded. bytes_ret=" << bytes_ret
+                      << " processor_count=" << result->header.processor_count
+                      << " required_size=" << required_size << "\n";
+
             if (bytes_ret < required_size) {
+                std::cout << "[DriverClient] bytes_ret < required_size, returning empty\n";
                 free(buffer);
                 return {};
             }
+
+            for (ULONG i = 0; i < result->header.processor_count; ++i) {
+                std::cout << "[DriverClient] CPU " << result->data[i].cpu_id
+                          << " temp=" << result->data[i].temp
+                          << " load=" << result->data[i].cpu_load << "\n";
+            }
+
             ret_data.assign(result->data, result->data + result->header.processor_count);
             free(buffer);
             return ret_data;
@@ -65,17 +85,18 @@ std::vector<CPU_DATA> DriverClient::runDriver() {
 
             if (err == ERROR_MORE_DATA || err == ERROR_INSUFFICIENT_BUFFER) {
                 CPU_DATA_HEADER* hdr = (CPU_DATA_HEADER*)buffer;
+                std::cout << "[DriverClient] Buffer too small. Resizing to " << hdr->required_size << "\n";
                 buffer_size = hdr->required_size;
                 BYTE* new_buffer = (BYTE*)realloc(buffer, buffer_size);
                 if (!new_buffer) {
-                    std::cout << "realloc failed\n";
+                    std::cout << "[DriverClient] realloc failed\n";
                     free(buffer);
                     return {};
                 }
                 buffer = new_buffer;
             }
             else {
-                std::cout << "DeviceIoControl failed permanently. Error: " << err << "\n";
+                std::cout << "[DriverClient] DeviceIoControl failed permanently. Error: " << err << "\n";
                 free(buffer);
                 return {};
             }

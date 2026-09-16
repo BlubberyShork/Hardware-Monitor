@@ -62,10 +62,10 @@ void ADL::init() {
 
     // PMLog / OD8 share-memory
     adl2_od8_pmlogsenortype_support_get = reinterpret_cast<ADL2_OD8_PMLOGSENORTYPE_SUPPORT_GET>(resolve("ADL2_Overdrive8_PMLogSenorType_Support_Get"));
-    adl2_od8_pmlog_sharememory_start = reinterpret_cast<ADL2_OD8_PMLOG_SHAREMEMORY_START>   (resolve("ADL2_Overdrive8_ShareMemory_Start"));
-    adl2_od8_pmlog_sharememory_stop = reinterpret_cast<ADL2_OD8_PMLOG_SHAREMEMORY_STOP>    (resolve("ADL2_Overdrive8_ShareMemory_Stop"));
-    adl2_od8_pmlog_sharememory_support = reinterpret_cast<ADL2_OD8_PMLOG_SHAREMEMORY_SUPPORT> (resolve("ADL2_Overdrive8_ShareMemory_Support"));
-    adl2_od8_pmlog_sharememory_read = reinterpret_cast<ADL2_OD8_PMLOG_SHAREMEMORY_READ>    (resolve("ADL2_Overdrive8_ShareMemory_Read"));
+    adl2_od8_pmlog_sharememory_start = reinterpret_cast<ADL2_OD8_PMLOG_SHAREMEMORY_START>   (resolve("ADL2_Overdrive8_PMLog_ShareMemory_Start"));
+    adl2_od8_pmlog_sharememory_stop = reinterpret_cast<ADL2_OD8_PMLOG_SHAREMEMORY_STOP>    (resolve("ADL2_Overdrive8_PMLog_ShareMemory_Stop"));
+    adl2_od8_pmlog_sharememory_support = reinterpret_cast<ADL2_OD8_PMLOG_SHAREMEMORY_SUPPORT> (resolve("ADL2_Overdrive8_PMLog_ShareMemory_Support"));
+    adl2_od8_pmlog_sharememory_read = reinterpret_cast<ADL2_OD8_PMLOG_SHAREMEMORY_READ>    (resolve("ADL2_Overdrive8_PMLog_ShareMemory_Read"));
     adl2_device_pmlog_device_create = reinterpret_cast<ADL2_DEVICE_PMLOG_DEVICE_CREATE>    (resolve("ADL2_Device_PMLog_Device_Create"));
     adl2_device_pmlog_device_destroy = reinterpret_cast<ADL2_DEVICE_PMLOG_DEVICE_DESTROY>   (resolve("ADL2_Device_PMLog_Device_Destroy"));
 
