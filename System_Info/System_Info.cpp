@@ -10,6 +10,7 @@
 #endif
 
 #if defined(PLATFORM_WINDOWS)
+    #include <windows.h>
     #include "HardwareManager.h"
     #include "wmi/ComManager.h"
     #include "wmi/WbemManager.h"
@@ -34,6 +35,14 @@ int main() {
     //ComManager com_mngr;
     //WbemManager wbem_mngr;
     
+    char computer_name[MAX_COMPUTERNAME_LENGTH + 1];
+    DWORD computer_name_len = sizeof(computer_name);
+    if (!GetComputerNameA(computer_name, &computer_name_len)) {
+        std::cerr << "GetComputerNameA failed\n";
+        return 1;
+    }
+    std::string device_name(computer_name);
+
     auto queue = std::make_shared<ClientQueue>();
 
     const std::filesystem::path project_root =
@@ -42,12 +51,12 @@ int main() {
     //HardwareManager hardware_manager(&wbem_mngr, queue);
     HardwareManager hardware_manager(queue);
 
-    auto logger = std::make_shared<FileLogger>(defaultLogPath(project_root, "system_info"));
+    auto logger = std::make_shared<FileLogger>(defaultLogPath(project_root, device_name));
 
     auto perf_logger = std::make_shared<PerformanceLogger>(
-        defaultPerfLogPath(project_root, "system_info"));
+        defaultPerfLogPath(project_root, device_name));
 
-    SystemInfoClient client("system_info", project_root, logger, queue);
+    SystemInfoClient client(device_name, project_root, logger, queue);
     client.setPerfLogger(perf_logger);
     hardware_manager.setPerfLogger(perf_logger);
 
