@@ -4,7 +4,7 @@
 
 DriverClient::DriverClient() {
     h_device = CreateFile(
-        L"\\\\.\\CPUMonitorDriver",
+        L"\\\\.\\WindowsCPUDriver",
         GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
         nullptr,

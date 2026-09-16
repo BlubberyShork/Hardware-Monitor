@@ -129,6 +129,9 @@ refactor.txt
 pki/
 OPC_UA/build/logs
 
+# vcpkg manifest installs
+vcpkg_installed/
+
 # CMAKE / Cmake related
 CMakeCache.txt
 CMakeFiles/

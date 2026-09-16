@@ -7,7 +7,7 @@ if(NOT MSVC)
 endif()
 
 set(SHARED_HEADERS
-    "${CMAKE_SOURCE_DIR}../../../../shared_headers/"
+    "${CMAKE_SOURCE_DIR}/../../../../shared_headers/"
 )
 
 # TODO - Change this and WDK Root so its cleaner and not so disgusting and confusing
@@ -30,7 +30,7 @@ set(MSVC_TOOLS_HEADERS
 set(WDF_KMDF_HEADERS
     "${WDK_KIT}/${WDK_ROOT}/km" 
     "${WDK_KIT}/${WDK_ROOT}/shared"  
-    "${WDK_KIT}/10/Include/wdf/kmdf/1.31"
+    "${WDK_KIT}/10/Include/wdf/kmdf/1.15"
 )
 
 add_executable(WindowsCPUDriver 
@@ -63,7 +63,7 @@ target_link_options(WindowsCPUDriver PRIVATE
     "/MACHINE:X64"
     "/SUBSYSTEM:NATIVE"          # Marks the binary as a kernel driver
     "/DRIVER"                    
-    "/ENTRY:DriverEntry"         # Sets the driver entry point
+    "/ENTRY:FxDriverEntry"       # WDF framework entry point (initializes WDF, then calls DriverEntry)
     "/NODEFAULTLIB"              # Strip user-mode C Runtime (CRT)
     "/INCREMENTAL:NO"            # Disable incremental linking
     "/INTEGRITYCHECK"            # Required for digital signatures / OS loading
@@ -71,7 +71,7 @@ target_link_options(WindowsCPUDriver PRIVATE
 )
 
 set(X64_KF_LIBS_DIR ${WDK_KIT}/10/Lib/10.0.22621.0/km/x64)
-set(X64_WDF_LIBS_DIR ${WDK_KIT}/10/Lib/wdf/kmdf/x64/1.31)
+set(X64_WDF_LIBS_DIR ${WDK_KIT}/10/Lib/wdf/kmdf/x64/1.15)
 
 target_link_libraries(WindowsCPUDriver PRIVATE
     ${X64_KF_LIBS_DIR}/ntoskrnl.lib   
