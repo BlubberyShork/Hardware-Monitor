@@ -15,7 +15,6 @@ NvidiaPool::~NvidiaPool() {
     NvAPI_Unload();
 }
 
-// TODO - Build the name here (model)
 void NvidiaPool::enumerateDevices() {
     NvPhysicalGpuHandle handles[NVAPI_MAX_PHYSICAL_GPUS] = {};
     NvU32 gpu_cnt = 0;
@@ -23,7 +22,12 @@ void NvidiaPool::enumerateDevices() {
     NvAPI_Status status = NvAPI_EnumPhysicalGPUs(handles, &gpu_cnt);
     if(status != NVAPI_OK) std::cerr << "Failed to enumerate physical GPUs: " << status << "\n";
     for (NvU32 i = 0; i < gpu_cnt; i++) {
-        auto dev = std::make_unique<NvidiaLiveGPUMetrics>(handles[i]);
+        NvAPI_ShortString gpu_name = {};
+        std::string device_name = "NVIDIA GPU";
+        if (NvAPI_GPU_GetFullName(handles[i], gpu_name) == NVAPI_OK) {
+            device_name = "NVIDIA " + std::string(gpu_name);
+        }
+        auto dev = std::make_unique<NvidiaLiveGPUMetrics>(handles[i], std::move(device_name));
         devices_.push_back(std::move(dev));
         devices_.back()->fetchMetrics();
     }

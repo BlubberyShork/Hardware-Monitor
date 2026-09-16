@@ -130,7 +130,7 @@ void ControlCenterClient::handleSensorUpdate(const std::string& device_node_id,
         row.fields.emplace_back("  " + sensor.name, val_str);
     }
 
-    sink_(cache.client_folder_name, std::move(row));
+    sink_(cache.client_folder_name, cache.info.hardware_type, std::move(row));
 }
 
 void ControlCenterClient::tick(std::chrono::milliseconds io_timeout,

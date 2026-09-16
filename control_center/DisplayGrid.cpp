@@ -10,9 +10,9 @@ constexpr size_t kMinColumnWidth = 14;
 constexpr const char* kCursorHomeAndClear = "\033[H\033[0J";
 } // namespace
 
-void DisplayGrid::update(const std::string& client_name, ClientRow row) {
+void DisplayGrid::update(const std::string& client_name, const std::string& device_key, ClientRow row) {
     std::lock_guard<std::mutex> lock(mutex_);
-    rows_[client_name] = std::move(row);
+    rows_[client_name][device_key] = std::move(row);
     dirty_ = true;
 }
 
@@ -38,43 +38,54 @@ std::string DisplayGrid::buildFrame() const {
         return "Waiting for telemetry clients...\n";
     }
 
-    std::vector<std::string> names;
-    names.reserve(rows_.size());
-    for (const auto& [name, row] : rows_) {
-        names.push_back(name);
+    struct ColumnData {
+        std::string name;
+        std::vector<std::pair<std::string, std::string>> fields;
+    };
+
+    std::vector<ColumnData> columns;
+    for (const auto& [client_name, devices] : rows_) {
+        ColumnData col;
+        col.name = client_name;
+        for (const auto& [device_key, row] : devices) {
+            for (const auto& field : row.fields) {
+                col.fields.push_back(field);
+            }
+        }
+        columns.push_back(std::move(col));
     }
 
-    std::vector<size_t> widths(names.size());
-    for (size_t col = 0; col < names.size(); ++col) {
-        size_t width = names[col].size();
-        for (const auto& [label, value] : rows_.at(names[col]).fields) {
+    std::vector<size_t> widths(columns.size());
+    for (size_t c = 0; c < columns.size(); ++c) {
+        size_t width = columns[c].name.size();
+        for (const auto& [label, value] : columns[c].fields) {
             width = std::max(width, label.size() + 2 + value.size());
         }
-        widths[col] = std::max(width + kColumnPadding, kMinColumnWidth);
+        widths[c] = std::max(width + kColumnPadding, kMinColumnWidth);
     }
 
     size_t max_rows = 0;
-    for (const auto& name : names) {
-        max_rows = std::max(max_rows, rows_.at(name).fields.size());
+    for (const auto& col : columns) {
+        max_rows = std::max(max_rows, col.fields.size());
     }
 
     std::ostringstream out;
 
-    for (size_t col = 0; col < names.size(); ++col) {
-        out << names[col];
-        out << std::string(widths[col] - names[col].size(), ' ');
+    for (size_t c = 0; c < columns.size(); ++c) {
+        out << columns[c].name;
+        out << std::string(widths[c] - columns[c].name.size(), ' ');
     }
     out << "\n";
 
-    for (size_t col = 0; col < names.size(); ++col) {
-        out << std::string(std::min(widths[col] - kColumnPadding, widths[col]), '-');
+    for (size_t c = 0; c < columns.size(); ++c) {
+        out << std::string(std::min(widths[c] - kColumnPadding, widths[c]), '-');
         out << std::string(kColumnPadding, ' ');
     }
     out << "\n";
 
     for (size_t r = 0; r < max_rows; ++r) {
-        for (size_t col = 0; col < names.size(); ++col) {
-            const auto& fields = rows_.at(names[col]).fields;
+        for (size_t c = 0; c < columns.size(); ++c) {
+            const auto& fields = columns[c].fields;
             std::string cell;
             if (r < fields.size()) {
                 if (fields[r].second.empty()) {
@@ -84,7 +95,7 @@ std::string DisplayGrid::buildFrame() const {
                 }
             }
             out << cell;
-            out << std::string(widths[col] > cell.size() ? widths[col] - cell.size() : 1, ' ');
+            out << std::string(widths[c] > cell.size() ? widths[c] - cell.size() : 1, ' ');
         }
         out << "\n";
     }

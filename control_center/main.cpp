@@ -64,8 +64,8 @@ int main() {
         "control_center",
         project_root,
         logger,
-        [grid](const std::string& client_name, ClientRow row) {
-            grid->update(client_name, std::move(row));
+        [grid](const std::string& client_name, const std::string& device_key, ClientRow row) {
+            grid->update(client_name, device_key, std::move(row));
         });
     control_center.setPerfLogger(perf_logger);
 

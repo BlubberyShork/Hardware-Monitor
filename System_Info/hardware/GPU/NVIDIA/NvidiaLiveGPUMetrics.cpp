@@ -2,10 +2,9 @@
 #include <iostream>
 #include <stdexcept>
 
-// TODO - LUID and name check
-NvidiaLiveGPUMetrics::NvidiaLiveGPUMetrics(NvPhysicalGpuHandle& handle)
+NvidiaLiveGPUMetrics::NvidiaLiveGPUMetrics(NvPhysicalGpuHandle& handle, std::string name)
     : _handle(handle),
-      A_HardwareDevice(Vendor::NVIDIA, HardwareType::GPU, "NVIDIA GPU") {
+      A_HardwareDevice(Vendor::NVIDIA, HardwareType::GPU, std::move(name)) {
 }
 
 NvidiaLiveGPUMetrics::~NvidiaLiveGPUMetrics() {}

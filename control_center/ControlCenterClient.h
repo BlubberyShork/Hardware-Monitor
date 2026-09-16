@@ -19,7 +19,7 @@ class PerformanceLogger;
 
 class ControlCenterClient : public CustomClient {
 public:
-    using TelemetrySink = std::function<void(const std::string& client_folder_name, ClientRow row)>;
+    using TelemetrySink = std::function<void(const std::string& client_folder_name, const std::string& device_key, ClientRow row)>;
 
     ControlCenterClient(std::string_view client_name,
                          std::filesystem::path project_root,
