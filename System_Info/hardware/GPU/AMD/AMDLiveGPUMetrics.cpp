@@ -204,54 +204,56 @@ void AMDLiveGPUMetrics::fetchADLMetrics() {
                                 if (!data.sensors[sensor_id].supported) continue;
                                 float val = static_cast<float>(data.sensors[sensor_id].value);
 
+                                using sensor_t = Sensors::SensorType;
+
                                 switch (sensor_id) {
-                                case PMLOG_CLK_GFXCLK:    if (validClock(val)) addSensor<Sensors::SensorType::CLOCK>("Core Clock Speed", val); break;
-                                case PMLOG_CLK_MEMCLK:    if (validClock(val)) addSensor<Sensors::SensorType::CLOCK>("Memory Clock Speed", val); break;
-                                case PMLOG_CLK_SOCCLK:    if (validClock(val)) addSensor<Sensors::SensorType::CLOCK>("SoC Clock Speed", val); break;
-                                case PMLOG_CLK_UVDCLK1:   if (validClock(val)) addSensor<Sensors::SensorType::CLOCK>("UVD Clock 1", val); break;
-                                case PMLOG_CLK_UVDCLK2:   if (validClock(val)) addSensor<Sensors::SensorType::CLOCK>("UVD Clock 2", val); break;
-                                case PMLOG_CLK_VCECLK:    if (validClock(val)) addSensor<Sensors::SensorType::CLOCK>("VCE Clock Speed", val); break;
-                                case PMLOG_CLK_VCNCLK:    if (validClock(val)) addSensor<Sensors::SensorType::CLOCK>("VCN Clock Speed", val); break;
-                                case PMLOG_CLK_VCN1CLK1:  if (validClock(val)) addSensor<Sensors::SensorType::CLOCK>("VCN1 Clock 1", val); break;
-                                case PMLOG_CLK_VCN1CLK2:  if (validClock(val)) addSensor<Sensors::SensorType::CLOCK>("VCN1 Clock 2", val); break;
-                                case PMLOG_CLK_FCLK:      if (validClock(val)) addSensor<Sensors::SensorType::CLOCK>("Fabric Clock Speed", val); break;
-                                case PMLOG_CLK_CPUCLK:    if (validClock(val)) addSensor<Sensors::SensorType::CLOCK>("CPU Clock Speed", val); break;
-                                case PMLOG_BUS_SPEED:     if (validClock(val)) addSensor<Sensors::SensorType::CLOCK>("PCIe Bus Speed", val); break;
+                                case PMLOG_CLK_GFXCLK:    if (validClock(val)) addSensor<sensor_t::CLOCK>("Core Clock Speed", val); break;
+                                case PMLOG_CLK_MEMCLK:    if (validClock(val)) addSensor<sensor_t::CLOCK>("Memory Clock Speed", val); break;
+                                case PMLOG_CLK_SOCCLK:    if (validClock(val)) addSensor<sensor_t::CLOCK>("SoC Clock Speed", val); break;
+                                case PMLOG_CLK_UVDCLK1:   if (validClock(val)) addSensor<sensor_t::CLOCK>("UVD Clock 1", val); break;
+                                case PMLOG_CLK_UVDCLK2:   if (validClock(val)) addSensor<sensor_t::CLOCK>("UVD Clock 2", val); break;
+                                case PMLOG_CLK_VCECLK:    if (validClock(val)) addSensor<sensor_t::CLOCK>("VCE Clock Speed", val); break;
+                                case PMLOG_CLK_VCNCLK:    if (validClock(val)) addSensor<sensor_t::CLOCK>("VCN Clock Speed", val); break;
+                                case PMLOG_CLK_VCN1CLK1:  if (validClock(val)) addSensor<sensor_t::CLOCK>("VCN1 Clock 1", val); break;
+                                case PMLOG_CLK_VCN1CLK2:  if (validClock(val)) addSensor<sensor_t::CLOCK>("VCN1 Clock 2", val); break;
+                                case PMLOG_CLK_FCLK:      if (validClock(val)) addSensor<sensor_t::CLOCK>("Fabric Clock Speed", val); break;
+                                case PMLOG_CLK_CPUCLK:    if (validClock(val)) addSensor<sensor_t::CLOCK>("CPU Clock Speed", val); break;
+                                case PMLOG_BUS_SPEED:     if (validClock(val)) addSensor<sensor_t::CLOCK>("PCIe Bus Speed", val); break;
 
-                                case PMLOG_TEMPERATURE_EDGE:        if (validTemp(val)) addSensor<Sensors::SensorType::TEMPERATURE>("GPU Edge Temperature", val); break;
-                                case PMLOG_TEMPERATURE_MEM:         if (validTemp(val)) addSensor<Sensors::SensorType::TEMPERATURE>("Memory Temperature", val); break;
-                                case PMLOG_TEMPERATURE_LIQUID:      if (validTemp(val)) addSensor<Sensors::SensorType::TEMPERATURE>("Liquid Cooling Temperature", val); break;
-                                case PMLOG_TEMPERATURE_HOTSPOT:     if (validTemp(val)) addSensor<Sensors::SensorType::TEMPERATURE>("GPU Hotspot Temperature", val); break;
-                                case PMLOG_TEMPERATURE_GFX:         if (validTemp(val)) addSensor<Sensors::SensorType::TEMPERATURE>("GFX Temperature", val); break;
-                                case PMLOG_TEMPERATURE_SOC:         if (validTemp(val)) addSensor<Sensors::SensorType::TEMPERATURE>("SoC Temperature", val); break;
-                                case PMLOG_TEMPERATURE_CPU:         if (validTemp(val)) addSensor<Sensors::SensorType::TEMPERATURE>("CPU Temperature", val); break;
-                                case PMLOG_TEMPERATURE_HOTSPOT_GCD: if (validTemp(val)) addSensor<Sensors::SensorType::TEMPERATURE>("Hotspot GCD Temperature", val); break;
-                                case PMLOG_TEMPERATURE_HOTSPOT_MCD: if (validTemp(val)) addSensor<Sensors::SensorType::TEMPERATURE>("Hotspot MCD Temperature", val); break;
+                                case PMLOG_TEMPERATURE_EDGE:        if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("GPU Edge Temperature", val); break;
+                                case PMLOG_TEMPERATURE_MEM:         if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("Memory Temperature", val); break;
+                                case PMLOG_TEMPERATURE_LIQUID:      if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("Liquid Cooling Temperature", val); break;
+                                case PMLOG_TEMPERATURE_HOTSPOT:     if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("GPU Hotspot Temperature", val); break;
+                                case PMLOG_TEMPERATURE_GFX:         if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("GFX Temperature", val); break;
+                                case PMLOG_TEMPERATURE_SOC:         if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("SoC Temperature", val); break;
+                                case PMLOG_TEMPERATURE_CPU:         if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("CPU Temperature", val); break;
+                                case PMLOG_TEMPERATURE_HOTSPOT_GCD: if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("Hotspot GCD Temperature", val); break;
+                                case PMLOG_TEMPERATURE_HOTSPOT_MCD: if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("Hotspot MCD Temperature", val); break;
 
-                                case PMLOG_FAN_RPM: if (validFan(val)) addSensor<Sensors::SensorType::FAN_SPEED>("Fan Speed", val); break;
+                                case PMLOG_FAN_RPM: if (validFan(val)) addSensor<sensor_t::FAN_SPEED>("Fan Speed", val); break;
 
-                                case PMLOG_INFO_ACTIVITY_GFX: if (validPct(val)) addSensor<Sensors::SensorType::USAGE>("GPU Utilization", val); break;
-                                case PMLOG_INFO_ACTIVITY_MEM: if (validPct(val)) addSensor<Sensors::SensorType::USAGE>("Memory Utilization", val); break;
+                                case PMLOG_INFO_ACTIVITY_GFX: if (validPct(val)) addSensor<sensor_t::USAGE>("GPU Utilization", val); break;
+                                case PMLOG_INFO_ACTIVITY_MEM: if (validPct(val)) addSensor<sensor_t::USAGE>("Memory Utilization", val); break;
 
-                                case PMLOG_SOC_VOLTAGE: if (validVolt(val)) addSensor<Sensors::SensorType::VOLTAGE>("SoC Voltage", val); break;
-                                case PMLOG_GFX_VOLTAGE: if (validVolt(val)) addSensor<Sensors::SensorType::VOLTAGE>("GFX Voltage", val); break;
-                                case PMLOG_MEM_VOLTAGE: if (validVolt(val)) addSensor<Sensors::SensorType::VOLTAGE>("Memory Voltage", val); break;
+                                case PMLOG_SOC_VOLTAGE: if (validVolt(val)) addSensor<sensor_t::VOLTAGE>("SoC Voltage", val); break;
+                                case PMLOG_GFX_VOLTAGE: if (validVolt(val)) addSensor<sensor_t::VOLTAGE>("GFX Voltage", val); break;
+                                case PMLOG_MEM_VOLTAGE: if (validVolt(val)) addSensor<sensor_t::VOLTAGE>("Memory Voltage", val); break;
 
-                                case PMLOG_ASIC_POWER:         if (validPower(val)) addSensor<Sensors::SensorType::POWER>("ASIC Power", val); break;
-                                case PMLOG_SOC_POWER:          if (validPower(val)) addSensor<Sensors::SensorType::POWER>("SoC Power", val); break;
-                                case PMLOG_GFX_POWER:          if (validPower(val)) addSensor<Sensors::SensorType::POWER>("GFX Power", val); break;
-                                case PMLOG_CPU_POWER:          if (validPower(val)) addSensor<Sensors::SensorType::POWER>("CPU Power", val); break;
-                                case PMLOG_BOARD_POWER:        if (validPower(val)) addSensor<Sensors::SensorType::POWER>("Board Power", val); break;
-                                case PMLOG_SSTOTAL_POWERLIMIT: if (validPower(val)) addSensor<Sensors::SensorType::POWER>("Total Power Limit", val); break;
-                                case PMLOG_SSAPU_POWERLIMIT:   if (validPower(val)) addSensor<Sensors::SensorType::POWER>("APU Power Limit", val); break;
-                                case PMLOG_SSDGPU_POWERLIMIT:  if (validPower(val)) addSensor<Sensors::SensorType::POWER>("dGPU Power Limit", val); break;
+                                case PMLOG_ASIC_POWER:         if (validPower(val)) addSensor<sensor_t::POWER>("ASIC Power", val); break;
+                                case PMLOG_SOC_POWER:          if (validPower(val)) addSensor<sensor_t::POWER>("SoC Power", val); break;
+                                case PMLOG_GFX_POWER:          if (validPower(val)) addSensor<sensor_t::POWER>("GFX Power", val); break;
+                                case PMLOG_CPU_POWER:          if (validPower(val)) addSensor<sensor_t::POWER>("CPU Power", val); break;
+                                case PMLOG_BOARD_POWER:        if (validPower(val)) addSensor<sensor_t::POWER>("Board Power", val); break;
+                                case PMLOG_SSTOTAL_POWERLIMIT: if (validPower(val)) addSensor<sensor_t::POWER>("Total Power Limit", val); break;
+                                case PMLOG_SSAPU_POWERLIMIT:   if (validPower(val)) addSensor<sensor_t::POWER>("APU Power Limit", val); break;
+                                case PMLOG_SSDGPU_POWERLIMIT:  if (validPower(val)) addSensor<sensor_t::POWER>("dGPU Power Limit", val); break;
 
-                                case PMLOG_THROTTLE_PERCENTAGE_TEMP_GFX: if (validPct(val)) addSensor<Sensors::SensorType::USAGE>("Throttle % (GFX Temp)", val); break;
-                                case PMLOG_THROTTLE_PERCENTAGE_TEMP_MEM: if (validPct(val)) addSensor<Sensors::SensorType::USAGE>("Throttle % (Mem Temp)", val); break;
-                                case PMLOG_THROTTLE_PERCENTAGE_TEMP_VR:  if (validPct(val)) addSensor<Sensors::SensorType::USAGE>("Throttle % (VR Temp)", val); break;
-                                case PMLOG_THROTTLE_PERCENTAGE_POWER:    if (validPct(val)) addSensor<Sensors::SensorType::USAGE>("Throttle % (Power)", val); break;
-                                case PMLOG_THROTTLE_PERCENTAGE_TDC:      if (validPct(val)) addSensor<Sensors::SensorType::USAGE>("Throttle % (TDC)", val); break;
-                                case PMLOG_THROTTLE_PERCENTAGE_VMAX:     if (validPct(val)) addSensor<Sensors::SensorType::USAGE>("Throttle % (Vmax)", val); break;
+                                case PMLOG_THROTTLE_PERCENTAGE_TEMP_GFX: if (validPct(val)) addSensor<sensor_t::USAGE>("Throttle % (GFX Temp)", val); break;
+                                case PMLOG_THROTTLE_PERCENTAGE_TEMP_MEM: if (validPct(val)) addSensor<sensor_t::USAGE>("Throttle % (Mem Temp)", val); break;
+                                case PMLOG_THROTTLE_PERCENTAGE_TEMP_VR:  if (validPct(val)) addSensor<sensor_t::USAGE>("Throttle % (VR Temp)", val); break;
+                                case PMLOG_THROTTLE_PERCENTAGE_POWER:    if (validPct(val)) addSensor<sensor_t::USAGE>("Throttle % (Power)", val); break;
+                                case PMLOG_THROTTLE_PERCENTAGE_TDC:      if (validPct(val)) addSensor<sensor_t::USAGE>("Throttle % (TDC)", val); break;
+                                case PMLOG_THROTTLE_PERCENTAGE_VMAX:     if (validPct(val)) addSensor<sensor_t::USAGE>("Throttle % (Vmax)", val); break;
 
                                 default: break;
                                 }
