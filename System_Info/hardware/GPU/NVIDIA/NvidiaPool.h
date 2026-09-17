@@ -14,7 +14,9 @@ public:
 
 	void enumerateDevices() override;
 
+    const std::vector<std::unique_ptr<A_HardwareDevice>>& getDevices() const override { return devices_; }
+
 private:
-	std::vector<std::unique_ptr<NvidiaLiveGPUMetrics>> nvidia_adapters;
+	std::vector<std::unique_ptr<A_HardwareDevice>> devices_;
 };
 

@@ -44,251 +44,228 @@ void AMDLiveGPUMetrics::fetchADLMetrics() {
     const int idx = adl_adapter_idx_;
     ADL& a = *adl_;
 
+    auto validTemp  = [](float v) { return v > 0.0f && v < 150.0f; };
+    auto validClock = [](float v) { return v > 0.0f && v < 10000.0f; };
+    auto validPct   = [](float v) { return v >= 0.0f && v <= 100.0f; };
+    auto validPower = [](float v) { return v >= 0.0f && v < 1000.0f; };
+    auto validFan   = [](float v) { return v >= 0.0f && v < 20000.0f; };
+    auto validVolt  = [](float v) { return v >= 0.0f && v < 3.0f; };
+
     int od_supported = 0, od_enabled = 0, od_version = 0;
     if (a.adl2_overdrive_caps(a.context, idx, &od_supported, &od_enabled, &od_version) != ADL_OK) {
         if (a.adl_overdrive_caps(idx, &od_supported, &od_enabled, &od_version) != ADL_OK) {
-            std::cerr << "[AMDLiveGPUMetrics] Failed to retrieve ADL overdrive caps for adapter "
-                << idx << "\n";
-            //return;
-        }
-        /*std::cerr << "[AMDLiveGPUMetrics] Failed to retrieve ADL2 overdrive caps for adapter "
-            << idx << "\n";
-        std::cerr << "context: " << a.context << "\n";
-        std::cerr << "Od supported val: " << od_supported << "\n";
-        std::cerr << "Od supported val: " << od_enabled << "\n";
-        std::cerr << "Od supported val: " << od_version << "\n";
-        return;*/
-    }
-
-    // ---- OD8 (share-memory PMLog path) ----
-    if (od_version >= 8) {
-        int sharememory_supported = 0;
-        if (a.adl2_od8_pmlog_sharememory_support(a.context, idx, &sharememory_supported, 0) != ADL_OK
-            || sharememory_supported == ADL_ERR_NOT_SUPPORTED) {
-            std::cerr << "[AMDLiveGPUMetrics] PMLog ShareMemory not supported for adapter " << idx << "\n";
-            return;
-        }
-
-        ADL_D3DKMT_HANDLE device_handle = 0;
-        if (a.adl2_device_pmlog_device_create(a.context, idx, &device_handle) != ADL_OK) {
-            std::cerr << "[AMDLiveGPUMetrics] PMLog device create failed for adapter " << idx << "\n";
-            return;
-        }
-
-        void* shared_memory = nullptr;
-        if (a.adl2_od8_pmlog_sharememory_start(
-            a.context, idx, 1000, -1, nullptr, &device_handle, &shared_memory, 0) != ADL_OK) {
-            std::cerr << "[AMDLiveGPUMetrics] PMLog ShareMemory start failed for adapter " << idx << "\n";
-            a.adl2_device_pmlog_device_destroy(a.context, device_handle);
-            return;
-        }
-
-        int  sensor_count = 0;
-        int* sensor_list = nullptr;
-        if (a.adl2_od8_pmlogsenortype_support_get(a.context, idx, &sensor_count, &sensor_list) != ADL_OK) {
-            std::cerr << "[AMDLiveGPUMetrics] PMLogSenorType_Support_Get failed for adapter " << idx << "\n";
-            a.adl2_od8_pmlog_sharememory_stop(a.context, idx, &device_handle);
-            a.adl2_device_pmlog_device_destroy(a.context, device_handle);
-            return;
-        }
-
-        ADLPMLogDataOutput data = {};
-        if (a.adl2_od8_pmlog_sharememory_read(
-            a.context, idx, sensor_count, sensor_list, &shared_memory, &data) == ADL_OK) {
-
-            for (int i = 0; i < sensor_count; ++i) {
-                int   sensor_id = sensor_list[i];
-                if (!data.sensors[sensor_id].supported) continue;
-                float val = static_cast<float>(data.sensors[sensor_id].value);
-
-                switch (sensor_id) {
-                    // Clocks
-                case PMLOG_CLK_GFXCLK:    addSensor<Sensors::SensorType::CLOCK>("Core Clock Speed", val); break;
-                case PMLOG_CLK_MEMCLK:    addSensor<Sensors::SensorType::CLOCK>("Memory Clock Speed", val); break;
-                case PMLOG_CLK_SOCCLK:    addSensor<Sensors::SensorType::CLOCK>("SoC Clock Speed", val); break;
-                case PMLOG_CLK_UVDCLK1:   addSensor<Sensors::SensorType::CLOCK>("UVD Clock 1", val); break;
-                case PMLOG_CLK_UVDCLK2:   addSensor<Sensors::SensorType::CLOCK>("UVD Clock 2", val); break;
-                case PMLOG_CLK_VCECLK:    addSensor<Sensors::SensorType::CLOCK>("VCE Clock Speed", val); break;
-                case PMLOG_CLK_VCNCLK:    addSensor<Sensors::SensorType::CLOCK>("VCN Clock Speed", val); break;
-                case PMLOG_CLK_VCN1CLK1:  addSensor<Sensors::SensorType::CLOCK>("VCN1 Clock 1", val); break;
-                case PMLOG_CLK_VCN1CLK2:  addSensor<Sensors::SensorType::CLOCK>("VCN1 Clock 2", val); break;
-                case PMLOG_CLK_FCLK:      addSensor<Sensors::SensorType::CLOCK>("Fabric Clock Speed", val); break;
-                case PMLOG_CLK_CPUCLK:    addSensor<Sensors::SensorType::CLOCK>("CPU Clock Speed", val); break;
-                case PMLOG_BUS_SPEED:     addSensor<Sensors::SensorType::CLOCK>("PCIe Bus Speed", val); break;
-
-                    // Temperatures
-                case PMLOG_TEMPERATURE_EDGE:        addSensor<Sensors::SensorType::TEMPERATURE>("GPU Edge Temperature", val); break;
-                case PMLOG_TEMPERATURE_MEM:         addSensor<Sensors::SensorType::TEMPERATURE>("Memory Temperature", val); break;
-                case PMLOG_TEMPERATURE_LIQUID:      addSensor<Sensors::SensorType::TEMPERATURE>("Liquid Cooling Temperature", val); break;
-                case PMLOG_TEMPERATURE_HOTSPOT:     addSensor<Sensors::SensorType::TEMPERATURE>("GPU Hotspot Temperature", val); break;
-                case PMLOG_TEMPERATURE_GFX:         addSensor<Sensors::SensorType::TEMPERATURE>("GFX Temperature", val); break;
-                case PMLOG_TEMPERATURE_SOC:         addSensor<Sensors::SensorType::TEMPERATURE>("SoC Temperature", val); break;
-                case PMLOG_TEMPERATURE_CPU:         addSensor<Sensors::SensorType::TEMPERATURE>("CPU Temperature", val); break;
-                case PMLOG_TEMPERATURE_HOTSPOT_GCD: addSensor<Sensors::SensorType::TEMPERATURE>("Hotspot GCD Temperature", val); break;
-                case PMLOG_TEMPERATURE_HOTSPOT_MCD: addSensor<Sensors::SensorType::TEMPERATURE>("Hotspot MCD Temperature", val); break;
-
-                    // Fan
-                case PMLOG_FAN_RPM: addSensor<Sensors::SensorType::FAN_SPEED>("Fan Speed", val); break;
-
-                    // Utilization
-                case PMLOG_INFO_ACTIVITY_GFX: addSensor<Sensors::SensorType::USAGE>("GPU Utilization", val); break;
-                case PMLOG_INFO_ACTIVITY_MEM: addSensor<Sensors::SensorType::USAGE>("Memory Utilization", val); break;
-
-                    // Voltage
-                case PMLOG_SOC_VOLTAGE: addSensor<Sensors::SensorType::VOLTAGE>("SoC Voltage", val); break;
-                case PMLOG_GFX_VOLTAGE: addSensor<Sensors::SensorType::VOLTAGE>("GFX Voltage", val); break;
-                case PMLOG_MEM_VOLTAGE: addSensor<Sensors::SensorType::VOLTAGE>("Memory Voltage", val); break;
-
-                    // Power
-                case PMLOG_ASIC_POWER:         addSensor<Sensors::SensorType::POWER>("ASIC Power", val); break;
-                case PMLOG_SOC_POWER:          addSensor<Sensors::SensorType::POWER>("SoC Power", val); break;
-                case PMLOG_GFX_POWER:          addSensor<Sensors::SensorType::POWER>("GFX Power", val); break;
-                case PMLOG_CPU_POWER:          addSensor<Sensors::SensorType::POWER>("CPU Power", val); break;
-                case PMLOG_BOARD_POWER:        addSensor<Sensors::SensorType::POWER>("Board Power", val); break;
-                case PMLOG_SSTOTAL_POWERLIMIT: addSensor<Sensors::SensorType::POWER>("Total Power Limit", val); break;
-                case PMLOG_SSAPU_POWERLIMIT:   addSensor<Sensors::SensorType::POWER>("APU Power Limit", val); break;
-                case PMLOG_SSDGPU_POWERLIMIT:  addSensor<Sensors::SensorType::POWER>("dGPU Power Limit", val); break;
-
-                    // Throttle diagnostics
-                case PMLOG_THROTTLE_PERCENTAGE_TEMP_GFX: addSensor<Sensors::SensorType::USAGE>("Throttle % (GFX Temp)", val); break;
-                case PMLOG_THROTTLE_PERCENTAGE_TEMP_MEM: addSensor<Sensors::SensorType::USAGE>("Throttle % (Mem Temp)", val); break;
-                case PMLOG_THROTTLE_PERCENTAGE_TEMP_VR:  addSensor<Sensors::SensorType::USAGE>("Throttle % (VR Temp)", val); break;
-                case PMLOG_THROTTLE_PERCENTAGE_POWER:    addSensor<Sensors::SensorType::USAGE>("Throttle % (Power)", val); break;
-                case PMLOG_THROTTLE_PERCENTAGE_TDC:      addSensor<Sensors::SensorType::USAGE>("Throttle % (TDC)", val); break;
-                case PMLOG_THROTTLE_PERCENTAGE_VMAX:     addSensor<Sensors::SensorType::USAGE>("Throttle % (Vmax)", val); break;
-
-                default: break;
-                }
-            }
-        }
-        else {
-            std::cerr << "[AMDLiveGPUMetrics] PMLog ShareMemory read failed for adapter " << idx << "\n";
-        }
-
-        a.adl2_od8_pmlog_sharememory_stop(a.context, idx, &device_handle);
-        a.adl2_device_pmlog_device_destroy(a.context, device_handle);
-    }
-
-    // ---- ODN (Overdrive N, version 7) ----
-    else if (od_version == 7) {
-        // Temperature
-        int temp = 0;
-        if (a.adl2_overdriven_temperature_get(a.context, idx, 0, &temp) == ADL_OK)
-            addSensor<Sensors::SensorType::TEMPERATURE>("Average Core Temperature",
-                static_cast<float>(temp));
-        else
-            std::cerr << "[AMDLiveGPUMetrics] ADL_ODN_Temperature_Get failed for adapter " << idx << "\n";
-
-        // Clocks + utilization
-        ADLODNPerformanceStatus perf = {};
-        if (a.adl2_overdriven_performancestatus_get(a.context, idx, &perf) == ADL_OK) {
-            if (perf.iCoreClock > 0)
-                addSensor<Sensors::SensorType::CLOCK>("Core / Graphics Clock Speed",
-                    static_cast<float>(perf.iCoreClock));
-            if (perf.iMemoryClock > 0)
-                addSensor<Sensors::SensorType::CLOCK>("Memory Clock Speed",
-                    static_cast<float>(perf.iMemoryClock));
-            addSensor<Sensors::SensorType::USAGE>("Core / Graphics Utilization",
-                static_cast<float>(perf.iGPUActivityPercent));
-        }
-        else {
-            std::cerr << "[AMDLiveGPUMetrics] ADL_ODN_PerformanceStatus_Get failed for adapter " << idx << "\n";
-        }
-
-        // TODO: ODN fan speed — check if OD5/OD6 fan path is needed as fallback
-    }
-
-    // ---- OD6 ----
-    else if (od_version == 6) {
-        // Temperature
-        int temp_milli = 0;
-        if (a.adl2_od6_temperature_get(a.context, idx, &temp_milli) == ADL_OK)
-            addSensor<Sensors::SensorType::TEMPERATURE>("Average Core Temperature",
-                static_cast<float>(temp_milli) / 1000.0f);
-        else
-            std::cerr << "[AMDLiveGPUMetrics] ADL_OD6_Temperature_Get failed for adapter " << idx << "\n";
-
-        // Clocks + utilization
-        ADLOD6CurrentStatus status = {};
-        if (a.adl2_od6_currentstatus_get(a.context, idx, &status) == ADL_OK) {
-            if (status.iEngineClock > 0)
-                addSensor<Sensors::SensorType::CLOCK>("Core / Graphics Clock Speed",
-                    static_cast<float>(status.iEngineClock) * 0.01f);
-            if (status.iMemoryClock > 0)
-                addSensor<Sensors::SensorType::CLOCK>("Memory Clock Speed",
-                    static_cast<float>(status.iMemoryClock) * 0.01f);
-            addSensor<Sensors::SensorType::USAGE>("Core / Graphics Utilization",
-                static_cast<float>(status.iActivityPercent));
-        }
-        else {
-            std::cerr << "[AMDLiveGPUMetrics] ADL_OD6_CurrentStatus_Get failed for adapter " << idx << "\n";
-        }
-
-        // Power
-        int power_mw = 0;
-        if (a.adl2_od6_currentpower_get(a.context, idx, 0, &power_mw) == ADL_OK)
-            addSensor<Sensors::SensorType::POWER>("GPU Power Draw",
-                static_cast<float>(power_mw) / 1000.0f);
-        else
-            std::cerr << "[AMDLiveGPUMetrics] ADL_OD6_CurrentPower_Get failed for adapter " << idx << "\n";
-
-        // Fan
-        ADLOD6FanSpeedInfo fan = {};
-        if (a.adl2_od6_fanspeed_get(a.context, idx, &fan) == ADL_OK) {
-            if (fan.iSpeedType & ADL_OD6_FANSPEED_TYPE_RPM)
-                addSensor<Sensors::SensorType::FAN_SPEED>("Fan Speed",
-                    static_cast<float>(fan.iFanSpeedRPM));
-        }
-        else {
-            std::cerr << "[AMDLiveGPUMetrics] ADL_OD6_FanSpeed_Get failed for adapter " << idx << "\n";
+            std::cerr << "[AMDLiveGPUMetrics] Overdrive caps unavailable for adapter "
+                << idx << ", trying all OD levels\n";
         }
     }
+    std::cerr << "[AMDLiveGPUMetrics] Adapter " << idx
+        << " OD version=" << od_version
+        << " supported=" << od_supported
+        << " enabled=" << od_enabled << "\n";
+
+    // Waterfall: OD5 → OD6 → OD7 → OD8. Higher levels overwrite lower
+    // via addSensor (updates existing sensors by name). Each block is
+    // guarded only by null-checks on its function pointers so it runs
+    // regardless of what overdrive caps reported.
 
     // ---- OD5 ----
-    else if (od_version == 5) {
-        // Temperature
+    if (a.adl2_od5_temperature_get) {
         ADLTemperature temp_data = {};
         temp_data.iSize = sizeof(ADLTemperature);
-        if (a.adl2_od5_temperature_get(a.context, idx, 0, &temp_data) == ADL_OK)
-            addSensor<Sensors::SensorType::TEMPERATURE>("Average Core Temperature",
-                temp_data.iTemperature / 1000.0f);
-        else
-            std::cerr << "[AMDLiveGPUMetrics] ADL_OD5_Temperature_Get failed for adapter " << idx << "\n";
-
-        // Clocks + utilization
+        if (a.adl2_od5_temperature_get(a.context, idx, 0, &temp_data) == ADL_OK) {
+            float t = temp_data.iTemperature / 1000.0f;
+            if (validTemp(t))
+                addSensor<Sensors::SensorType::TEMPERATURE>("Average Core Temperature", t);
+        }
+    }
+    if (a.adl2_od5_currentactivity_get) {
         ADLPMActivity activity = {};
         activity.iSize = sizeof(ADLPMActivity);
         if (a.adl2_od5_currentactivity_get(a.context, idx, &activity) == ADL_OK) {
-            if (activity.iEngineClock > 0)
-                addSensor<Sensors::SensorType::CLOCK>("Core / Graphics Clock Speed",
-                    static_cast<float>(activity.iEngineClock) * 0.01f);
-            if (activity.iMemoryClock > 0)
-                addSensor<Sensors::SensorType::CLOCK>("Memory Clock Speed",
-                    static_cast<float>(activity.iMemoryClock) * 0.01f);
-            addSensor<Sensors::SensorType::USAGE>("Core / Graphics Utilization",
-                static_cast<float>(activity.iActivityPercent));
+            float core = static_cast<float>(activity.iEngineClock) * 0.01f;
+            float mem  = static_cast<float>(activity.iMemoryClock) * 0.01f;
+            float util = static_cast<float>(activity.iActivityPercent);
+            if (validClock(core))
+                addSensor<Sensors::SensorType::CLOCK>("Core / Graphics Clock Speed", core);
+            if (validClock(mem))
+                addSensor<Sensors::SensorType::CLOCK>("Memory Clock Speed", mem);
+            if (validPct(util))
+                addSensor<Sensors::SensorType::USAGE>("Core / Graphics Utilization", util);
         }
-        else {
-            std::cerr << "[AMDLiveGPUMetrics] ADL_OD5_CurrentActivity_Get failed for adapter " << idx << "\n";
-        }
-
-        // Fan
+    }
+    if (a.adl2_od5_fanspeed_get) {
         ADLFanSpeedValue fan_val = {};
         fan_val.iSize = sizeof(ADLFanSpeedValue);
         fan_val.iSpeedType = ADL_DL_FANCTRL_SPEED_TYPE_RPM;
-        if (a.adl2_od5_fanspeed_get(a.context, idx, 0, &fan_val) == ADL_OK)
-            addSensor<Sensors::SensorType::FAN_SPEED>("Fan Speed",
-                static_cast<float>(fan_val.iFanSpeed));
-        else
-            std::cerr << "[AMDLiveGPUMetrics] ADL_OD5_FanSpeed_Get failed for adapter " << idx << "\n";
-    }
-    else {
-        std::cerr << "[AMDLiveGPUMetrics] Unhandled Overdrive version " << od_version
-            << " for adapter " << idx << "\n";
+        if (a.adl2_od5_fanspeed_get(a.context, idx, 0, &fan_val) == ADL_OK) {
+            float rpm = static_cast<float>(fan_val.iFanSpeed);
+            if (validFan(rpm))
+                addSensor<Sensors::SensorType::FAN_SPEED>("Fan Speed", rpm);
+        }
     }
 
-    // TODO - Temp, delete later
-    outputMetrics();
+    // ---- OD6 ----
+    if (a.adl2_od6_temperature_get) {
+        int temp_milli = 0;
+        if (a.adl2_od6_temperature_get(a.context, idx, &temp_milli) == ADL_OK) {
+            float t = static_cast<float>(temp_milli) / 1000.0f;
+            if (validTemp(t))
+                addSensor<Sensors::SensorType::TEMPERATURE>("Average Core Temperature", t);
+        }
+    }
+    if (a.adl2_od6_currentstatus_get) {
+        ADLOD6CurrentStatus status = {};
+        if (a.adl2_od6_currentstatus_get(a.context, idx, &status) == ADL_OK) {
+            float core = static_cast<float>(status.iEngineClock) * 0.01f;
+            float mem  = static_cast<float>(status.iMemoryClock) * 0.01f;
+            float util = static_cast<float>(status.iActivityPercent);
+            if (validClock(core))
+                addSensor<Sensors::SensorType::CLOCK>("Core / Graphics Clock Speed", core);
+            if (validClock(mem))
+                addSensor<Sensors::SensorType::CLOCK>("Memory Clock Speed", mem);
+            if (validPct(util))
+                addSensor<Sensors::SensorType::USAGE>("Core / Graphics Utilization", util);
+        }
+    }
+    if (a.adl2_od6_currentpower_get) {
+        int power_mw = 0;
+        if (a.adl2_od6_currentpower_get(a.context, idx, 0, &power_mw) == ADL_OK) {
+            float w = static_cast<float>(power_mw) / 1000.0f;
+            if (validPower(w))
+                addSensor<Sensors::SensorType::POWER>("GPU Power Draw", w);
+        }
+    }
+    if (a.adl2_od6_fanspeed_get) {
+        ADLOD6FanSpeedInfo fan = {};
+        if (a.adl2_od6_fanspeed_get(a.context, idx, &fan) == ADL_OK) {
+            if (fan.iSpeedType & ADL_OD6_FANSPEED_TYPE_RPM) {
+                float rpm = static_cast<float>(fan.iFanSpeedRPM);
+                if (validFan(rpm))
+                    addSensor<Sensors::SensorType::FAN_SPEED>("Fan Speed", rpm);
+            }
+        }
+    }
+
+    // ---- ODN (Overdrive N / version 7) ----
+    if (a.adl2_overdriven_temperature_get) {
+        int temp = 0;
+        if (a.adl2_overdriven_temperature_get(a.context, idx, 0, &temp) == ADL_OK) {
+            float t = static_cast<float>(temp) / 1000.0f;
+            if (validTemp(t))
+                addSensor<Sensors::SensorType::TEMPERATURE>("Average Core Temperature", t);
+        }
+    }
+    if (a.adl2_overdriven_performancestatus_get) {
+        ADLODNPerformanceStatus perf = {};
+        if (a.adl2_overdriven_performancestatus_get(a.context, idx, &perf) == ADL_OK) {
+            float core = static_cast<float>(perf.iCoreClock) * 0.01f;
+            float mem  = static_cast<float>(perf.iMemoryClock) * 0.01f;
+            float util = static_cast<float>(perf.iGPUActivityPercent);
+            if (validClock(core))
+                addSensor<Sensors::SensorType::CLOCK>("Core / Graphics Clock Speed", core);
+            if (validClock(mem))
+                addSensor<Sensors::SensorType::CLOCK>("Memory Clock Speed", mem);
+            if (validPct(util))
+                addSensor<Sensors::SensorType::USAGE>("Core / Graphics Utilization", util);
+        }
+    }
+
+    // ---- OD8 (share-memory PMLog path) ----
+    if (od_version >= 8
+        && a.adl2_od8_pmlog_sharememory_support
+        && a.adl2_od8_pmlog_sharememory_start
+        && a.adl2_od8_pmlog_sharememory_read
+        && a.adl2_od8_pmlog_sharememory_stop
+        && a.adl2_device_pmlog_device_create
+        && a.adl2_device_pmlog_device_destroy
+        && a.adl2_od8_pmlogsenortype_support_get) {
+
+        int sharememory_supported = 0;
+        if (a.adl2_od8_pmlog_sharememory_support(a.context, idx, &sharememory_supported, 0) == ADL_OK
+            && sharememory_supported != ADL_ERR_NOT_SUPPORTED) {
+
+            ADL_D3DKMT_HANDLE device_handle = 0;
+            if (a.adl2_device_pmlog_device_create(a.context, idx, &device_handle) == ADL_OK) {
+
+                void* shared_memory = nullptr;
+                if (a.adl2_od8_pmlog_sharememory_start(
+                    a.context, idx, 1000, -1, nullptr, &device_handle, &shared_memory, 0) == ADL_OK) {
+
+                    int  sensor_count = 0;
+                    int* sensor_list = nullptr;
+                    if (a.adl2_od8_pmlogsenortype_support_get(a.context, idx, &sensor_count, &sensor_list) == ADL_OK) {
+
+                        ADLPMLogDataOutput data = {};
+                        if (a.adl2_od8_pmlog_sharememory_read(
+                            a.context, idx, sensor_count, sensor_list, &shared_memory, &data) == ADL_OK) {
+
+                            for (int i = 0; i < sensor_count; ++i) {
+                                int   sensor_id = sensor_list[i];
+                                if (!data.sensors[sensor_id].supported) continue;
+                                float val = static_cast<float>(data.sensors[sensor_id].value);
+
+                                using sensor_t = Sensors::SensorType;
+
+                                switch (sensor_id) {
+                                case PMLOG_CLK_GFXCLK:    if (validClock(val)) addSensor<sensor_t::CLOCK>("Core Clock Speed", val); break;
+                                case PMLOG_CLK_MEMCLK:    if (validClock(val)) addSensor<sensor_t::CLOCK>("Memory Clock Speed", val); break;
+                                case PMLOG_CLK_SOCCLK:    if (validClock(val)) addSensor<sensor_t::CLOCK>("SoC Clock Speed", val); break;
+                                case PMLOG_CLK_UVDCLK1:   if (validClock(val)) addSensor<sensor_t::CLOCK>("UVD Clock 1", val); break;
+                                case PMLOG_CLK_UVDCLK2:   if (validClock(val)) addSensor<sensor_t::CLOCK>("UVD Clock 2", val); break;
+                                case PMLOG_CLK_VCECLK:    if (validClock(val)) addSensor<sensor_t::CLOCK>("VCE Clock Speed", val); break;
+                                case PMLOG_CLK_VCNCLK:    if (validClock(val)) addSensor<sensor_t::CLOCK>("VCN Clock Speed", val); break;
+                                case PMLOG_CLK_VCN1CLK1:  if (validClock(val)) addSensor<sensor_t::CLOCK>("VCN1 Clock 1", val); break;
+                                case PMLOG_CLK_VCN1CLK2:  if (validClock(val)) addSensor<sensor_t::CLOCK>("VCN1 Clock 2", val); break;
+                                case PMLOG_CLK_FCLK:      if (validClock(val)) addSensor<sensor_t::CLOCK>("Fabric Clock Speed", val); break;
+                                case PMLOG_CLK_CPUCLK:    if (validClock(val)) addSensor<sensor_t::CLOCK>("CPU Clock Speed", val); break;
+                                case PMLOG_BUS_SPEED:     if (validClock(val)) addSensor<sensor_t::CLOCK>("PCIe Bus Speed", val); break;
+
+                                case PMLOG_TEMPERATURE_EDGE:        if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("GPU Edge Temperature", val); break;
+                                case PMLOG_TEMPERATURE_MEM:         if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("Memory Temperature", val); break;
+                                case PMLOG_TEMPERATURE_LIQUID:      if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("Liquid Cooling Temperature", val); break;
+                                case PMLOG_TEMPERATURE_HOTSPOT:     if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("GPU Hotspot Temperature", val); break;
+                                case PMLOG_TEMPERATURE_GFX:         if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("GFX Temperature", val); break;
+                                case PMLOG_TEMPERATURE_SOC:         if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("SoC Temperature", val); break;
+                                case PMLOG_TEMPERATURE_CPU:         if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("CPU Temperature", val); break;
+                                case PMLOG_TEMPERATURE_HOTSPOT_GCD: if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("Hotspot GCD Temperature", val); break;
+                                case PMLOG_TEMPERATURE_HOTSPOT_MCD: if (validTemp(val)) addSensor<sensor_t::TEMPERATURE>("Hotspot MCD Temperature", val); break;
+
+                                case PMLOG_FAN_RPM: if (validFan(val)) addSensor<sensor_t::FAN_SPEED>("Fan Speed", val); break;
+
+                                case PMLOG_INFO_ACTIVITY_GFX: if (validPct(val)) addSensor<sensor_t::USAGE>("GPU Utilization", val); break;
+                                case PMLOG_INFO_ACTIVITY_MEM: if (validPct(val)) addSensor<sensor_t::USAGE>("Memory Utilization", val); break;
+
+                                case PMLOG_SOC_VOLTAGE: if (validVolt(val)) addSensor<sensor_t::VOLTAGE>("SoC Voltage", val); break;
+                                case PMLOG_GFX_VOLTAGE: if (validVolt(val)) addSensor<sensor_t::VOLTAGE>("GFX Voltage", val); break;
+                                case PMLOG_MEM_VOLTAGE: if (validVolt(val)) addSensor<sensor_t::VOLTAGE>("Memory Voltage", val); break;
+
+                                case PMLOG_ASIC_POWER:         if (validPower(val)) addSensor<sensor_t::POWER>("ASIC Power", val); break;
+                                case PMLOG_SOC_POWER:          if (validPower(val)) addSensor<sensor_t::POWER>("SoC Power", val); break;
+                                case PMLOG_GFX_POWER:          if (validPower(val)) addSensor<sensor_t::POWER>("GFX Power", val); break;
+                                case PMLOG_CPU_POWER:          if (validPower(val)) addSensor<sensor_t::POWER>("CPU Power", val); break;
+                                case PMLOG_BOARD_POWER:        if (validPower(val)) addSensor<sensor_t::POWER>("Board Power", val); break;
+                                case PMLOG_SSTOTAL_POWERLIMIT: if (validPower(val)) addSensor<sensor_t::POWER>("Total Power Limit", val); break;
+                                case PMLOG_SSAPU_POWERLIMIT:   if (validPower(val)) addSensor<sensor_t::POWER>("APU Power Limit", val); break;
+                                case PMLOG_SSDGPU_POWERLIMIT:  if (validPower(val)) addSensor<sensor_t::POWER>("dGPU Power Limit", val); break;
+
+                                case PMLOG_THROTTLE_PERCENTAGE_TEMP_GFX: if (validPct(val)) addSensor<sensor_t::USAGE>("Throttle % (GFX Temp)", val); break;
+                                case PMLOG_THROTTLE_PERCENTAGE_TEMP_MEM: if (validPct(val)) addSensor<sensor_t::USAGE>("Throttle % (Mem Temp)", val); break;
+                                case PMLOG_THROTTLE_PERCENTAGE_TEMP_VR:  if (validPct(val)) addSensor<sensor_t::USAGE>("Throttle % (VR Temp)", val); break;
+                                case PMLOG_THROTTLE_PERCENTAGE_POWER:    if (validPct(val)) addSensor<sensor_t::USAGE>("Throttle % (Power)", val); break;
+                                case PMLOG_THROTTLE_PERCENTAGE_TDC:      if (validPct(val)) addSensor<sensor_t::USAGE>("Throttle % (TDC)", val); break;
+                                case PMLOG_THROTTLE_PERCENTAGE_VMAX:     if (validPct(val)) addSensor<sensor_t::USAGE>("Throttle % (Vmax)", val); break;
+
+                                default: break;
+                                }
+                            }
+                        }
+                    }
+                    a.adl2_od8_pmlog_sharememory_stop(a.context, idx, &device_handle);
+                }
+                a.adl2_device_pmlog_device_destroy(a.context, device_handle);
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

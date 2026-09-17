@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
+set(VCPKG_MANIFEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/.. CACHE PATH "" FORCE)
 project(SystemInfo LANGUAGES CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -9,6 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(UA_ENABLE_AMALGAMATION OFF CACHE BOOL "" FORCE)
 set(UA_ENABLE_SUBSCRIPTIONS ON CACHE BOOL "" FORCE)
 set(UA_NAMESPACE_ZERO FULL CACHE STRING "" FORCE)
+set(UA_ENABLE_ENCRYPTION MBEDTLS CACHE STRING "" FORCE)
 
 add_subdirectory(
     ${CMAKE_SOURCE_DIR}/../third_party/open62541pp
@@ -22,6 +24,11 @@ set(SHARED_SOURCES
     output_generator/OutputHandler.cpp
     hardware/HardwareDevice.cpp
     hardware/IHardwareDevicePool.cpp
+    ${CMAKE_SOURCE_DIR}/../OPC_UA/ClientQueue.cpp
+    ${CMAKE_SOURCE_DIR}/../OPC_UA/CustomClient.cpp
+    ${CMAKE_SOURCE_DIR}/../OPC_UA/FileLogger.cpp
+    ${CMAKE_SOURCE_DIR}/../OPC_UA/utils.cpp
+    SystemInfoClient.cpp
     # OPC_UA/AccessControlCustom.cpp
     # hardware/DeviceSensor.h has no .cpp -- header-only, nothing to list here
 )
@@ -44,6 +51,10 @@ set(WINDOWS_SOURCES
     wmi/projutils.cpp
     wmi/storagedevice.cpp
     hardware/GPU/DxgiHandler.cpp
+    hardware/CPU/CPULiveMetrics.cpp
+    hardware/pipeline_workers/IHardwarePipelineWorker.cpp
+    hardware/pipeline_workers/CPUPipelineWorker.cpp
+    hardware/pipeline_workers/GPUPipelineWorker.cpp
     hardware/GPU/AMD/AMDPool.cpp
     hardware/GPU/AMD/AMDLiveGPUMetrics.cpp
     hardware/GPU/AMD/Interop/ADLX.cpp
@@ -158,4 +169,3 @@ if(MSVC)
         /permissive-
     )
 endif()
-

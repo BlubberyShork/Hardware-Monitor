@@ -8,7 +8,7 @@
 #include <wdfdevice.h>
 #include <wdmsec.h>
 
-#include "../shared_headers/cpu_shared_info.h"
+#include "../../../../shared_headers/cpu_shared_info.h"
 
 // TODO - Good comments for these
 #define INTEL_CORE_ERA_THERM_STATUS         0x19C

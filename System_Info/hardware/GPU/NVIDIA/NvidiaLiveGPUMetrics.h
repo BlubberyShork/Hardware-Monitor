@@ -5,7 +5,7 @@
 
 class NvidiaLiveGPUMetrics : public A_HardwareDevice {
 public:
-    NvidiaLiveGPUMetrics(NvPhysicalGpuHandle& handle);
+    NvidiaLiveGPUMetrics(NvPhysicalGpuHandle& handle, std::string name);
     ~NvidiaLiveGPUMetrics()    override;
 
     void fetchMetrics()        override;

@@ -44,7 +44,7 @@ private:
     // ADLX path state
     // -----------------------------------------------------------------------
     std::shared_ptr<ADLX> adlx_;
-    adlx::IADLXGPUPtr            adlx_gpu_;
+    adlx::IADLXGPUPtr     adlx_gpu_;
 
     // -----------------------------------------------------------------------
     // Per-adapter fetch implementations

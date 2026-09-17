@@ -117,7 +117,7 @@ _ReSharper*/
 # Backup & crash
 *.bak
 *.swp
-*.swot h i r d _ p a r t y / n v a p i /  
+*.swot h i r d _ p a r t y / n v a p i /  
 # Driver signing keys
 *.pfx
 *.pvk
@@ -128,6 +128,9 @@ refactor.txt
 
 pki/
 OPC_UA/build/logs
+
+# vcpkg manifest installs
+vcpkg_installed/
 
 # CMAKE / Cmake related
 CMakeCache.txt
@@ -143,5 +146,9 @@ _deps/
 .cache/
 build*/
 out/
+
+prompt/
+config.toml
+claude/
 
 #Third-Party

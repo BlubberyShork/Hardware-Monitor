@@ -19,7 +19,8 @@ public:
 	DxgiHandler();
 	~DxgiHandler() = default;
 
-	void createGPUDevices();
+	void  createGPUDevices();
+	const std::vector<std::unique_ptr<IHardwareDevicePool>>& getPools() const { return pools; }
 
 private:
 	std::vector<std::unique_ptr<IHardwareDevicePool>> pools;

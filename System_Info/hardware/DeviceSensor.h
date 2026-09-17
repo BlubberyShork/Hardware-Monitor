@@ -9,7 +9,7 @@ namespace Sensors {
 	enum class SensorType {
 		CLOCK,        // MHz
 		USAGE,        // %
-		TEMPERATURE,  // �C
+		TEMPERATURE,  // degC
 		POWER,        // W
 		MEMORY,       // MB
 		VOLTAGE,      // mV
@@ -25,7 +25,7 @@ namespace Sensors {
 
 	template<> struct SensorTraits<SensorType::CLOCK>		{ static constexpr const char* unit = "MHz"; };
 	template<> struct SensorTraits<SensorType::USAGE>		{ static constexpr const char* unit = "%"; };
-	template<> struct SensorTraits<SensorType::TEMPERATURE> { static constexpr const char* unit = "�C"; };
+	template<> struct SensorTraits<SensorType::TEMPERATURE> { static constexpr const char* unit = "\u00B0C"; };
 	template<> struct SensorTraits<SensorType::POWER>		{ static constexpr const char* unit = "W"; };
 	template<> struct SensorTraits<SensorType::MEMORY>		{ static constexpr const char* unit = "MB"; };
 	template<> struct SensorTraits<SensorType::VOLTAGE>		{ static constexpr const char* unit = "mV"; };
@@ -46,6 +46,7 @@ namespace Sensors {
 
 		virtual const std::string& getName()  const = 0;
 		virtual float              getValue() const = 0;
+		virtual void               setValue(float value) = 0;
 		virtual const char*		   getUnit()  const = 0;
 		virtual SensorType         getType()  const = 0;
 	};
@@ -64,6 +65,7 @@ namespace Sensors {
 
 		const std::string& getName()  const override { return name; }
 		float              getValue() const override { return value; }
+		void               setValue(float new_value) override { value = new_value; }
 		const char*		   getUnit()  const override { return SensorTraits<T>::unit; }
 		SensorType         getType()  const override { return T; }
 

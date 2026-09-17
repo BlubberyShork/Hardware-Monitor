@@ -16,7 +16,7 @@
  */
 class AccessControlCustom : public opcua::AccessControlBase {
 public:
-    explicit AccessControlCustom();
+    explicit AccessControlCustom(opcua::NodeId telemetryClientsFolder);
     //~AccessControlCustom() = default;
 
     ///// Overriden functions /////         
@@ -75,10 +75,14 @@ private:
         bool can_browse;
         bool can_execute_methods;
         bool can_write_history;
+        opcua::NodeId device_folder_id{opcua::NodeId{}};
     } ClientAttributes;
 
     std::vector<opcua::UserTokenPolicy> user_token_policies_;
     std::unordered_map<opcua::NodeId, ClientAttributes> session_attributes_;
+    opcua::NodeId telemetry_clients_folder_;
+
+    static bool nodeIdBelongsToDevice(const opcua::NodeId& id, const std::string& device_name);
 
     ///// Helper Functions /////
     std::string parsePki(const std::filesystem::path& file);     // DER Encoding expected

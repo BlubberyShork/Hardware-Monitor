@@ -5,6 +5,7 @@
 #include <csignal>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <string_view>
 #include <thread>
 
@@ -36,6 +37,7 @@ void runServer(SystemInfoServer& server) {
     }
 }
 
+[[deprecated]]
 void runClient() {
     std::string endpoint_base = "opc.tcp://";
     std::string port(":4840");
@@ -46,7 +48,8 @@ void runClient() {
     }
 
     try {
-        SystemInfoClient client("test_client");
+        auto queue = std::make_shared<ClientQueue>();
+        SystemInfoClient client("test_client", queue);
         client.connect(endpoint_url);
         std::cout << "Client fully connected\n";
         opcua::Node node{client.native(), opcua::VariableId::Server_ServerStatus_CurrentTime};
@@ -68,9 +71,9 @@ int main() {
     std::signal(SIGTERM, handleSignal);
 
     std::thread ts(runServer, std::ref(server));
-    std::thread tc(runClient);
+    //std::thread tc(runClient);
 
-    tc.join();
+    //tc.join();
     ts.join(); // unblocks once SIGINT/SIGTERM fires server.stop()
     std::cout << "Done\n";
     return 0;

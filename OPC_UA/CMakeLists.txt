@@ -1,5 +1,6 @@
 # OPC_UA/CMakeLists.txt
 cmake_minimum_required(VERSION 3.20)
+set(VCPKG_MANIFEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/.. CACHE PATH "" FORCE)
 project(OpcUaServer LANGUAGES CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -21,9 +22,12 @@ add_executable(OpcUaServer
     main.cpp
     server.cpp
     AccessControlCustom.cpp
-    test_client.cpp
     client.cpp
+    CustomClient.cpp
+    FileLogger.cpp
     opcua_logging.cpp
+    utils.cpp
+    ClientQueue.cpp
 )
 
 target_include_directories(OpcUaServer PRIVATE
