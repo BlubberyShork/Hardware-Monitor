@@ -8,11 +8,19 @@ void IHardwarePipelineWorker::setPerfLogger(std::shared_ptr<PerformanceLogger> l
 }
 
 void IHardwarePipelineWorker::run(std::stop_token stop_token, std::chrono::milliseconds poll_interval) {
+    auto next = std::chrono::steady_clock::now();
+
     while (!stop_token.stop_requested()) {
+        next += poll_interval;
+
         if (perf_logger_) perf_logger_->start(worker_name());
         execute();
         if (perf_logger_) perf_logger_->stop();
 
-        std::this_thread::sleep_for(poll_interval);
+        const auto now = std::chrono::steady_clock::now();
+        if (next > now)
+            std::this_thread::sleep_until(next);
+        else
+            next = now;
     }
 }

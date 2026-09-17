@@ -25,7 +25,9 @@ void ControlCenterClient::setPerfLogger(std::shared_ptr<PerformanceLogger> perf_
 }
 
 void ControlCenterClient::start() {
-    subscription_.emplace(native());
+    opcua::SubscriptionParameters sub_params;
+    sub_params.publishingInterval = 1500.0;
+    subscription_.emplace(native(), sub_params);
     discoverAndSubscribe();
     last_poll_ = std::chrono::steady_clock::now();
 }

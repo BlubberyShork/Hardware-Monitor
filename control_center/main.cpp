@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <thread>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -78,20 +79,31 @@ int main() {
     }
 
     using namespace std::chrono_literals;
-    constexpr auto kIoTimeout = 100ms;
-    constexpr auto kPollInterval = 1750ms;
-    constexpr auto kRenderInterval = 1750ms;
+    constexpr auto kIoTimeout       = 100ms;
+    constexpr auto kDiscoveryInterval = 5000ms;
+    constexpr auto kTickCadence     = 100ms;
+    constexpr auto kRenderInterval  = 2000ms;
 
-    auto last_render = std::chrono::steady_clock::now();
+    auto next_tick   = std::chrono::steady_clock::now();
+    auto next_render = next_tick;
 
     while (g_running) {
-        control_center.tick(kIoTimeout, kPollInterval);
+        next_tick += kTickCadence;
+
+        control_center.tick(kIoTimeout, kDiscoveryInterval);
 
         const auto now = std::chrono::steady_clock::now();
-        if (now - last_render >= kRenderInterval) {
+        if (now >= next_render) {
             grid->renderIfDirty();
-            last_render = now;
+            next_render += kRenderInterval;
+            if (next_render <= now)
+                next_render = now + kRenderInterval;
         }
+
+        if (next_tick > now)
+            std::this_thread::sleep_until(next_tick);
+        else
+            next_tick = now;
     }
 
     restoreConsole();
