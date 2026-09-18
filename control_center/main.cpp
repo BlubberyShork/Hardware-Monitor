@@ -1,7 +1,7 @@
 #include "ControlCenterClient.h"
 #include "DisplayGrid.h"
 #include "../OPC_UA/FileLogger.h"
-#include "../shared/PerformanceLogger.h"
+#include "../user_space_common/PerformanceLogger.h"
 
 #include <chrono>
 #include <csignal>

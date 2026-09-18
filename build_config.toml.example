@@ -1,0 +1,32 @@
+# build_config.toml.example
+# Copy this file to build_config.toml and adjust the paths to match your
+# machine's install locations.
+#
+# ── Environment Variables (not managed here) ──────────────────────────
+# The following env vars must be set at runtime and are intentionally
+# kept out of this file:
+#
+#   SERVER_IP  — IP address of the OPC UA server host. Required by the
+#                OPC UA server, the SystemInfo backend, and the
+#                ControlCenter frontend to form the endpoint URL
+#                (opc.tcp://<SERVER_IP>:4840).
+# ──────────────────────────────────────────────────────────────────────
+
+[msvc]
+vcvarsall = "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat"
+arch = "x64"
+
+[vcpkg]
+toolchain = "C:\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"
+
+[mbedtls]
+include = "C:\\mbedtls\\include"
+mbedtls_lib = "C:\\mbedtls\\build\\library\\Debug\\mbedtls.lib"
+mbedx509_lib = "C:\\mbedtls\\build\\library\\Debug\\mbedx509.lib"
+mbedcrypto_lib = "C:\\mbedtls\\build\\library\\Debug\\mbedcrypto.lib"
+
+[wdk]
+bin = "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.22621.0\\x64"
+
+[openssl]
+bin = "C:\\OpenSSL-Win64\\openssl-3.5.7\\apps\\openssl.exe"

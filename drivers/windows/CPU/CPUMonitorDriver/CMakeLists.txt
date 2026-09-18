@@ -7,7 +7,7 @@ if(NOT MSVC)
 endif()
 
 set(SHARED_HEADERS
-    "${CMAKE_SOURCE_DIR}/../../../../shared_headers/"
+    "${CMAKE_SOURCE_DIR}/../../../../kernel_common/"
 )
 
 # TODO - Change this and WDK Root so its cleaner and not so disgusting and confusing
