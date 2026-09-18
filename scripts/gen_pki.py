@@ -32,19 +32,30 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
- 
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+
+def load_config():
+    config_path = PROJECT_ROOT / "build_config.toml"
+    with open(config_path, "rb") as f:
+        return tomllib.load(f)
+
+config = load_config()
+
 PKI_ROOT = Path("pki")
 CA_DIR = PKI_ROOT / "ca"
 DEVICES_DIR = PKI_ROOT / "devices"
- 
+
 CA_KEY_PATH = CA_DIR / "ca.key"
 CA_CERT_PATH = CA_DIR / "ca.crt"
- 
+
 RSA_KEY_SIZE = 2048
 CERT_VALIDITY_DAYS = 3650
- 
-OPENSSL_BIN = r"C:\OpenSSL-Win64\openssl-3.5.7\apps\openssl.exe"
+
+OPENSSL_BIN = config["openssl"]["bin"]
 
 def _require_openssl() -> None:
     if shutil.which("openssl") is None:

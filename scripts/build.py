@@ -1,40 +1,34 @@
-# build_control_center.py
+# build.py
 
 import platform
 import os
+import sys
 import subprocess
+import tomllib
 import argparse
 
 from pathlib import Path
 
-MBEDTLS_INCLUDE = "C:\\mbedtls\\include"
-MBEDTLS_LIBRARY = "C:\\mbedtls\\build\\library\\Debug\\mbedtls.lib"
-MBEDX509_LIBRARY = "C:\\mbedtls\\build\\library\\Debug\\mbedx509.lib"
-MBEDCRYPTO_LIBRARY = "C:\\mbedtls\\build\\library\\Debug\\mbedcrypto.lib"
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
 
-target_dir = Path.cwd().joinpath("control_center")
+def load_config():
+    config_path = PROJECT_ROOT / "build_config.toml"
+    with open(config_path, "rb") as f:
+        return tomllib.load(f)
+
+config = load_config()
+
+VCPKG_PATH = Path(config["vcpkg"]["toolchain"])
+
+CONFIGURATION_CMD = ["cmake", "-B", "build", "-S", ".", "-G", "Ninja", f"-DCMAKE_TOOLCHAIN_FILE={VCPKG_PATH}", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DUA_ENABLE_ENCRYPTION=MBEDTLS"]
+
 build_dir = "build"
-root_dir = Path.cwd()
-
-CONFIGURATION_CMD = [
-    "cmake", "-B", build_dir, "-S", ".", "-G", "Ninja",
-    "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-    "-DUA_ENABLE_ENCRYPTION=MBEDTLS",
-    f"-DMBEDTLS_INCLUDE_DIRS={MBEDTLS_INCLUDE}",
-    f"-DMBEDTLS_LIBRARY={MBEDTLS_LIBRARY}",
-    f"-DMBEDX509_LIBRARY={MBEDX509_LIBRARY}",
-    f"-DMBEDCRYPTO_LIBRARY={MBEDCRYPTO_LIBRARY}",
-    "-DUA_LOGLEVEL=100"
-]
 BUILD_CMD = ["cmake", "--build", build_dir]
 
+target_dir = Path.cwd().joinpath('System_Info')
 
-def return_to_root():
-    try:
-        os.chdir(root_dir)
-    except OSError as e:
-        print(f'Error changing to directory "{root_dir}": {e}')
-
+root_dir = Path.cwd()
 
 ###
 # Linux build
@@ -42,15 +36,19 @@ def linuxBuild():
     pass
 
 ###
-# Windows build
+# Windows build -> uses MSVC, so its a bit tricky
 def windowsBuild():
-    VCVARSALL = r"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat"
-    ARCH = "x64"
+    VCVARSALL = config["msvc"]["vcvarsall"]
+    ARCH = config["msvc"]["arch"]
 
+    # MSVC uses the vcvarsall.bat file to configure environment variables
+    #   These env variables are being passed to Ninja for ninja.build configuration
     def get_vcvars_env(vcvarsall_path, arch="x64"):
         cmd = f'"{vcvarsall_path}" {arch} && set'
         output = subprocess.check_output(cmd, shell=True, text=True)
         env = os.environ.copy()
+
+        # Environment var definitions
         for line in output.splitlines():
             if "=" in line:
                 k, v = line.split("=", 1)
@@ -97,7 +95,14 @@ def windowsBuild():
     except subprocess.CalledProcessError as e:
         print(f"Error: Command '{e.cmd}' failed with exit code {e.returncode}.")
 
+# Returns to root dir of project
+def return_to_root():
+    try:
+        os.chdir(root_dir)
+    except OSError as e:
+        print(f'Error changing to directory "{root_dir}": {e}')
 
+# Build without running
 def build():
     op_sys = platform.system()
     if op_sys == 'Windows':
@@ -106,29 +111,29 @@ def build():
         linuxBuild()
     else:
         raise OSError('Unsupported Operating System. This project only supports Windows and Linux environments!')
-    return_to_root()
 
-
+# Run built executable
 def run(ret):
     try:
         os.chdir(target_dir.joinpath(build_dir))
     except OSError as e:
         print(f"Error: could not change to build directory: {target_dir.joinpath(build_dir)}: {e}")
 
-    subprocess.run("ControlCenter.exe", check=True)
+    subprocess.run("SystemInfo.exe", check=True)
 
     if ret:
         return_to_root()
 
-
+# Build and run
 def build_and_run():
     build()
     run(False)
     return_to_root()
 
-
 def main():
-    parser = argparse.ArgumentParser(description="Control center build/run helper.")
+    parser = argparse.ArgumentParser(
+        description="Build/run helper script."
+    )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-b", "--build", action="store_true", help="Build only")
     group.add_argument("-br", "--build-run", action="store_true", help="Build and run")
@@ -142,7 +147,6 @@ def main():
         build_and_run()
     elif args.run:
         run(True)
-
 
 if __name__ == "__main__":
     main()

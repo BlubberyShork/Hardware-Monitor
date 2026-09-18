@@ -66,8 +66,8 @@ set(WINDOWS_SOURCES
 )
 
 set(WINDOWS_INCLUDE_DIRS
-    ${CMAKE_SOURCE_DIR}/shared_headers
-    ${CMAKE_SOURCE_DIR}/../shared_headers
+    ${CMAKE_SOURCE_DIR}/kernel_common
+    ${CMAKE_SOURCE_DIR}/../kernel_common
     ${CMAKE_SOURCE_DIR}/third_party/adlx/SDK/Include
     ${CMAKE_SOURCE_DIR}/../third_party/adlx/SDK/Include
     ${CMAKE_SOURCE_DIR}/third_party/adlx/SDK/ADLXHelper/Windows/Cpp

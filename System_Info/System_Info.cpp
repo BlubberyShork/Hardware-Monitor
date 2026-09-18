@@ -22,7 +22,7 @@
 
 #include "../OPC_UA/ClientQueue.h"
 #include "../OPC_UA/FileLogger.h"
-#include "../shared/PerformanceLogger.h"
+#include "../user_space_common/PerformanceLogger.h"
 
 #include <cstdlib>
 #include <filesystem>

@@ -4,9 +4,20 @@ import subprocess
 import os
 import sys
 import ctypes
+import tomllib
 import argparse
 
 from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+
+def load_config():
+    config_path = PROJECT_ROOT / "build_config.toml"
+    with open(config_path, "rb") as f:
+        return tomllib.load(f)
+
+config = load_config()
 
 root_dir = Path.cwd()
 def return_to_root():
@@ -21,12 +32,11 @@ CONFIG_CMD = ["cmake", "-B", "build", "-S", ".", "-G", "Ninja"]
 build_dir = "build"
 BUILD_CMD = ["cmake", "--build", build_dir]
 
-WDK_BIN = r"C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64"
+WDK_BIN = config["wdk"]["bin"]
 SIGNTOOL = os.path.join(WDK_BIN, "signtool.exe")
 
 def is_admin():
     try:
-        # Checks if the script is running with administrative privileges
         return ctypes.windll.shell32.IsUserAnAdmin()
     except Exception:
         return False
@@ -102,29 +112,29 @@ def windowsCheckTestSigningMode():
 #######################################
 ### Windows arguments/helpers logic ###
 def windowsBuildDrivers():
-    VCVARSALL = r"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat"
-    ARCH = "x64"
-    
+    VCVARSALL = config["msvc"]["vcvarsall"]
+    ARCH = config["msvc"]["arch"]
+
     # MSVC uses the vcvarsall.bat file to configure environment variables
     #   These env variables are being passed to Ninja for ninja.build configuration
     def get_vcvars_env(vcvarsall_path, arch="x64"):
         cmd = f'"{vcvarsall_path}" {arch} && set'
         output = subprocess.check_output(cmd, shell=True, text=True)
         env = os.environ.copy()
-        
+
         # Environment var definitions
         for line in output.splitlines():
             if "=" in line:
                 k, v = line.split("=", 1)
                 env[k] = v
         return env
-    
+
     target_dir = root_dir.joinpath("drivers/windows/CPU/CPUMonitorDriver")
     try:
         os.chdir(target_dir)
     except OSError as e:
         print(f'Error changing to directory "{target_dir}": {e}')
-    
+
     try:
         os.makedirs(build_dir, exist_ok=True)
     except OSError as e:
@@ -138,7 +148,7 @@ def windowsBuildDrivers():
             CONFIG_CMD,
             env=env,
             check=True
-        ) 
+        )
     except FileNotFoundError as e:
         print(f"Error: The executable could not be found. Details: {e}")
     except subprocess.TimeoutExpired as e:
@@ -172,7 +182,7 @@ def windowsBuildDrivers():
     return_to_root()
 
 # TODO - Eventually, CPUMonitorDriver/ will be drivers/ with their appropriate cpu/, motherboard/, etc.
-# We will have a function to search and find driver .sys files to determine binpaths and driver names (third arg in both sc.exe cmds) 
+# We will have a function to search and find driver .sys files to determine binpaths and driver names (third arg in both sc.exe cmds)
 def windowsDeployDrivers():
     windowsCheckTestSigningMode()
 
@@ -271,7 +281,7 @@ def buildAndDeployDrivers():
 ### Main ###
 def main():
     parser = argparse.ArgumentParser(description = "Drivers build script helper")
-    
+
     group = parser.add_mutually_exclusive_group(required = True)
     group.add_argument("--build", "-b", action = "store_true", help = "builds the drivers")
     group.add_argument("--deploy", "-d", action = "store_true", help = "deploys the existing drivers")
@@ -280,7 +290,7 @@ def main():
     args = parser.parse_args()
     # TODO -> Change these to generic build(), deploy(), build_and_deploy() functions that check for the platform version
     if args.build:
-        windowsBuildDrivers()    
+        windowsBuildDrivers()
     elif args.deploy:
         windowsDeployDrivers()
     elif args.build_and_deploy:

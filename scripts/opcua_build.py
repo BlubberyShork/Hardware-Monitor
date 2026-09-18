@@ -3,16 +3,25 @@
 import platform
 import os
 import subprocess
+import tomllib
 import argparse
 
 from pathlib import Path
 
-MBEDTLS_INCLUDE = "C:\\mbedtls\\include"
-MBEDTLS_LIBRARY = "C:\\mbedtls\\build\\library\\Debug\\mbedtls.lib"
-MBEDX509_LIBRARY = "C:\\mbedtls\\build\\library\\Debug\\mbedx509.lib" 
-MBEDCRYPTO_LIBRARY = "C:\\mbedtls\\build\\library\\Debug\\mbedcrypto.lib"
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
 
-VCPKG_PATH = Path("C:\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake")
+def load_config():
+    config_path = PROJECT_ROOT / "build_config.toml"
+    with open(config_path, "rb") as f:
+        return tomllib.load(f)
+
+config = load_config()
+
+MBEDTLS_INCLUDE = config["mbedtls"]["include"]
+MBEDTLS_LIBRARY = config["mbedtls"]["mbedtls_lib"]
+MBEDX509_LIBRARY = config["mbedtls"]["mbedx509_lib"]
+MBEDCRYPTO_LIBRARY = config["mbedtls"]["mbedcrypto_lib"]
 
 target_dir = Path.cwd().joinpath("OPC_UA")
 build_dir = "build"
@@ -20,7 +29,6 @@ root_dir = Path.cwd()
 
 CONFIGURATION_CMD = [
     "cmake", "-B", build_dir, "-S", ".", "-G", "Ninja",
-#    f"-DCMAKE_TOOLCHAIN_FILE={VCPKG_PATH}",
     "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
     "-DUA_ENABLE_ENCRYPTION=MBEDTLS",
     f"-DMBEDTLS_INCLUDE_DIRS={MBEDTLS_INCLUDE}",
@@ -47,13 +55,13 @@ def build():
     if platform.system() != "Windows":
         raise OSError("build_opcua.py currently only supports Windows.")
 
-    vcvarsall = r"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat"
+    vcvarsall = config["msvc"]["vcvarsall"]
 
     os.chdir(target_dir)
     os.makedirs(build_dir, exist_ok=True)
 
     env = get_vcvars_env(vcvarsall)
-   
+
     subprocess.run(CONFIGURATION_CMD, env=env, check=True)
     subprocess.run(BUILD_CMD, env=env, check=True)
 

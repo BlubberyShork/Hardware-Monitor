@@ -1,6 +1,6 @@
 #include "ControlCenterClient.h"
 
-#include "../shared/PerformanceLogger.h"
+#include "../user_space_common/PerformanceLogger.h"
 
 #include <cstdio>
 

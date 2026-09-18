@@ -1,7 +1,7 @@
 #pragma once
 #include <Windows.h>
 #include <vector>
-#include "..\..\shared_headers\cpu_shared_info.h"
+#include "..\..\kernel_common\cpu_shared_info.h"
 
 // TODO - Detect and expose the CPU vendor instead of assuming Intel.
 class DriverClient {
