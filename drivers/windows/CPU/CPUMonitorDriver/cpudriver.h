@@ -51,7 +51,6 @@ CPU_VENDOR DetectCpuVendor(VOID);
 typedef struct _AMD_MODEL_AND_FAMILY {
     ULONG       family;
     ULONG       model;
-    // TODO - brand string
 } AMD_MODEL_AND_FAMILY;
 AMD_MODEL_AND_FAMILY DetectAMDModelAndFamily(VOID); 
 

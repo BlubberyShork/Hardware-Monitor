@@ -6,6 +6,7 @@ import sys
 import ctypes
 import tomllib
 import argparse
+import cpuinfo
 
 from pathlib import Path
 
@@ -107,40 +108,57 @@ def windowsCheckTestSigningMode():
         print("WARNING: Could not check test signing status (requires admin).")
 
 
-# TODO - Eventually, CPUMonitorDriver/ will be drivers/ with their appropriate cpu/, motherboard/, etc.
-# We will have a function to search and find driver .sys files to determine binpaths and driver names (third arg in both sc.exe cmds)
 #######################################
 ### Windows arguments/helpers logic ###
-def windowsBuildDrivers():
+
+WINDOWS_CPU_DRIVERS = {
+    "GenuineIntel": {"name": "WindowsIntelCPUDriver", "dir": "drivers/windows/CPU/IntelCPUDriver"},
+    "AuthenticAMD": {"name": "WindowsAMDCPUDriver",   "dir": "drivers/windows/CPU/AMDCPUDriver"},
+}
+
+def detectCpuVendorDriver():
+    info = cpuinfo.get_cpu_info()
+    vendor_id = info.get("vendor_id_raw", "")
+    driver_info = WINDOWS_CPU_DRIVERS.get(vendor_id)
+    if driver_info is None:
+        print(f'Error: Unsupported CPU vendor "{vendor_id}". Expected GenuineIntel or AuthenticAMD.')
+        sys.exit(1)
+    print(f'Detected CPU vendor: {vendor_id} -> {driver_info["name"]}')
+    return driver_info
+
+def windowsGetVcvarsEnv():
     VCVARSALL = config["msvc"]["vcvarsall"]
     ARCH = config["msvc"]["arch"]
 
     # MSVC uses the vcvarsall.bat file to configure environment variables
     #   These env variables are being passed to Ninja for ninja.build configuration
-    def get_vcvars_env(vcvarsall_path, arch="x64"):
-        cmd = f'"{vcvarsall_path}" {arch} && set'
-        output = subprocess.check_output(cmd, shell=True, text=True)
-        env = os.environ.copy()
+    cmd = f'"{VCVARSALL}" {ARCH} && set'
+    output = subprocess.check_output(cmd, shell=True, text=True)
+    env = os.environ.copy()
 
-        # Environment var definitions
-        for line in output.splitlines():
-            if "=" in line:
-                k, v = line.split("=", 1)
-                env[k] = v
-        return env
+    # Environment var definitions
+    for line in output.splitlines():
+        if "=" in line:
+            k, v = line.split("=", 1)
+            env[k] = v
+    return env
 
-    target_dir = root_dir.joinpath("drivers/windows/CPU/CPUMonitorDriver")
+def windowsBuildSingleDriver(driver_info, env):
+    driver_name = driver_info["name"]
+    target_dir = root_dir.joinpath(driver_info["dir"])
+
+    print(f'\n=== Building {driver_name} ===')
+
     try:
         os.chdir(target_dir)
     except OSError as e:
         print(f'Error changing to directory "{target_dir}": {e}')
+        return
 
     try:
         os.makedirs(build_dir, exist_ok=True)
     except OSError as e:
         print(f'Error creating build directory "{Path.cwd().joinpath(build_dir)}": {e}')
-
-    env = get_vcvars_env(VCVARSALL, ARCH)
 
     # Cmake Ninja Configuration
     try:
@@ -171,7 +189,6 @@ def windowsBuildDrivers():
         print(f"Error: Command '{e.cmd}' failed with exit code {e.returncode}.")
 
     # Test-sign the built driver
-    driver_name = "WindowsCPUDriver"
     sys_path = target_dir / build_dir / f"{driver_name}.sys"
     if sys_path.exists():
         windowsEnsureTestCert(driver_name)
@@ -181,13 +198,16 @@ def windowsBuildDrivers():
 
     return_to_root()
 
-# TODO - Eventually, CPUMonitorDriver/ will be drivers/ with their appropriate cpu/, motherboard/, etc.
-# We will have a function to search and find driver .sys files to determine binpaths and driver names (third arg in both sc.exe cmds)
-def windowsDeployDrivers():
-    windowsCheckTestSigningMode()
+def windowsBuildDrivers():
+    driver_info = detectCpuVendorDriver()
+    env = windowsGetVcvarsEnv()
+    windowsBuildSingleDriver(driver_info, env)
 
-    driver_name = "WindowsCPUDriver"
-    bin_path = root_dir.joinpath("drivers/windows/CPU/CPUMonitorDriver").joinpath(build_dir).joinpath(f"{driver_name}.sys")
+def windowsDeploySingleDriver(driver_info):
+    driver_name = driver_info["name"]
+    bin_path = root_dir.joinpath(driver_info["dir"]).joinpath(build_dir).joinpath(f"{driver_name}.sys")
+
+    print(f'\n=== Deploying {driver_name} ===')
 
     # Clean up any existing service registration before creating
     query_result = subprocess.run(
@@ -231,6 +251,11 @@ def windowsDeployDrivers():
         )
     except subprocess.CalledProcessError as e:
         print(f"Error: sc.exe start failed with exit code {e.returncode}.")
+
+def windowsDeployDrivers():
+    windowsCheckTestSigningMode()
+    driver_info = detectCpuVendorDriver()
+    windowsDeploySingleDriver(driver_info)
 
 
 def windowsBuildAndDeployDrivers():

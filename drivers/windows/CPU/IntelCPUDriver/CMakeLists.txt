@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-project(WindowsCPUDriver)
+project(WindowsIntelCPUDriver)
 
 if(NOT MSVC)
     message(FATAL_ERROR "This driver template requires the MSVC compiler on Windows.")
@@ -21,7 +21,7 @@ set(WDK_ROOT
 )
 
 set(DRIVER_SOURCES
-    cpudriver.c
+    intel_cpudriver.c
 )
 
 set(MSVC_TOOLS_HEADERS
@@ -29,23 +29,23 @@ set(MSVC_TOOLS_HEADERS
 )
 
 set(WDF_KMDF_HEADERS
-    "${WDK_KIT}/${WDK_ROOT}/km" 
-    "${WDK_KIT}/${WDK_ROOT}/shared"  
+    "${WDK_KIT}/${WDK_ROOT}/km"
+    "${WDK_KIT}/${WDK_ROOT}/shared"
     "${WDK_KIT}/10/Include/wdf/kmdf/1.15"
 )
 
-add_executable(WindowsCPUDriver 
+add_executable(WindowsIntelCPUDriver
     ${DRIVER_SOURCES}
 )
 
-set_target_properties(WindowsCPUDriver PROPERTIES 
+set_target_properties(WindowsIntelCPUDriver PROPERTIES
     SUFFIX ".sys" # .sys output ext
     PREFIX ""
 )
 
-target_compile_definitions(WindowsCPUDriver PRIVATE _AMD64_)
+target_compile_definitions(WindowsIntelCPUDriver PRIVATE _AMD64_)
 
-target_compile_options(WindowsCPUDriver PRIVATE
+target_compile_options(WindowsIntelCPUDriver PRIVATE
     #/arch
     /W4          # High warning level
     /WX          # Treat warnings as errors (std for drivers)
@@ -54,16 +54,16 @@ target_compile_options(WindowsCPUDriver PRIVATE
     /FI "${WDK_KIT}/${WDK_ROOT}/shared/warning.h" # Force include standard warning configurations
 )
 
-target_include_directories(WindowsCPUDriver PRIVATE
+target_include_directories(WindowsIntelCPUDriver PRIVATE
     ${SHARED_HEADERS}
     ${WDF_KMDF_HEADERS}
     ${MSVC_TOOLS_HEADERS}
 )
 
-target_link_options(WindowsCPUDriver PRIVATE
+target_link_options(WindowsIntelCPUDriver PRIVATE
     "/MACHINE:X64"
     "/SUBSYSTEM:NATIVE"          # Marks the binary as a kernel driver
-    "/DRIVER"                    
+    "/DRIVER"
     "/ENTRY:FxDriverEntry"       # WDF framework entry point (initializes WDF, then calls DriverEntry)
     "/NODEFAULTLIB"              # Strip user-mode C Runtime (CRT)
     "/INCREMENTAL:NO"            # Disable incremental linking
@@ -74,8 +74,8 @@ target_link_options(WindowsCPUDriver PRIVATE
 set(X64_KF_LIBS_DIR ${WDK_KIT}/10/Lib/10.0.22621.0/km/x64)
 set(X64_WDF_LIBS_DIR ${WDK_KIT}/10/Lib/wdf/kmdf/x64/1.15)
 
-target_link_libraries(WindowsCPUDriver PRIVATE
-    ${X64_KF_LIBS_DIR}/ntoskrnl.lib   
+target_link_libraries(WindowsIntelCPUDriver PRIVATE
+    ${X64_KF_LIBS_DIR}/ntoskrnl.lib
     ${X64_KF_LIBS_DIR}/hal.lib
     ${X64_KF_LIBS_DIR}/BufferOverflowK.lib
     ${X64_WDF_LIBS_DIR}/WdfDriverEntry.lib
@@ -83,5 +83,5 @@ target_link_libraries(WindowsCPUDriver PRIVATE
     ${X64_KF_LIBS_DIR}/wdmsec.lib
 )
 
-string(REGEX REPLACE "/RTC(1|c|s|u)" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}") # Disable Runtime Checks (RTC). 
+string(REGEX REPLACE "/RTC(1|c|s|u)" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}") # Disable Runtime Checks (RTC).
                                                                                       #  User-space functionality, cant exist in kernel-space
