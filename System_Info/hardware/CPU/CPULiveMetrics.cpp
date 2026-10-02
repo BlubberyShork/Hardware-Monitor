@@ -10,9 +10,33 @@ CPULiveMetrics::CPULiveMetrics(DriverClient& driver_client)
     , driver_client_(driver_client) {}
 
 void CPULiveMetrics::fetchMetrics() {
-    for (const auto& cpu : driver_client_.runDriver()) {
-        addSensor<Sensors::SensorType::TEMPERATURE>(
-            "CPU " + std::to_string(cpu.cpu_id) + " Temperature",
-            static_cast<float>(cpu.temp));
+    for (const auto& entry : driver_client_.runDriver()) {
+        std::string name(entry.name);
+        float value = static_cast<float>(entry.value);
+
+        if (entry.unit == UNIT_MILLIWATTS)
+            value /= 1000.0f;
+        else if (entry.unit == UNIT_MILLIVOLTS)
+            value /= 1000.0f;
+
+        switch (entry.type) {
+        case METRIC_TEMP:
+            addSensor<Sensors::SensorType::TEMPERATURE>(name, value);
+            break;
+        case METRIC_VOLTAGE:
+            addSensor<Sensors::SensorType::VOLTAGE>(name, value);
+            break;
+        case METRIC_CLOCK_SPEED:
+            addSensor<Sensors::SensorType::CLOCK>(name, value);
+            break;
+        case METRIC_LOAD:
+            addSensor<Sensors::SensorType::USAGE>(name, value);
+            break;
+        case METRIC_POWER:
+            addSensor<Sensors::SensorType::POWER>(name, value);
+            break;
+        default:
+            break;
+        }
     }
 }

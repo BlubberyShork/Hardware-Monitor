@@ -112,9 +112,7 @@ def _generate_pkcs8_key(path: Path) -> None:
  
 def _random_serial_hex() -> str:
     """20 random bytes (160 bits) with the top bit cleared, so the value is
-    unambiguously positive once DER-encoded as an INTEGER — mirrors what
-    cryptography's x509.random_serial_number() did in the previous version.
-    Passed to openssl's -set_serial, which accepts a 0x-prefixed hex literal."""
+    unambiguously positive once DER-encoded as an INTEGER """
     serial_bytes = bytearray(secrets.token_bytes(20))
     serial_bytes[0] &= 0x7F
     return "0x" + serial_bytes.hex()
