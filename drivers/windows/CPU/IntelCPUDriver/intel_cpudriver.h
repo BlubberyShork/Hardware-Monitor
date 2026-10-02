@@ -16,7 +16,7 @@
 *                 MSR Addresses                    *
 *                                                  *
 *  Intel SDM Vol. 4: Model-Specific Registers      *
-*  https://www.intel.com/content/dam/develop/       *
+*  https://www.intel.com/content/dam/develop/      *
 *  external/us/en/documents/335592-sdm-vol-4.pdf   *
 ***************************************************/
 
@@ -64,9 +64,9 @@
 
 // CPUID leaf 0x06 (Thermal/Power Management)
 #define CPUID_THERM_POWER_LEAF          0x06
-#define CPUID_06H_EAX_DTS_BIT          (1 << 0)            // EAX[0]  Digital Thermal Sensor
-#define CPUID_06H_EAX_PKG_THERM_BIT    (1 << 6)            // EAX[6]  Package thermal management
-#define CPUID_06H_ECX_MPERF_BIT        (1 << 0)            // ECX[0]  MPERF/APERF available
+#define CPUID_06H_EAX_DTS_BIT           (1 << 0)            // EAX[0]  Digital Thermal Sensor
+#define CPUID_06H_EAX_PKG_THERM_BIT     (1 << 6)            // EAX[6]  Package thermal management
+#define CPUID_06H_ECX_MPERF_BIT         (1 << 0)            // ECX[0]  MPERF/APERF available
 
 // CPUID leaf 0x01 (Processor Info)
 #define CPUID_01H_FAMILY                GENMASK(11, 8)      // EAX[11:8]  base family
@@ -94,24 +94,35 @@ extern WDFDEVICE      dev;
 
 /***************************************************
 *                  Delta State                     *
+*                                                  *
+*  Telemetry values like CPU load and power draw   *
+*  require two successive readings to compute a    *
+*  delta.  These structs hold the "previous"       *
+*  snapshot so the next IOCTL can derive a rate.    *
 ***************************************************/
 
+// Per-logical-processor state for MPERF/TSC-based load calculation.
+// C0 load % = delta_MPERF / delta_TSC between two reads.
 typedef struct _CORE_DELTA_STATE {
-    ULONGLONG       prev_mperf;
-    ULONGLONG       prev_tsc;
-    BOOLEAN         valid;
+    ULONGLONG       prev_mperf;     // last IA32_MPERF reading
+    ULONGLONG       prev_tsc;       // last RDTSC reading
+    BOOLEAN         valid;          // FALSE until the first sample is captured
 } CORE_DELTA_STATE;
 
+// Package-level state for RAPL energy-to-power conversion.
+// Power (mW) = delta_energy / delta_time, tracked independently for
+// the package domain (MSR_PKG_ENERGY_STATUS) and core domain (MSR_PP0_ENERGY_STATUS).
 typedef struct _PKG_DELTA_STATE {
-    ULONG           prev_pkg_energy;
-    LARGE_INTEGER   prev_pkg_qpc;
-    BOOLEAN         pkg_valid;
-    ULONG           prev_pp0_energy;
-    LARGE_INTEGER   prev_pp0_qpc;
-    BOOLEAN         pp0_valid;
-    ULONG           energy_unit_divisor;
+    ULONG           prev_pkg_energy;        // last PKG energy counter (raw 32-bit)
+    LARGE_INTEGER   prev_pkg_qpc;           // QPC timestamp paired with prev_pkg_energy
+    BOOLEAN         pkg_valid;              // FALSE until first PKG sample
+    ULONG           prev_pp0_energy;        // last PP0 energy counter (raw 32-bit)
+    LARGE_INTEGER   prev_pp0_qpc;           // QPC timestamp paired with prev_pp0_energy
+    BOOLEAN         pp0_valid;              // FALSE until first PP0 sample
+    ULONG           energy_unit_divisor;    // 2^ESU from MSR_RAPL_POWER_UNIT, converts raw counts to joules
 } PKG_DELTA_STATE;
 
+// WDF device context. currently only holds a file handle for the control device.
 typedef struct _CONTROL_DEVICE_EXTENSION {
     HANDLE fileHandle;
 } CONTROL_DEVICE_EXTENSION;

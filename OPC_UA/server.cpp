@@ -96,6 +96,7 @@ SystemInfoServer::SystemInfoServer() {
     server_.config().setAccessControl(std::make_unique<AccessControlCustom>(telemetry_clients_folder_));
 }
 
+// TODO - Improve this destructor
 SystemInfoServer::~SystemInfoServer() {
     if(cfg_attrs_.issuer_list) {
         free(cfg_attrs_.issuer_list);

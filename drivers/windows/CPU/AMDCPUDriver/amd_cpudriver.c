@@ -683,7 +683,7 @@ CPU_DATA retPackagePower(void) {
     }
 
     g_pkg_state.prev_pkg_energy = curr_energy;
-    g_pkg_state.prev_pkg_qpc   = curr_qpc;
+    g_pkg_state.prev_pkg_qpc    = curr_qpc;
     g_pkg_state.valid           = TRUE;
 
     return data;

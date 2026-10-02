@@ -8,15 +8,17 @@ UNICODE_STRING SYMLINK_NAME =
 
 WDFDEVICE dev = NULL;
 
-static BOOLEAN          g_has_mperf      = FALSE;
-static BOOLEAN          g_has_pkg_therm  = FALSE;
-static BOOLEAN          g_has_rapl       = FALSE;
-static ULONG            g_base_freq_mhz  = 0;
+// CPUID-detected feature flags. set once in DetectFeatures(), read-only afterwards.
+static BOOLEAN          g_has_mperf      = FALSE;   // TRUE if MPERF/APERF MSRs are available (load %)
+static BOOLEAN          g_has_pkg_therm  = FALSE;   // TRUE if package-level thermal MSR is supported
+static BOOLEAN          g_has_rapl       = FALSE;   // TRUE if RAPL energy counters are available (Sandy Bridge+)
+static ULONG            g_base_freq_mhz  = 0;       // max non-turbo frequency from IA32_PLATFORM_INFO
 
-static CORE_DELTA_STATE* g_core_state    = NULL;
-static PKG_DELTA_STATE   g_pkg_state     = { 0 };
-static ULONG             g_max_procs     = 0;
-static LARGE_INTEGER     g_qpc_freq      = { 0 };
+// Delta-tracking state. survives across IOCTL calls so each read can compute rates.
+static CORE_DELTA_STATE* g_core_state    = NULL;     // array[g_max_procs], one entry per logical core
+static PKG_DELTA_STATE   g_pkg_state     = { 0 };    // single instance for package + core-domain power
+static ULONG             g_max_procs     = 0;        // active logical processor count at driver load
+static LARGE_INTEGER     g_qpc_freq      = { 0 };    // QPC ticks-per-second, for RAPL time deltas
 
 //4d36e97d-e325-11ce-bfc1-08002be10318
 DEFINE_GUID(GUID_DEVINTERFACE_HWMONITOR,
@@ -65,16 +67,22 @@ NTSTATUS DriverEntry(
     WDF_DRIVER_CONFIG       config;
     WDF_OBJECT_ATTRIBUTES   attributes;
 
+    // Probe CPUID to populate g_has_mperf / g_has_pkg_therm / g_has_rapl / g_base_freq_mhz.
     DetectFeatures();
 
+    // Capture QPC frequency for converting QPC deltas to wall-clock time in RAPL power calc.
     KeQueryPerformanceCounter(&g_qpc_freq);
 
+    // Pre-compute the RAPL energy unit divisor so per-IOCTL reads avoid the MSR lookup.
+    // ESU field encodes a power-of-2 divisor: raw_energy / (2^ESU) = joules.
     if (g_has_rapl) {
         ULONGLONG rapl_unit = __readmsr(MSR_RAPL_POWER_UNIT);
         ULONG energy_unit_shift = (ULONG)((rapl_unit & RAPL_UNIT_ESU) >> 8);
         g_pkg_state.energy_unit_divisor = 1U << energy_unit_shift;
     }
 
+    // Allocate per-core delta state for MPERF/TSC-based load tracking.
+    // Non-paged because the IOCTL handler may touch it at DISPATCH_LEVEL.
     g_max_procs = KeQueryActiveProcessorCountEx(ALL_PROCESSOR_GROUPS);
     if (g_has_mperf) {
         g_core_state = (CORE_DELTA_STATE*)ExAllocatePool2(
@@ -123,6 +131,7 @@ VOID EvtDriverUnload(_In_ WDFDRIVER driver) {
     UNREFERENCED_PARAMETER(driver);
 
     KdPrint(("Unloading KMDF Driver...\n"));
+    // Free the per-core delta state array allocated in DriverEntry.
     if (g_core_state) {
         ExFreePoolWithTag(g_core_state, 'CPUD');
         g_core_state = NULL;
@@ -452,7 +461,7 @@ CPU_DATA retCoreVID(ULONG cpu_idx) {
     data.unit   = (USHORT)UNIT_MILLIVOLTS;
     BuildCoreName(data.name, sizeof(data.name), cpu_idx, "VID");
 
-    // Intel SDM Vol4: MSR_PERF_STATUS[47:32] = core voltage VID
+    // Intel sdm vol4: MSR_PERF_STATUS[47:32] core voltage VID
     // Voltage (V) = VID / 8192.  Store as millivolts with rounding.
     ULONGLONG perf_status = __readmsr(MSR_PERF_STATUS);
     ULONG vid_bits = (ULONG)((perf_status & PERF_STATUS_VID) >> 32);
@@ -590,6 +599,7 @@ CPU_DATA retPackagePower(void) {
         g_pkg_state.pkg_valid
     );
 
+    // Stash current reading so the next IOCTL can compute a delta.
     g_pkg_state.prev_pkg_energy = curr_energy;
     g_pkg_state.prev_pkg_qpc   = curr_qpc;
     g_pkg_state.pkg_valid       = TRUE;
@@ -614,8 +624,9 @@ CPU_DATA retCoreDomainPower(void) {
         g_pkg_state.pp0_valid
     );
 
+    // Stash current reading so the next IOCTL can compute a delta.
     g_pkg_state.prev_pp0_energy = curr_energy;
-    g_pkg_state.prev_pp0_qpc   = curr_qpc;
+    g_pkg_state.prev_pp0_qpc    = curr_qpc;
     g_pkg_state.pp0_valid       = TRUE;
 
     return data;
